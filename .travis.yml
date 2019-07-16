@@ -6,7 +6,7 @@ python:
   - "3.6"
 
 install:
-  # - travis_wait pip install .
+  - pip install --upgrade pip
   - pip install .[test]
 
 script: pytest tests/
