@@ -40,6 +40,8 @@ setup(
         'pandas >= 0.17.1', 'simplejson >= 3.8.1', 'matplotlib >= 2.0.0',
         'pyannote-core >=3.0'
     ],
+    extras_require={'test': ['pytest']},
+
     # # versioneer
     # version=versioneer.get_version(),
     # cmdclass=versioneer.get_cmdclass(),
