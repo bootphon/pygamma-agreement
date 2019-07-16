@@ -24,9 +24,9 @@
 # SOFTWARE.
 
 # AUTHORS
-# Hervé BREDIN - http://herve.niderb.fr
+# Rachid RIAD
 
-import versioneer
+# import versioneer
 
 from setuptools import setup, find_packages
 
@@ -40,9 +40,10 @@ setup(
         'pandas >= 0.17.1', 'simplejson >= 3.8.1', 'matplotlib >= 2.0.0',
         'pyannote-core >=3.0'
     ],
-    # versioneer
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    # # versioneer
+    # version=versioneer.get_version(),
+    # cmdclass=versioneer.get_cmdclass(),
+    version='0.0.1',
 
     # PyPI
     name='pygamma',
