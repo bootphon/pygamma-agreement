@@ -9,7 +9,8 @@ install:
   - pip install --upgrade pip
   - pip install .[test]
 
-# script: pytest tests/
+script:
+    - echo "skipping tests"
 
 notifications:
   email: false
