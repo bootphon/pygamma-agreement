@@ -9,7 +9,7 @@ install:
   - pip install --upgrade pip
   - pip install .[test]
 
-script: pytest tests/
+# script: pytest tests/
 
 notifications:
   email: false
