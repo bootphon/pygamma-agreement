@@ -100,14 +100,14 @@ class Continuum(object):
         ... else:
         ...    # continuum is not empty
         """
-        if len(self._annotators) > 0:
-            return 0
-        else:
-            return 0
+        num_units = 0
+        for annotator in self._annotators:
+            num_units += len(self[annotator])
+        return num_units
 
     @property
     def avg_num_annotations_per_annotator(self):
-        return len(self._annotators_num_units) / len(self)
+        return self.num_units / len(self)
 
     def __setitem__(self, annotator, annotation):
         """Add new or update existing Annotation
@@ -134,7 +134,7 @@ class Continuum(object):
 
         return self._annotators[annotator]
 
-    def iterannotator(self):
+    def iterannotators(self):
         """Iterate over segments (in chronological order)
         >>> for segment in annotation.itersegments():
         ...     # do something with the segment
