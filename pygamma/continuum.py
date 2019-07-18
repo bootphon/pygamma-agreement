@@ -35,6 +35,8 @@ Annotation
 import itertools
 import numpy as np
 
+from sortedcontainers import SortedDict
+
 from pyannote.core import Segment, Timeline, Annotation
 
 
