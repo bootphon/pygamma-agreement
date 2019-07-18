@@ -66,6 +66,9 @@ class Continuum(object):
         # values: {annotator: annotations} dictionary
         self._annotators = SortedDict()
 
+        # values: {annotator: num_units} dictionary
+        self._annotators_num_units = SortedDict()
+
         # timeline meant to store all annotated segments
         self._timeline = None
         self._timelineNeedsUpdate = True
@@ -83,13 +86,55 @@ class Continuum(object):
     def __bool__(self):
         """Emptiness
         >>> if continuum:
+        ...    # continuum is not empty
+        ... else:
+        ...    # continuum is empty
+        """
+        return len(self._annotators) > 0
+
+    @property
+    def num_units(self):
+        """Emptiness
+        >>> if continuum:
         ...    # continuum is empty
         ... else:
         ...    # continuum is not empty
         """
-        return len(self._annotators) > 0
+        if len(self._annotators) > 0:
+            return 0
+        else:
+            return 0
 
-    def itersegments(self):
+    @property
+    def avg_num_annotations_per_annotator(self):
+        return len(self._annotators_num_units) / len(self)
+
+    def __setitem__(self, annotator, annotation):
+        """Add new or update existing Annotation
+        >>> continuum[Annotator] = Annotation
+        If Annotator does not exist, it is added.
+        If Annotator already exists, it is updated.
+        Note
+        ----
+        If `Annotation` is empty, it does nothing.
+        """
+
+        # do not add empty annotation
+        if not annotation:
+            return
+
+        self._annotators[annotator] = annotation
+        self._annotators_num_units[annotator] = len(annotation)
+
+    # annotation = continuum[annotator]
+    def __getitem__(self, annotator):
+        """Get annotation object
+        >>> annotation = continuum[annotator]
+        """
+
+        return self._annotators[annotator]
+
+    def iterannotator(self):
         """Iterate over segments (in chronological order)
         >>> for segment in annotation.itersegments():
         ...     # do something with the segment
