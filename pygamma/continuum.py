@@ -136,10 +136,7 @@ class Continuum(object):
 
     def iterannotators(self):
         """Iterate over segments (in chronological order)
-        >>> for segment in annotation.itersegments():
-        ...     # do something with the segment
-        See also
-        --------
-        :class:`pyannote.core.Segment` describes how segments are sorted.
+        >>> for segment in annotation.iterannotators():
+        ...     # do something with the annotator
         """
         return iter(self._annotators)

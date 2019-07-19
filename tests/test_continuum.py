@@ -29,3 +29,4 @@ def test_continuum_init():
     assert continuum.num_units == 9
     assert continuum['pierrot'] == annotation
     assert continuum.avg_num_annotations_per_annotator == 4.5
+    assert list(continuum.iterannotators) == ['liza', 'pierrot']
