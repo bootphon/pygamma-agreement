@@ -32,6 +32,9 @@ Dissimilarity
 
 """
 
+import numpy as np
+from matplotlib import pyplot as plt
+
 
 class Categorical_Dissimilarity(object):
     """Dissimilarity
@@ -59,17 +62,29 @@ class Categorical_Dissimilarity(object):
         super(Categorical_Dissimilarity, self).__init__()
         self.annotation_task = annotation_task
         self.list_categories = list_categories
+        assert len(list_categories) == len(set(list_categories))
         self.num_categories = len(self.list_categories)
+        self.dict_list_categories = dictionary = dict(
+            zip(self.list_categories, list(range(self.num_categories))))
         self.categorical_dissimlarity_matrix = categorical_dissimlarity_matrix
         if self.categorical_dissimlarity_matrix is None:
             self.categorical_dissimlarity_matrix = np.ones(
                 (self.num_categories, self.num_categories)) - np.eye(
                     self.num_categories)
+        else:
+            assert type(self.categorical_dissimlarity_matrix) == np.ndarray
+            assert np.all(self.categorical_dissimlarity_matrix <= 1)
+            assert np.all(0 <= self.categorical_dissimlarity_matrix)
+            assert np.all(self.categorical_dissimlarity_matrix ==
+                          categorical_dissimlarity_matrix.T)
+        self.function_cat = function_cat
+        self.DELTA_EMPTY = DELTA_EMPTY
 
-    def plot_categorical_dissimlarity_matrix(self):
+    def plot_categorical_dissimilarity_matrix(self):
         fig, ax = plt.subplots()
         im = plt.imshow(
-            cat, extent=[0, self.num_categories, 0, self.num_categories])
+            self.categorical_dissimlarity_matrix,
+            extent=[0, self.num_categories, 0, self.num_categories])
         ax.figure.colorbar(im, ax=ax)
         plt.xticks([el + 0.5 for el in range(self.num_categories)],
                    self.list_categories)
@@ -81,6 +96,19 @@ class Categorical_Dissimilarity(object):
             ha="right",
             rotation_mode="anchor")
         plt.show()
+
+    def __getitem__(self, units):
+        assert type(units) == list
+        if len(units) < 2:
+            return self.DELTA_EMPTY
+        else:
+            assert units[0] in self.list_categories
+            assert units[1] in self.list_categories
+            return self.function_cat(
+                self.
+                categorical_dissimlarity_matrix[self.
+                                                dict_list_categories[units[0]]]
+                [self.dict_list_categories[units[1]]]) * self.DELTA_EMPTY
 
 
 class Combined_Dissimilarity(object):
