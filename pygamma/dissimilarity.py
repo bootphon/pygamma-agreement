@@ -42,10 +42,12 @@ class Categorical_Dissimilarity(object):
     ----------
     annotation_task :
         task to be annotated
-    num_categories :
-        number of categories
+    list_categories :
+        list of categories
     categorical_dissimlarity_matrix :
         Dissimilarity matrix to compute
+    DELTA_EMPTY :
+        empty dissimilarity value
     function_cat :
         Function to adjust dissimilarity based on categorical matrix values
     Returns
@@ -119,25 +121,31 @@ class Positional_Dissimilarity(object):
     ----------
     annotation_task :
         task to be annotated
+    DELTA_EMPTY :
+        empty dissimilarity value
+    function_distance :
+        position function difference
     Returns
     -------
     dissimilarity : Dissimilarity
         Dissimilarity
     """
 
-    def __init__(self, annotation_task, DELTA_EMPTY=1, f_dis=None):
+    def __init__(self, annotation_task, DELTA_EMPTY=1, function_distance=None):
 
         super(Positional_Dissimilarity, self).__init__()
         self.annotation_task = annotation_task
         self.DELTA_EMPTY = DELTA_EMPTY
-        self.f_dis = f_dis
+        self.function_distance = function_distance
 
     def __getitem__(self, units):
         assert type(units) == list
         if len(units) < 2:
             return self.DELTA_EMPTY
         else:
-            if self.f_dis is None:
+            if self.function_distance is None:
+                # triple indexing to tracks in pyannote
+                # DANGER if the api breaks
                 distance_pos = (np.abs(units[0][0][0] - units[1][0][0]) +
                                 np.abs(units[0][0][1] - units[1][0][1]))
                 distance_pos /= (units[0][0][1] - units[0][0][0] +
@@ -147,12 +155,73 @@ class Positional_Dissimilarity(object):
 
 
 class Combined_Dissimilarity(object):
-    """Dissimilarity
+    """Combined Dissimilarity
     Parameters
     ----------
-    categorical_dissimlarity : Dissimilarity function to use between units
+    annotation_task :
+        task to be annotated
+    num_categories :
+        number of categories
+    categorical_dissimlarity_matrix :
+        Dissimilarity matrix to compute
+    function_cat :
+        Function to adjust dissimilarity based on categorical matrix values
+    DELTA_EMPTY :
+        empty dissimilarity value
+    f_dis :
+        position function difference
     Returns
     -------
     dissimilarity : Dissimilarity
         Dissimilarity
     """
+
+    def __init__(self,
+                 annotation_task,
+                 list_categories,
+                 alpha=1,
+                 beta=1,
+                 DELTA_EMPTY=1,
+                 function_distance=None,
+                 categorical_dissimlarity_matrix=None,
+                 function_cat=lambda x: x):
+
+        super(Combined_Dissimilarity, self).__init__()
+        self.annotation_task = annotation_task
+        self.function_distance = function_distance
+        self.annotation_task = annotation_task
+        self.list_categories = list_categories
+        self.num_categories = len(self.list_categories)
+
+        self.alpha = alpha
+        self.beta = beta
+
+        self.dict_list_categories = dictionary = dict(
+            zip(self.list_categories, list(range(self.num_categories))))
+        self.categorical_dissimlarity_matrix = categorical_dissimlarity_matrix
+
+        self.function_cat = function_cat
+        self.function_distance = function_distance
+        self.DELTA_EMPTY = DELTA_EMPTY
+
+        self.positional_dissimilarity = Positional_Dissimilarity(
+            annotation_task=annotation_task,
+            DELTA_EMPTY=DELTA_EMPTY,
+            function_distance=function_distance)
+
+        self.categorical_dissimlarity = Categorical_Dissimilarity(
+            annotation_task=annotation_task,
+            list_categories=list_categories,
+            categorical_dissimlarity_matrix=categorical_dissimlarity_matrix,
+            DELTA_EMPTY=DELTA_EMPTY,
+            function_cat=function_cat)
+
+    def __getitem__(self, units):
+        timing_units, categorical_units = units
+        assert len(timing_units) == len(categorical_units)
+        if len(timing_units) < 2:
+            return self.DELTA_EMPTY
+        else:
+            dis = self.alpha * self.positional_dissimilarity[timing_units]
+            dis += self.beta * self.categorical_dissimlarity[categorical_units]
+            return dis
