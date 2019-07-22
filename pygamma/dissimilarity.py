@@ -37,7 +37,7 @@ from matplotlib import pyplot as plt
 
 
 class Categorical_Dissimilarity(object):
-    """Dissimilarity
+    """Categorical Dissimilarity
     Parameters
     ----------
     annotation_task :
@@ -46,6 +46,8 @@ class Categorical_Dissimilarity(object):
         number of categories
     categorical_dissimlarity_matrix :
         Dissimilarity matrix to compute
+    function_cat :
+        Function to adjust dissimilarity based on categorical matrix values
     Returns
     -------
     dissimilarity : Dissimilarity
@@ -109,6 +111,39 @@ class Categorical_Dissimilarity(object):
                 categorical_dissimlarity_matrix[self.
                                                 dict_list_categories[units[0]]]
                 [self.dict_list_categories[units[1]]]) * self.DELTA_EMPTY
+
+
+class Positional_Dissimilarity(object):
+    """Positional Dissimilarity
+    Parameters
+    ----------
+    annotation_task :
+        task to be annotated
+    Returns
+    -------
+    dissimilarity : Dissimilarity
+        Dissimilarity
+    """
+
+    def __init__(self, annotation_task, DELTA_EMPTY=1, f_dis=None):
+
+        super(Positional_Dissimilarity, self).__init__()
+        self.annotation_task = annotation_task
+        self.DELTA_EMPTY = DELTA_EMPTY
+        self.f_dis = f_dis
+
+    def __getitem__(self, units):
+        assert type(units) == list
+        if len(units) < 2:
+            return self.DELTA_EMPTY
+        else:
+            if self.f_dis is None:
+                distance_pos = (np.abs(units[0][0][0] - units[1][0][0]) +
+                                np.abs(units[0][0][1] - units[1][0][1]))
+                distance_pos /= (units[0][0][1] - units[0][0][0] +
+                                 units[1][0][1] - units[1][0][0])
+                distance_pos = distance_pos * distance_pos * self.DELTA_EMPTY
+                return distance_pos
 
 
 class Combined_Dissimilarity(object):
