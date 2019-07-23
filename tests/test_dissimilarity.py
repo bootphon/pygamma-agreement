@@ -61,8 +61,8 @@ def test_positional_dissimilarity():
     pos_dis = Positional_Dissimilarity('diarization', DELTA_EMPTY=0.5)
 
     list_dis = []
-    for liza_unit in continuum['liza'].itertracks():
-        for pierrot_unit in continuum['pierrot'].itertracks():
+    for liza_unit in continuum['liza'].itersegments():
+        for pierrot_unit in continuum['pierrot'].itersegments():
             list_dis.append(pos_dis[[liza_unit, pierrot_unit]])
     assert list_dis == [
         0.03125, 1.62, 0.78125, 2.0, 2.88, 0.5, 0.05555555555555555,
@@ -108,8 +108,8 @@ def test_combi_dissimilarity():
         DELTA_EMPTY=0.5)
 
     list_dis = []
-    for liza_unit in continuum['liza'].itertracks():
-        for pierrot_unit in continuum['pierrot'].itertracks():
+    for liza_unit in continuum['liza'].itersegments():
+        for pierrot_unit in continuum['pierrot'].itersegments():
             list_dis.append(combi_dis[[liza_unit, pierrot_unit], [
                 continuum['liza'][liza_unit], continuum['pierrot'][
                     pierrot_unit]

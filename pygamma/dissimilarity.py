@@ -146,10 +146,10 @@ class Positional_Dissimilarity(object):
             if self.function_distance is None:
                 # triple indexing to tracks in pyannote
                 # DANGER if the api breaks
-                distance_pos = (np.abs(units[0][0][0] - units[1][0][0]) +
-                                np.abs(units[0][0][1] - units[1][0][1]))
-                distance_pos /= (units[0][0][1] - units[0][0][0] +
-                                 units[1][0][1] - units[1][0][0])
+                distance_pos = (np.abs(units[0][0] - units[1][0]) +
+                                np.abs(units[0][1] - units[1][1]))
+                distance_pos /= (units[0][1] - units[0][0] +
+                                 units[1][1] - units[1][0])
                 distance_pos = distance_pos * distance_pos * self.DELTA_EMPTY
                 return distance_pos
 
