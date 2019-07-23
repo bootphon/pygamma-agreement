@@ -38,6 +38,22 @@ from scipy.special import binom
 from matplotlib import pyplot as plt
 
 
+class Error(Exception):
+    """Base class for exceptions in this module."""
+    pass
+
+
+class SetPartitionError(Error):
+    """Exception raised for errors in the partition of units of continuum.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message):
+        self.message = message
+
+
 class Unitary_Alignement(object):
     """Unitary Alignement
     Parameters
@@ -87,4 +103,58 @@ class Unitary_Alignement(object):
                             annotator_v][unit_v]
                     ]]
         disorder /= binom(len(self.n_tuple), 2)
+        return disorder
+
+
+class Alignement(object):
+    """Alignement
+    Parameters
+    ----------
+    continuum :
+        Continuum where the unitary alignement is from
+    set_unitary_alignements :
+        set of unitary alignements that make a partition of the set of
+        units/segments
+    combined_dissimilarity :
+        combined_dissimilarity
+    """
+
+    def __init__(
+            self,
+            continuum,
+            set_unitary_alignements,
+            combined_dissimilarity,
+    ):
+
+        super(Alignement, self).__init__()
+        self.continuum = continuum
+        self.set_unitary_alignements = set_unitary_alignements
+        self.combined_dissimilarity = combined_dissimilarity
+
+        # set partition tests for the unitary alignements
+        for annotator in self.continuum.iterannotators():
+            for unit in self.continuum[annotator].itersegments():
+                found = 0
+                for unitary_alignement in self.set_unitary_alignements:
+                    if [annotator, unit] in unitary_alignement.n_tuple:
+                        found += 1
+                if found == 0:
+                    raise SetPartitionError(
+                        '{} {} not in the set of unitary alignements'.format(
+                            annotator, unit))
+                elif found > 1:
+                    raise SetPartitionError('{} {} assigned twice'.format(
+                        annotator, unit))
+
+    @property
+    def disorder(self):
+        """Compute the disorder for the unitary alignement
+        >>> unitary_alignement.compute_disorder() = ...
+        Based on formula (6) of the original paper
+        Note:
+        unit is the equivalent of segment in pyannote
+        """
+        disorder = 0.0
+        for unitary_alignement in self.set_unitary_alignements:
+            disorder += unitary_alignement.disorder
         return disorder
