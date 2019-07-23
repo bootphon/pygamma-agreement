@@ -73,8 +73,8 @@ class Unitary_Alignement(object):
         unit is the equivalent of segment in pyannote
         """
         disorder = 0.0
-        for (annotator_u, unit_u) in self.n_tuple:
-            for (annotator_v, unit_v) in self.n_tuple:
+        for idx, (annotator_u, unit_u) in enumerate(self.n_tuple):
+            for (annotator_v, unit_v) in self.n_tuple[idx + 1:]:
                 if unit_u is None:
                     disorder += self.combined_dissimilarity[
                         [unit_v], [self.continuum[annotator_v][unit_v]]]
