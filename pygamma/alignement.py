@@ -38,6 +38,8 @@ from scipy.special import binom
 from matplotlib import pyplot as plt
 from itertools import product
 
+import cvxpy as cp
+
 
 class Error(Exception):
     """Base class for exceptions in this module."""
@@ -92,7 +94,9 @@ class Unitary_Alignement(object):
         disorder = 0.0
         for idx, (annotator_u, unit_u) in enumerate(self.n_tuple):
             for (annotator_v, unit_v) in self.n_tuple[idx + 1:]:
-                if unit_u is None:
+                if unit_u is None and unit_v is None:
+                    return self.combined_dissimilarity.DELTA_EMPTY
+                elif unit_u is None:
                     disorder += self.combined_dissimilarity[
                         [unit_v], [self.continuum[annotator_v][unit_v]]]
                 elif unit_v is None:
@@ -177,32 +181,33 @@ class Best_Alignement(object):
             combined_dissimilarity,
     ):
 
-        super(Alignement, self).__init__()
+        super(Best_Alignement, self).__init__()
         self.continuum = continuum
-        self.set_unitary_alignements = self.get_unitary_alignements_best()
+        # self.set_unitary_alignements = self.get_unitary_alignements_best()
         self.combined_dissimilarity = combined_dissimilarity
 
         # set partition tests for the unitary alignements
-        for annotator in self.continuum.iterannotators():
-            for unit in self.continuum[annotator].itersegments():
-                found = 0
-                for unitary_alignement in self.set_unitary_alignements:
-                    if [annotator, unit] in unitary_alignement.n_tuple:
-                        found += 1
-                if found == 0:
-                    raise SetPartitionError(
-                        '{} {} not in the set of unitary alignements'.format(
-                            annotator, unit))
-                elif found > 1:
-                    raise SetPartitionError('{} {} assigned twice'.format(
-                        annotator, unit))
+        # for annotator in self.continuum.iterannotators():
+        #     for unit in self.continuum[annotator].itersegments():
+        #         found = 0
+        #         for unitary_alignement in self.set_unitary_alignements:
+        #             if [annotator, unit] in unitary_alignement.n_tuple:
+        #                 found += 1
+        #         if found == 0:
+        #             raise SetPartitionError(
+        #                 '{} {} not in the set of unitary alignements'.format(
+        #                     annotator, unit))
+        #         elif found > 1:
+        #             raise SetPartitionError('{} {} assigned twice'.format(
+        #                 annotator, unit))
 
     def get_unitary_alignements_best(self):
         set_of_possible_segments = []
-        for annotator in continuum.iterannotators():
+        for annotator in self.continuum.iterannotators():
             set_of_possible_segments.append(
-                [[el, annotator]
-                 for el in list(continuum[annotator].itersegments()) + [None]])
+                [[annotator, el]
+                 for el in list(self.continuum[annotator].itersegments()) +
+                 [None]])
 
         set_of_possible_tuples = list(product(*set_of_possible_segments))
         # Property section 5.1.1 to reduce initial complexity
@@ -215,7 +220,31 @@ class Best_Alignement(object):
             disorder = unitary_alignement.disorder
             if disorder < self.combined_dissimilarity.DELTA_EMPTY:
                 set_of_possible_unitary_alignements.append(unitary_alignement)
-        return set_of_possible_unitary_alignements
+
+        # Definition of the integer linear program
+        num_possible_unitary_alignements = len(
+            set_of_possible_unitary_alignements)
+        x = cp.Variable(shape=num_possible_unitary_alignements, boolean=True)
+        d = np.array([
+            unitary_alignement.disorder
+            for unitary_alignement in set_of_possible_unitary_alignements
+        ])
+        obj = cp.Minimize(d.T * x)
+
+        # Constraints matrix
+        A = np.zeros((self.continuum.num_units,
+                      num_possible_unitary_alignements))
+
+        curr_idx = 0
+        # fill unitary alignements matching with units
+        for annotator in self.continuum.iterannotators():
+            for unit in list(self.continuum[annotator].itersegments()):
+                for idx_ua, unitary_alignement in enumerate(
+                        set_of_possible_unitary_alignements):
+                    if [annotator, unit] in unitary_alignement.n_tuple:
+                        A[curr_idx][idx_ua] = 1
+                curr_idx += 1
+        return A, obj, d, x
 
     @property
     def disorder(self):

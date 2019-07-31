@@ -18,3 +18,4 @@ dependencies:
     - h5py>=2.3.0
     - pyannote-core >=3.0
     - jupyter
+    - cvxpy
