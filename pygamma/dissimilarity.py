@@ -35,6 +35,10 @@ Dissimilarity
 import numpy as np
 from matplotlib import pyplot as plt
 
+from similarity.weighted_levenshtein import WeightedLevenshtein
+from similarity.weighted_levenshtein import CharacterSubstitutionInterface
+from similarity.weighted_levenshtein import CharacterInsDelInterface
+
 
 class Categorical_Dissimilarity(object):
     """Categorical Dissimilarity
@@ -93,12 +97,13 @@ class Categorical_Dissimilarity(object):
         plt.xticks([el + 0.5 for el in range(self.num_categories)],
                    self.list_categories)
         plt.yticks([el + 0.5 for el in range(self.num_categories)],
-                   self.list_categories)
+                   self.list_categories[::-1])
         plt.setp(
             ax.get_xticklabels(),
             rotation=45,
             ha="right",
             rotation_mode="anchor")
+        ax.xaxis.set_ticks_position('top')
         plt.show()
 
     def __getitem__(self, units):
@@ -113,6 +118,107 @@ class Categorical_Dissimilarity(object):
                 categorical_dissimlarity_matrix[self.
                                                 dict_list_categories[units[0]]]
                 [self.dict_list_categories[units[1]]]) * self.DELTA_EMPTY
+
+
+class Sequence_Dissimilarity(object):
+    """Sequence Dissimilarity
+    Parameters
+    ----------
+    annotation_task :
+        task to be annotated
+    list_admitted_symbols :
+        list of admitted symbols in the sequence
+    categorical_symbol_dissimlarity_matrix :
+        Dissimilarity matrix to compute between symbols
+    DELTA_EMPTY :
+        empty dissimilarity value
+    function_cat :
+        Function to adjust dissimilarity based on categorical matrix values
+    Returns
+    -------
+    dissimilarity : Dissimilarity
+        Dissimilarity
+    """
+
+    def __init__(self,
+                 annotation_task,
+                 list_admitted_symbols,
+                 symbol_dissimlarity_matrix=None,
+                 DELTA_EMPTY=1,
+                 function_cat=lambda x: x):
+
+        super(Sequence_Dissimilarity, self).__init__()
+        self.annotation_task = annotation_task
+        self.list_admitted_symbols = list_admitted_symbols
+        assert len(list_admitted_symbols) == len(set(list_admitted_symbols))
+        self.num_symbols = len(self.list_admitted_symbols)
+        self.dict_list_symbols = dictionary = dict(
+            zip(self.list_admitted_symbols, list(range(self.num_symbols))))
+        self.symbol_dissimlarity_matrix = symbol_dissimlarity_matrix
+        if self.symbol_dissimlarity_matrix is None:
+            self.symbol_dissimlarity_matrix = np.ones(
+                (self.num_symbols, self.num_symbols)) - np.eye(
+                    self.num_symbols)
+        else:
+            assert type(self.symbol_dissimlarity_matrix) == np.ndarray
+            assert np.all(self.symbol_dissimlarity_matrix <= 1)
+            assert np.all(0 <= self.symbol_dissimlarity_matrix)
+            assert np.all(self.symbol_dissimlarity_matrix ==
+                          symbol_dissimlarity_matrix.T)
+        self.function_cat = function_cat
+        self.DELTA_EMPTY = DELTA_EMPTY
+
+    def plot_symbol_dissimilarity_matrix(self):
+        fig, ax = plt.subplots()
+        im = plt.imshow(
+            self.symbol_dissimlarity_matrix,
+            extent=[0, self.num_symbols, 0, self.num_symbols])
+        ax.figure.colorbar(im, ax=ax)
+        plt.xticks([el + 0.5 for el in range(self.num_symbols)],
+                   self.list_admitted_symbols)
+        plt.yticks([el + 0.5 for el in range(self.num_symbols)],
+                   self.list_admitted_symbols[::-1])
+        plt.setp(
+            ax.get_xticklabels(),
+            rotation=45,
+            ha="right",
+            rotation_mode="anchor")
+        ax.xaxis.set_ticks_position('top')
+        plt.show()
+
+    # str1 = ('a','c','a','c')
+    # str2  = ('a','c','b','c')
+
+    def __getitem__(self, units):
+        class CharacterSubstitution(CharacterSubstitutionInterface):
+            def __init__(self, list_admitted_symbols, dict_list_symbols,
+                         symbol_dissimlarity_matrix):
+
+                super(CharacterSubstitution, self).__init__()
+                self.list_admitted_symbols = list_admitted_symbols
+                self.dict_list_symbols = dict_list_symbols
+                self.symbol_dissimlarity_matrix = symbol_dissimlarity_matrix
+
+            def cost(self, c0, c1):
+                return self.symbol_dissimlarity_matrix[self.dict_list_symbols[
+                    c0]][self.dict_list_symbols[c1]]
+
+        weighted_levenshtein = WeightedLevenshtein(
+            CharacterSubstitution(self.list_admitted_symbols,
+                                  self.dict_list_symbols,
+                                  self.symbol_dissimlarity_matrix))
+
+        assert type(units) == list
+        if len(units) < 2:
+            return self.DELTA_EMPTY
+        else:
+            for symbol in units[0]:
+                assert symbol in self.list_admitted_symbols
+            for symbol in units[1]:
+                assert symbol in self.list_admitted_symbols
+            return self.function_cat(
+                weighted_levenshtein.distance(units[0], units[1]) / max(
+                    len(units[0]), len(units[1]))) * self.DELTA_EMPTY
 
 
 class Positional_Dissimilarity(object):
@@ -148,8 +254,8 @@ class Positional_Dissimilarity(object):
                 # DANGER if the api breaks
                 distance_pos = (np.abs(units[0][0] - units[1][0]) +
                                 np.abs(units[0][1] - units[1][1]))
-                distance_pos /= (units[0][1] - units[0][0] +
-                                 units[1][1] - units[1][0])
+                distance_pos /= (
+                    units[0][1] - units[0][0] + units[1][1] - units[1][0])
                 distance_pos = distance_pos * distance_pos * self.DELTA_EMPTY
                 return distance_pos
 
