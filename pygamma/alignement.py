@@ -252,7 +252,7 @@ class Best_Alignement(object):
         optimal_disorder = prob.solve()
         set_unitary_alignements = []
 
-        # compare with 0.9 as cvxpy returns 1.000 or very small values 10e-14
+        # compare with 0.9 as cvxpy returns 1.000 or small values 10e-14
         for idx, choosen_unitary_alignement in enumerate(list(x.value > 0.9)):
             if choosen_unitary_alignement:
                 set_unitary_alignements.append(

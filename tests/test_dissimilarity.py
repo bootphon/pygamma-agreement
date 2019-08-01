@@ -64,12 +64,12 @@ def test_positional_dissimilarity():
     for liza_unit in continuum['liza'].itersegments():
         for pierrot_unit in continuum['pierrot'].itersegments():
             list_dis.append(pos_dis[[liza_unit, pierrot_unit]])
-    assert list_dis == [
+    assert list_dis == pytest.approx([
         0.03125, 1.62, 0.78125, 2.0, 2.88, 0.5, 0.05555555555555555,
         0.36734693877551017, 0.5, 2.0, 0.6245674740484429, 0.36734693877551017,
         0.0008, 0.26888888888888884, 0.06786703601108032, 2.4200000000000004,
         2.2959183673469385, 0.05555555555555555, 1.125, 0.0
-    ]
+    ], 0.001)
     assert pos_dis[[liza_unit,
                     pierrot_unit]] == pos_dis[[pierrot_unit, liza_unit]]
     assert pos_dis[[liza_unit, liza_unit]] == 0
@@ -114,12 +114,12 @@ def test_combi_dissimilarity():
                 continuum['liza'][liza_unit], continuum['pierrot'][
                     pierrot_unit]
             ]])
-    assert list_dis == [
+    assert list_dis == pytest.approx([
         0.03125, 1.87, 1.13125, 2.15, 3.03, 0.75, 0.05555555555555555,
         0.5673469387755101, 0.8, 2.3, 0.774567474048443, 0.6673469387755102,
         0.3508, 0.26888888888888884, 0.06786703601108032, 2.4200000000000004,
         2.5459183673469385, 0.40555555555555556, 1.275, 0.15
-    ]
+    ], 0.001)
     assert combi_dis[[liza_unit, pierrot_unit], [
         continuum['liza'][liza_unit], continuum['pierrot'][pierrot_unit]
     ]] == combi_dis[[pierrot_unit, liza_unit], [
