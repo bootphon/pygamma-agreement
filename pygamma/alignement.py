@@ -183,23 +183,24 @@ class Best_Alignement(object):
 
         super(Best_Alignement, self).__init__()
         self.continuum = continuum
-        # self.set_unitary_alignements = self.get_unitary_alignements_best()
         self.combined_dissimilarity = combined_dissimilarity
 
+        self.set_unitary_alignements = self.get_unitary_alignements_best()
+
         # set partition tests for the unitary alignements
-        # for annotator in self.continuum.iterannotators():
-        #     for unit in self.continuum[annotator].itersegments():
-        #         found = 0
-        #         for unitary_alignement in self.set_unitary_alignements:
-        #             if [annotator, unit] in unitary_alignement.n_tuple:
-        #                 found += 1
-        #         if found == 0:
-        #             raise SetPartitionError(
-        #                 '{} {} not in the set of unitary alignements'.format(
-        #                     annotator, unit))
-        #         elif found > 1:
-        #             raise SetPartitionError('{} {} assigned twice'.format(
-        #                 annotator, unit))
+        for annotator in self.continuum.iterannotators():
+            for unit in self.continuum[annotator].itersegments():
+                found = 0
+                for unitary_alignement in self.set_unitary_alignements:
+                    if [annotator, unit] in unitary_alignement.n_tuple:
+                        found += 1
+                if found == 0:
+                    raise SetPartitionError(
+                        '{} {} not in the set of unitary alignements'.format(
+                            annotator, unit))
+                elif found > 1:
+                    raise SetPartitionError('{} {} assigned twice'.format(
+                        annotator, unit))
 
     def get_unitary_alignements_best(self):
         set_of_possible_segments = []
@@ -244,7 +245,19 @@ class Best_Alignement(object):
                     if [annotator, unit] in unitary_alignement.n_tuple:
                         A[curr_idx][idx_ua] = 1
                 curr_idx += 1
-        return A, obj, d, x
+        obj = cp.Minimize(d.T * x)
+        constraints = [cp.matmul(A, x) == 1]
+        prob = cp.Problem(obj, constraints)
+
+        optimal_disorder = prob.solve()
+        set_unitary_alignements = []
+
+        # compare with 0.9 as cvxpy returns 1.000 or very small values 10e-14
+        for idx, choosen_unitary_alignement in enumerate(list(x.value > 0.9)):
+            if choosen_unitary_alignement:
+                set_unitary_alignements.append(
+                    set_of_possible_unitary_alignements[idx])
+        return set_unitary_alignements
 
     @property
     def disorder(self):
