@@ -162,7 +162,7 @@ class Alignement(object):
         disorder = 0.0
         for unitary_alignement in self.set_unitary_alignements:
             disorder += unitary_alignement.disorder
-        return disorder
+        return disorder / self.continuum.avg_num_annotations_per_annotator
 
 
 class Best_Alignement(object):
@@ -270,4 +270,4 @@ class Best_Alignement(object):
         disorder = 0.0
         for unitary_alignement in self.set_unitary_alignements:
             disorder += unitary_alignement.disorder
-        return disorder
+        return disorder / self.continuum.avg_num_annotations_per_annotator

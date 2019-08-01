@@ -116,7 +116,7 @@ def test_alignement():
 
     alignement = Alignement(continuum, set_unitary_alignements, combi_dis)
 
-    assert alignement.disorder == 9.683583744855968
+    assert alignement.disorder == 2.2346731718898387
 
 
 def test_wrong_set_unitary_alignement():
@@ -275,5 +275,6 @@ def test_best_alignement():
 
     best_alignement = Best_Alignement(continuum, combi_dis)
 
-    assert best_alignement.disorder == pytest.approx(1.390668977570167, 0.001)
+    assert best_alignement.disorder == pytest.approx(0.32092361020850013,
+                                                     0.001)
     assert best_alignement.disorder < alignement.disorder
