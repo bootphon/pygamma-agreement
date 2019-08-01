@@ -5,7 +5,7 @@ import numpy as np
 from pygamma.continuum import Continuum
 from pygamma.dissimilarity import Categorical_Dissimilarity
 from pygamma.dissimilarity import Positional_Dissimilarity
-from pygamma.dissimilarity import Combined_Dissimilarity
+from pygamma.dissimilarity import Combined_Categorical_Dissimilarity
 from pygamma.alignement import Unitary_Alignement, Alignement, Best_Alignement
 
 from pygamma.alignement import SetPartitionError
@@ -42,11 +42,11 @@ def test_unitary_alignement():
     categories = ['Carol', 'Bob', 'Alice', 'Jeremy']
     cat = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
                     [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]])
-    combi_dis = Combined_Dissimilarity(
+    combi_dis = Combined_Categorical_Dissimilarity(
         'diarization',
         list_categories=categories,
         DELTA_EMPTY=0.5,
-        categorical_dissimlarity_matrix=cat)
+        categorical_dissimilarity_matrix=cat)
     n_tuple = (['liza', Segment(12, 18)], ['pierrot',
                                            Segment(12, 18)], ['hadrien', None])
     unitary_alignement = Unitary_Alignement(continuum, n_tuple, combi_dis)
@@ -82,11 +82,11 @@ def test_alignement():
     categories = ['Carol', 'Bob', 'Alice', 'Jeremy']
     cat = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
                     [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]])
-    combi_dis = Combined_Dissimilarity(
+    combi_dis = Combined_Categorical_Dissimilarity(
         'diarization',
         list_categories=categories,
         DELTA_EMPTY=0.5,
-        categorical_dissimlarity_matrix=cat)
+        categorical_dissimilarity_matrix=cat)
     set_unitary_alignements = []
 
     n_tuple = (['liza', Segment(1, 5)], ['pierrot', Segment(2, 6)],
@@ -146,11 +146,11 @@ def test_wrong_set_unitary_alignement():
     categories = ['Carol', 'Bob', 'Alice', 'Jeremy']
     cat = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
                     [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]])
-    combi_dis = Combined_Dissimilarity(
+    combi_dis = Combined_Categorical_Dissimilarity(
         'diarization',
         list_categories=categories,
         DELTA_EMPTY=0.5,
-        categorical_dissimlarity_matrix=cat)
+        categorical_dissimilarity_matrix=cat)
     set_unitary_alignements = []
 
     n_tuple = (['liza', Segment(1, 5)], ['pierrot', Segment(2, 6)],
@@ -239,11 +239,11 @@ def test_best_alignement():
     categories = ['Carol', 'Bob', 'Alice', 'Jeremy']
     cat = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
                     [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]])
-    combi_dis = Combined_Dissimilarity(
+    combi_dis = Combined_Categorical_Dissimilarity(
         'diarization',
         list_categories=categories,
         DELTA_EMPTY=0.5,
-        categorical_dissimlarity_matrix=cat)
+        categorical_dissimilarity_matrix=cat)
     set_unitary_alignements = []
 
     n_tuple = (['liza', Segment(1, 5)], ['pierrot', Segment(2, 6)],
