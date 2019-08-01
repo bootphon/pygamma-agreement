@@ -19,3 +19,4 @@ dependencies:
     - pyannote-core >=3.0
     - jupyter
     - cvxpy
+    - strsim == 0.0.3
