@@ -218,8 +218,11 @@ class Best_Alignement(object):
                 self.continuum, n_tuple, self.combined_dissimilarity)
 
             # Property section 5.1.1 to reduce initial complexity
+            # Differ from paper due to alpha and beta parameters
             disorder = unitary_alignement.disorder
-            if disorder < self.combined_dissimilarity.DELTA_EMPTY:
+            if disorder < (self.combined_dissimilarity.DELTA_EMPTY) * (
+                    self.combined_dissimilarity.alpha +
+                    self.combined_dissimilarity.beta):
                 set_of_possible_unitary_alignements.append(unitary_alignement)
 
         # Definition of the integer linear program
@@ -230,11 +233,11 @@ class Best_Alignement(object):
             unitary_alignement.disorder
             for unitary_alignement in set_of_possible_unitary_alignements
         ])
-        obj = cp.Minimize(d.T * x)
 
         # Constraints matrix
         A = np.zeros((self.continuum.num_units,
                       num_possible_unitary_alignements))
+        # A = A.astype(float)
 
         curr_idx = 0
         # fill unitary alignements matching with units
