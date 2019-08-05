@@ -27,7 +27,7 @@
 # Rachid RIAD
 """
 ##########
-Annotation
+Continuum and corpus
 ##########
 
 """
@@ -94,12 +94,7 @@ class Continuum(object):
 
     @property
     def num_units(self):
-        """Emptiness
-        >>> if continuum:
-        ...    # continuum is empty
-        ... else:
-        ...    # continuum is not empty
-        """
+        """Number of units"""
         num_units = 0
         for annotator in self._annotators:
             num_units += len(self[annotator])
@@ -135,8 +130,106 @@ class Continuum(object):
         return self._annotators[annotator]
 
     def iterannotators(self):
-        """Iterate over segments (in chronological order)
-        >>> for segment in annotation.iterannotators():
+        """Iterate over annotator (in chronological order)
+        >>> for annotator in annotation.iterannotators():
         ...     # do something with the annotator
         """
         return iter(self._annotators)
+
+
+class Corpus(object):
+    """Corpus
+    Parameters
+    ----------
+    uri : string, optional
+        name of annotated resource (e.g. audio or video file)
+    modality : string, optional
+        name of annotated modality
+    Returns
+    -------
+    corpus : Corpus
+        New continuum
+    """
+
+    def __init__(self, uri=None, modality=None):
+
+        super(Corpus, self).__init__()
+
+        self._uri = uri
+        self.modality = modality
+
+        # sorted dictionary
+        # keys: annotators
+        # values: {annotator: annotations} dictionary
+        self._annotators = SortedDict()
+
+        # sorted dictionary
+        # keys: file_name_annotated
+        # values: {file_name_annotated: continuum} dictionary
+        self._continuua = SortedDict()
+
+        # timeline meant to store all annotated segments
+        self._timeline = None
+        self._timelineNeedsUpdate = True
+
+    def _get_uri(self):
+        return self._uri
+
+    def __len__(self):
+        """Number of annotators
+        >>> len(corpus)  # corpus contains 2 annotated files
+        2
+        """
+        return len(self._continuua)
+
+    def __bool__(self):
+        """Emptiness
+        >>> if corpus:
+        ...    # corpus is not empty
+        ... else:
+        ...    # corpus is empty
+        """
+        return len(self._continuua) > 0
+
+    @property
+    def num_units(self):
+        """Number of units across continuua"""
+        num_units = 0
+        for continuum in self._continuua:
+            num_units += self._continuua[continuum].num_units
+        return num_units
+
+    @property
+    def avg_num_annotations_per_annotator(self):
+        return self.num_units / len(self)
+
+    def __setitem__(self, file_name_annotated, continuum):
+        """Add new or update existing Continuum
+        >>> corpus[file_name_annotated] = Continuum
+        If file_name_annotated does not exist, it is added.
+        If file_name_annotated already exists, it is updated.
+        Note
+        ----
+        If `Continuum` is empty, it does nothing.
+        """
+
+        # do not add empty annotation
+        if not continuum:
+            return
+
+        self._continuua[file_name_annotated] = continuum
+
+    # continuum = corpus[file_name_annotated]
+    def __getitem__(self, file_name_annotated):
+        """Get continuum object
+        >>> continuum = corpus[file_name_annotated]
+        """
+
+        return self._continuua[file_name_annotated]
+
+    def itercontinuua(self):
+        """Iterate over continuum (in chronological order)
+        >>> for continuum in corpus.itercontinuua():
+        ...     # do something with the continuum
+        """
+        return iter(self._continuua)

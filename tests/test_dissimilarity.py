@@ -1,4 +1,4 @@
-"""Test of the module pygamma.continuum"""
+"""Test of the module pygamma.dissimilarity"""
 
 import tempfile
 import numpy as np
