@@ -64,7 +64,7 @@ class Gamma_Agreement(object):
                  confidence_level=0.95,
                  number_sample=30):
 
-        super(Unitary_Alignement, self).__init__()
+        super(Gamma_Agreement, self).__init__()
         self.continuum = continuum
         self.alignement = alignement
         self.confidence_level = confidence_level
@@ -97,9 +97,20 @@ class Gamma_Agreement(object):
         disorder /= binom(len(self.n_tuple), 2)
         return disorder
 
-    def sample_from_single_continuum(self):
-        """Generate a new random alignement from a single continuum
+    def sample_annotation_from_single_continuum(self):
+        """Generate a new random annotation from a single continuum
         Strategy from figure 12
-        >>> gamma_agreement.sample_from_single_continuum() = random_continuum
+        >>> gamma_agreement.sample_from_single_continuum() = random_annotation
         """
-        return self.continuum
+        pivot = 6
+        pivot = np.random.uniform(self.continuum.avg_length_unit, 2)
+        sampled_annotation = Annotation()
+
+        for unit in annotation.itersegments():
+            if pivot - unit.start < 0:
+                sampled_annotation[Segment(
+                    unit.start - pivot, unit.end - pivot)] = annotation[unit]
+            else:
+                sampled_annotation[Segment(
+                    unit.start + pivot, unit.end + pivot)] = annotation[unit]
+        return sampled_annotation

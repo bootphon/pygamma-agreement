@@ -104,6 +104,14 @@ class Continuum(object):
     def avg_num_annotations_per_annotator(self):
         return self.num_units / len(self)
 
+    @property
+    def avg_length_unit(self):
+        total_length_unit = 0
+        for annotator in self.iterannotators():
+            for unit in self[annotator].itersegments():
+                total_length_unit += unit.duration
+        return total_length_unit / self.num_units
+
     def __setitem__(self, annotator, annotation):
         """Add new or update existing Annotation
         >>> continuum[Annotator] = Annotation
