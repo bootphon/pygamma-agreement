@@ -54,6 +54,8 @@ class Gamma_Agreement(object):
         Default is `single` and stands for single continuum
         `multi` option requires a corpus object and computes it from several
         continuua
+    number_samples :
+        Number of samples drawn to estimate the expected disorder
     confidence_level :
         confidence level to obtain to the expected disorder value
         Default: 0.95
@@ -67,10 +69,11 @@ class Gamma_Agreement(object):
     def __init__(self,
                  continuum,
                  alignement,
-                 combined_dissimilarity,
+                 dissimilarity,
+                 strategy='single',
                  corpus=Corpus(),
                  confidence_level=0.95,
-                 number_sample=30,
+                 number_samples=30,
                  type_pivot='float_pivot'):
 
         super(Gamma_Agreement, self).__init__()
@@ -79,7 +82,13 @@ class Gamma_Agreement(object):
         self.confidence_level = confidence_level
         self.type_pivot = type_pivot
         self.corpus = corpus
-        assert confidence_level in (0.9, 0.95, 0.98, 0.99)
+        self.strategy = strategy
+        self.dissimilarity = dissimilarity
+        assert self.strategy in ('single', 'multi')
+        if self.strategy is 'multi':
+            assert self.corpus, 'Should be provided with a corpus object'
+        self.number_samples = number_samples
+        assert self.confidence_level in (0.9, 0.95, 0.98, 0.99)
         assert self.type_pivot in ('float_pivot', 'int_pivot')
         self.last_unit_start = 0.0
         for annotator in self.continuum.iterannotators():
@@ -137,15 +146,6 @@ class Gamma_Agreement(object):
                     unit.start + pivot, unit.end + pivot)] = annotation[unit]
         return sampled_annotation
 
-    def compute_expected_disorder(self, sampling_method='corpus'):
-        """Compute the expected disorder
-        """
-        assert sampling_method in ('corpus', 'single')
-        if sampling_method is 'corpus':
-            assert self.corpus, 'Should be provided with a corpus object'
-
-        sampled_continuum = Continuum()
-
     def sample_annotation_from_corpus(self):
         """Generate a new random annotation from a corpus
         Strategy from figure 13
@@ -164,3 +164,22 @@ class Gamma_Agreement(object):
                 sampled_annotation[Segment(
                     unit.start + pivot, unit.end + pivot)] = annotation[unit]
         return sampled_annotation
+
+    def compute_chance_disorder_values(self):
+        """Compute the chance disorder values
+        """
+        chance_disorder_values = []
+        for _ in range(self.number_samples):
+            sampled_continuum = Continuum()
+            for idx in range(len(self.continuum)):
+                if self.strategy is 'single':
+                    sampled_continuum['Sampled_annotation {}'.format(
+                        idx)] = self.sample_annotation_from_single_continuum()
+                if self.strategy is 'multi':
+                    sampled_continuum['Sampled_annotation {}'.format(
+                        idx)] = self.sample_annotation_from_corpus()
+            best_seq_alignement = Best_Alignement(sampled_continuum,
+                                                  self.dissimilarity)
+            chance_disorder_values.append(best_seq_alignement.disorder)
+
+        return chance_disorder_values
