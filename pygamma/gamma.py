@@ -33,8 +33,10 @@ Gamma Agreement
 """
 
 import numpy as np
+from pyannote.core import Segment, Timeline, Annotation
 
 from pygamma.continuum import Continuum, Corpus
+from pygamma.alignement import Unitary_Alignement, Alignement, Best_Alignement
 
 
 class Gamma_Agreement(object):
@@ -45,6 +47,8 @@ class Gamma_Agreement(object):
         Continuum where the alignement is from
     alignement :
         Alignement to evaluate
+    dissimilarity :
+        Dissimilarity to be used to estimate the disorder and gamma agreement
     strategy :
         Strategy to compute the Expected Disorder (`single` or `multi`)
         Default is `single` and stands for single continuum
@@ -55,20 +59,33 @@ class Gamma_Agreement(object):
         Default: 0.95
     corpus (Optional):
         Corpus where the Continuum is from
+    type_pivot (Optional):
+        If text input would be nice to have only pivot with integer
+        Does not change anything in practice
     """
 
     def __init__(self,
                  continuum,
                  alignement,
+                 combined_dissimilarity,
                  corpus=Corpus(),
                  confidence_level=0.95,
-                 number_sample=30):
+                 number_sample=30,
+                 type_pivot='float_pivot'):
 
         super(Gamma_Agreement, self).__init__()
         self.continuum = continuum
         self.alignement = alignement
         self.confidence_level = confidence_level
+        self.type_pivot = type_pivot
+        self.corpus = corpus
         assert confidence_level in (0.9, 0.95, 0.98, 0.99)
+        assert self.type_pivot in ('float_pivot', 'int_pivot')
+        self.last_unit_start = 0.0
+        for annotator in self.continuum.iterannotators():
+            for unit in self.continuum[annotator].itersegments():
+                if unit.start > self.last_unit_start:
+                    self.last_unit_start = unit.start
 
     @property
     def value(self):
@@ -102,8 +119,41 @@ class Gamma_Agreement(object):
         Strategy from figure 12
         >>> gamma_agreement.sample_from_single_continuum() = random_annotation
         """
-        pivot = 6
-        pivot = np.random.uniform(self.continuum.avg_length_unit, 2)
+        if self.type_pivot == 'float_pivot':
+            pivot = np.random.uniform(self.continuum.avg_length_unit,
+                                      self.last_unit_start)
+        else:
+            pivot = np.random.randint(self.continuum.avg_length_unit,
+                                      self.last_unit_start)
+        sampled_annotation = Annotation()
+        annotator = np.random.choice(list(self.continuum.iterannotators()))
+        annotation = self.continuum[annotator]
+        for unit in annotation.itersegments():
+            if pivot - unit.start < 0:
+                sampled_annotation[Segment(
+                    unit.start - pivot, unit.end - pivot)] = annotation[unit]
+            else:
+                sampled_annotation[Segment(
+                    unit.start + pivot, unit.end + pivot)] = annotation[unit]
+        return sampled_annotation
+
+    def compute_expected_disorder(self, sampling_method='corpus'):
+        """Compute the expected disorder
+        """
+        assert sampling_method in ('corpus', 'single')
+        if sampling_method is 'corpus':
+            assert self.corpus, 'Should be provided with a corpus object'
+
+        sampled_continuum = Continuum()
+
+    def sample_annotation_from_corpus(self):
+        """Generate a new random annotation from a corpus
+        Strategy from figure 13
+        >>> gamma_agreement.sample_annotation_from_corpus() = random_annotation
+        """
+        # pivot = 6
+        if type_pivot == float:
+            pivot = np.random.uniform(self.continuum.avg_length_unit, 2)
         sampled_annotation = Annotation()
 
         for unit in annotation.itersegments():
