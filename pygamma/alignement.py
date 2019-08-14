@@ -93,15 +93,10 @@ class Unitary_Alignement(object):
         """
         disorder = 0.0
         for idx, (annotator_u, unit_u) in enumerate(self.n_tuple):
-            for (annotator_v, unit_v) in self.n_tuple[idx + 1:]:
-                if unit_u is None and unit_v is None:
-                    return self.combined_dissimilarity.DELTA_EMPTY
-                elif unit_u is None:
-                    disorder += self.combined_dissimilarity[
-                        [unit_v], [self.continuum[annotator_v][unit_v]]]
-                elif unit_v is None:
-                    disorder += self.combined_dissimilarity[
-                        [unit_u], [self.continuum[annotator_u][unit_u]]]
+            # for (annotator_v, unit_v) in self.n_tuple[idx + 1:]:
+            for (annotator_v, unit_v) in self.n_tuple:
+                if unit_u is None or unit_v is None:
+                    disorder += self.combined_dissimilarity.DELTA_EMPTY
                 else:
                     disorder += self.combined_dissimilarity[[unit_u, unit_v], [
                         self.continuum[annotator_u][unit_u], self.continuum[
@@ -218,11 +213,9 @@ class Best_Alignement(object):
                 self.continuum, n_tuple, self.combined_dissimilarity)
 
             # Property section 5.1.1 to reduce initial complexity
-            # Differ from paper due to alpha and beta parameters
             disorder = unitary_alignement.disorder
-            if disorder < (self.combined_dissimilarity.DELTA_EMPTY) * (
-                    self.combined_dissimilarity.alpha +
-                    self.combined_dissimilarity.beta):
+            if disorder < len(self.continuum) * (
+                    self.combined_dissimilarity.DELTA_EMPTY):
                 set_of_possible_unitary_alignements.append(unitary_alignement)
 
         # Definition of the integer linear program
