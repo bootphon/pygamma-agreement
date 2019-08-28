@@ -116,6 +116,16 @@ def test_positional_dissimilarity():
     assert pos_dis[[liza_unit]] == 1 * 0.5
 
 
+def test_positional_dissimilarity_figure10():
+    pos_dis = Positional_Dissimilarity('diarization', DELTA_EMPTY=1.0)
+    assert pos_dis[[[4, 14], [40, 44]]] == pytest.approx(22.2, 0.1)
+    assert pos_dis[[[4, 14], [4, 14]]] == pytest.approx(0., 0.1)
+    assert pos_dis[[[4, 14], [20, 25]]] == pytest.approx(3.2, 0.1)
+    assert pos_dis[[[4, 14], [14, 24]]] == pytest.approx(1., 0.1)
+    assert pos_dis[[[20, 30], [20, 25]]] == pytest.approx(0.11, 0.1)
+    assert pos_dis[[[20, 25], [14, 24]]] == pytest.approx(0.22, 0.1)
+
+
 def test_combi_categorical_dissimilarity():
     continuum = Continuum()
     annotation = Annotation()
@@ -198,7 +208,9 @@ def test_combi_sequence_dissimilarity():
     symbols = ['a', 'b', 'c', 'd']
     cat = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
                     [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]])
-
+    DELTA_EMPTY = 0.5
+    alpha = 1
+    beta = 1
     combi_dis = Combined_Sequence_Dissimilarity(
         'SR',
         list_admitted_symbols=symbols,
@@ -226,4 +238,5 @@ def test_combi_sequence_dissimilarity():
     assert combi_dis[[liza_unit, liza_unit], [
         continuum['liza'][liza_unit], continuum['liza'][liza_unit]
     ]] == 0
-    assert combi_dis[[liza_unit], [continuum['liza'][liza_unit]]] == 1 * 0.5
+    assert combi_dis[[liza_unit], [continuum['liza'][liza_unit]
+                                   ]] == DELTA_EMPTY * (alpha + beta)
