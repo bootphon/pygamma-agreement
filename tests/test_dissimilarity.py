@@ -126,6 +126,11 @@ def test_positional_dissimilarity_figure10():
     assert pos_dis[[[20, 25], [14, 24]]] == pytest.approx(0.22, 0.1)
 
 
+def test_positional_dissimilarity_figure20_scale_effect():
+    pos_dis = Positional_Dissimilarity('diarization', DELTA_EMPTY=1.0)
+    pos_dis[[[0, 7], [0, 10]]] == pos_dis[[[0, 21], [0, 30]]]
+
+
 def test_combi_categorical_dissimilarity():
     continuum = Continuum()
     annotation = Annotation()
@@ -150,13 +155,6 @@ def test_combi_categorical_dissimilarity():
         list_categories=categories,
         DELTA_EMPTY=0.5,
         categorical_dissimilarity_matrix=cat)
-    pos_dis = Positional_Dissimilarity('diarization', DELTA_EMPTY=0.5)
-    cat_dis = Categorical_Dissimilarity(
-        'diarization',
-        list_categories=categories,
-        categorical_dissimilarity_matrix=cat,
-        DELTA_EMPTY=0.5)
-
     list_dis = []
     for liza_unit in continuum['liza'].itersegments():
         for pierrot_unit in continuum['pierrot'].itersegments():
@@ -165,10 +163,10 @@ def test_combi_categorical_dissimilarity():
                     pierrot_unit]
             ]])
     assert list_dis == pytest.approx([
-        0.03125, 1.87, 1.13125, 2.15, 3.03, 0.75, 0.05555555555555555,
-        0.5673469387755101, 0.8, 2.3, 0.774567474048443, 0.6673469387755102,
-        0.3508, 0.26888888888888884, 0.06786703601108032, 2.4200000000000004,
-        2.5459183673469385, 0.40555555555555556, 1.275, 0.15
+        0.09375, 5.11, 2.69375, 6.15, 8.790000000000001, 1.75,
+        0.16666666666666666, 1.3020408163265305, 1.8, 6.3, 2.0237024221453286,
+        1.4020408163265305, 0.3524, 0.8066666666666665, 0.20360110803324097,
+        7.260000000000002, 7.137755102040815, 0.5166666666666666, 3.525, 0.15
     ], 0.001)
     assert combi_dis[[liza_unit, pierrot_unit], [
         continuum['liza'][liza_unit], continuum['pierrot'][pierrot_unit]
@@ -224,11 +222,11 @@ def test_combi_sequence_dissimilarity():
                     pierrot_unit]
             ]])
     assert list_dis == pytest.approx([
-        0.03125, 1.9533333333333334, 1.08125, 2.25, 3.1174999999999997,
-        0.6666666666666666, 0.3055555555555556, 0.7173469387755101, 0.625,
-        2.2875, 0.9245674740484429, 0.7673469387755102, 0.030799999999999998,
-        0.5988888888888888, 0.2578670360110803, 2.6950000000000003,
-        2.6709183673469385, 0.26555555555555554, 1.4125, 0.1375
+        0.09375, 5.193333333333333, 2.64375, 6.25, 8.877500000000001,
+        1.6666666666666667, 0.41666666666666663, 1.4520408163265306, 1.625,
+        6.2875, 2.1737024221453285, 1.5020408163265304, 0.0324,
+        1.1366666666666665, 0.393601108033241, 7.535000000000002,
+        7.262755102040815, 0.3766666666666667, 3.6625, 0.1375
     ], 0.001)
     assert combi_dis[[liza_unit, pierrot_unit], [
         continuum['liza'][liza_unit], continuum['pierrot'][pierrot_unit]
@@ -239,4 +237,4 @@ def test_combi_sequence_dissimilarity():
         continuum['liza'][liza_unit], continuum['liza'][liza_unit]
     ]] == 0
     assert combi_dis[[liza_unit], [continuum['liza'][liza_unit]
-                                   ]] == DELTA_EMPTY * (alpha + beta)
+                                   ]] == DELTA_EMPTY

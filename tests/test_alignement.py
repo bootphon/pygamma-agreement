@@ -53,7 +53,7 @@ def test_unitary_alignement():
     unitary_alignement = Unitary_Alignement(continuum, n_tuple, combi_dis)
 
     assert unitary_alignement.disorder == pytest.approx(
-        0.933333333333333, 0.001)
+        0.3833333333333333, 0.001)
 
 
 def test_alignement():
@@ -117,7 +117,7 @@ def test_alignement():
 
     alignement = Alignement(continuum, set_unitary_alignements, combi_dis)
 
-    assert alignement.disorder == pytest.approx(4.546269420702754, 0.001)
+    assert alignement.disorder == pytest.approx(5.35015024691358, 0.001)
 
 
 def test_wrong_set_unitary_alignement():
@@ -276,7 +276,8 @@ def test_best_alignement():
 
     best_alignement = Best_Alignement(continuum, combi_dis)
 
-    assert best_alignement.disorder == pytest.approx(0.7187702973400771, 0.001)
+    assert best_alignement.disorder == pytest.approx(0.31401409465020574,
+                                                     0.001)
     assert best_alignement.disorder < alignement.disorder
 
 
@@ -344,5 +345,5 @@ def test_best_alignement_sequence():
     alignement = Alignement(continuum, set_unitary_alignements, combi_dis)
 
     best_alignement = Best_Alignement(continuum, combi_dis)
-    assert best_alignement.disorder == pytest.approx(0.9254782816830436, 0.001)
+    assert best_alignement.disorder == pytest.approx(0.3738289094650206, 0.001)
     assert best_alignement.disorder < alignement.disorder
