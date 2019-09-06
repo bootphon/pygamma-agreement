@@ -92,9 +92,11 @@ class Unitary_Alignement(object):
         unit is the equivalent of segment in pyannote
         """
         disorder = 0.0
+        num_couples = 0
         for idx, (annotator_u, unit_u) in enumerate(self.n_tuple):
-            # for (annotator_v, unit_v) in self.n_tuple[idx + 1:]:
-            for (annotator_v, unit_v) in self.n_tuple:
+            for (annotator_v, unit_v) in self.n_tuple[idx + 1:]:
+                # This is not as the paper formula (6)...
+                # for (annotator_v, unit_v) in self.n_tuple:
                 if unit_u is None or unit_v is None:
                     disorder += self.combined_dissimilarity.DELTA_EMPTY
                 else:
@@ -102,7 +104,10 @@ class Unitary_Alignement(object):
                         self.continuum[annotator_u][unit_u], self.continuum[
                             annotator_v][unit_v]
                     ]]
-        disorder /= binom(len(self.n_tuple), 2)
+                num_couples += 1
+        disorder = disorder / binom(len(self.n_tuple), 2)
+        # disorder = disorder / num_couples
+        assert num_couples == binom(len(self.n_tuple), 2)
         return disorder
 
 
@@ -147,6 +152,10 @@ class Alignement(object):
                         annotator, unit))
 
     @property
+    def num_alignements(self):
+        return len(self.set_unitary_alignements)
+
+    @property
     def disorder(self):
         """Compute the disorder for the unitary alignement
         >>> unitary_alignement.compute_disorder() = ...
@@ -157,7 +166,7 @@ class Alignement(object):
         disorder = 0.0
         for unitary_alignement in self.set_unitary_alignements:
             disorder += unitary_alignement.disorder
-        return disorder / self.continuum.avg_num_annotations_per_annotator
+        return disorder / self.num_alignements
 
 
 class Best_Alignement(object):
@@ -196,6 +205,10 @@ class Best_Alignement(object):
                 elif found > 1:
                     raise SetPartitionError('{} {} assigned twice'.format(
                         annotator, unit))
+
+    @property
+    def num_alignements(self):
+        return len(self.set_unitary_alignements)
 
     def get_unitary_alignements_best(self):
         set_of_possible_segments = []
@@ -266,4 +279,4 @@ class Best_Alignement(object):
         disorder = 0.0
         for unitary_alignement in self.set_unitary_alignements:
             disorder += unitary_alignement.disorder
-        return disorder / self.continuum.avg_num_annotations_per_annotator
+        return disorder / self.num_alignements
