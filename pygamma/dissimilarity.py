@@ -251,8 +251,8 @@ class Positional_Dissimilarity(object):
                 # DANGER if the api breaks
                 distance_pos = (np.abs(units[0][0] - units[1][0]) +
                                 np.abs(units[0][1] - units[1][1]))
-                distance_pos /= (
-                    units[0][1] - units[0][0] + units[1][1] - units[1][0])
+                distance_pos /= ((
+                    units[0][1] - units[0][0] + units[1][1] - units[1][0]))
                 distance_pos = distance_pos * distance_pos * self.DELTA_EMPTY
                 return distance_pos
 
@@ -282,7 +282,7 @@ class Combined_Categorical_Dissimilarity(object):
     def __init__(self,
                  annotation_task,
                  list_categories,
-                 alpha=1,
+                 alpha=3,
                  beta=1,
                  DELTA_EMPTY=1,
                  function_distance=None,
@@ -356,7 +356,7 @@ class Combined_Sequence_Dissimilarity(object):
     def __init__(self,
                  annotation_task,
                  list_admitted_symbols,
-                 alpha=1,
+                 alpha=3,
                  beta=1,
                  DELTA_EMPTY=1,
                  function_distance=None,
