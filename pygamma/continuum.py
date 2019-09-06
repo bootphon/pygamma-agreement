@@ -105,6 +105,15 @@ class Continuum(object):
         return self.num_units / len(self)
 
     @property
+    def max_num_annotations_per_annotator(self):
+        max_num_annotations_per_annotator = 0
+        for annotator in self._annotators:
+            max_num_annotations_per_annotator = np.max(
+                [max_num_annotations_per_annotator,
+                 len(self[annotator])])
+        return max_num_annotations_per_annotator
+
+    @property
     def avg_length_unit(self):
         total_length_unit = 0
         for annotator in self.iterannotators():
