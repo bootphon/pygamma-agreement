@@ -39,6 +39,8 @@ from sortedcontainers import SortedDict
 
 from pyannote.core import Segment, Timeline, Annotation
 
+from functools import lru_cache
+
 
 class Continuum(object):
     """Continuum

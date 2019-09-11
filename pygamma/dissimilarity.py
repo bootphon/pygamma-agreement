@@ -39,6 +39,8 @@ from similarity.weighted_levenshtein import WeightedLevenshtein
 from similarity.weighted_levenshtein import CharacterSubstitutionInterface
 from similarity.weighted_levenshtein import CharacterInsDelInterface
 
+from functools import lru_cache
+
 
 class Categorical_Dissimilarity(object):
     """Categorical Dissimilarity
@@ -107,8 +109,9 @@ class Categorical_Dissimilarity(object):
         ax.xaxis.set_ticks_position('top')
         plt.show()
 
+    @lru_cache(maxsize=None)
     def __getitem__(self, units):
-        assert type(units) == list
+        # assert type(units) == list
         if len(units) < 2:
             return self.DELTA_EMPTY
         else:
@@ -186,6 +189,7 @@ class Sequence_Dissimilarity(object):
         ax.xaxis.set_ticks_position('top')
         plt.show()
 
+    @lru_cache(maxsize=None)
     def __getitem__(self, units):
         class CharacterSubstitution(CharacterSubstitutionInterface):
             def __init__(self, list_admitted_symbols, dict_list_symbols,
@@ -205,7 +209,7 @@ class Sequence_Dissimilarity(object):
                                   self.dict_list_symbols,
                                   self.symbol_dissimlarity_matrix))
 
-        assert type(units) == list
+        # assert type(units) == list
         if len(units) < 2:
             return self.DELTA_EMPTY
         else:
@@ -241,8 +245,9 @@ class Positional_Dissimilarity(object):
         self.DELTA_EMPTY = DELTA_EMPTY
         self.function_distance = function_distance
 
+    @lru_cache(maxsize=None)
     def __getitem__(self, units):
-        assert type(units) == list
+        # assert type(units) == list
         if len(units) < 2:
             return self.DELTA_EMPTY
         else:
@@ -320,6 +325,7 @@ class Combined_Categorical_Dissimilarity(object):
             DELTA_EMPTY=DELTA_EMPTY,
             function_cat=function_cat)
 
+    @lru_cache(maxsize=None)
     def __getitem__(self, units):
         timing_units, categorical_units = units
         assert len(timing_units) == len(categorical_units)
@@ -394,6 +400,7 @@ class Combined_Sequence_Dissimilarity(object):
             DELTA_EMPTY=DELTA_EMPTY,
             function_cat=function_cat)
 
+    @lru_cache(maxsize=None)
     def __getitem__(self, units):
         timing_units, categorical_units = units
         assert len(timing_units) == len(categorical_units)

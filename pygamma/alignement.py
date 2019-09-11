@@ -101,10 +101,9 @@ class Unitary_Alignement(object):
                 if unit_u is None or unit_v is None:
                     disorder += self.combined_dissimilarity.DELTA_EMPTY
                 else:
-                    disorder += self.combined_dissimilarity[[unit_u, unit_v], [
-                        self.continuum[annotator_u][unit_u], self.continuum[
-                            annotator_v][unit_v]
-                    ]]
+                    disorder += self.combined_dissimilarity[(
+                        unit_u, unit_v), (self.continuum[annotator_u][unit_u],
+                                          self.continuum[annotator_v][unit_v])]
                 num_couples += 1
         disorder = disorder / binom(len(self.n_tuple), 2)
         # disorder = disorder / num_couples
