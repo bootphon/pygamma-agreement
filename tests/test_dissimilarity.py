@@ -113,24 +113,22 @@ def test_positional_dissimilarity():
     assert pos_dis[(liza_unit, pierrot_unit)] == pos_dis[(pierrot_unit,
                                                           liza_unit)]
     assert pos_dis[(liza_unit, liza_unit)] == 0
-    import pdb
-    pdb.set_trace()
-    assert pos_dis[(liza_unit)] == 1 * 0.5
+    assert pos_dis[(liza_unit, )] == 1 * 0.5
 
 
 def test_positional_dissimilarity_figure10():
     pos_dis = Positional_Dissimilarity('diarization', DELTA_EMPTY=1.0)
-    assert pos_dis[([4, 14], [40, 44])] == pytest.approx(22.2, 0.1)
-    assert pos_dis[([4, 14], [4, 14])] == pytest.approx(0., 0.1)
-    assert pos_dis[([4, 14], [20, 25])] == pytest.approx(3.2, 0.1)
-    assert pos_dis[([4, 14], [14, 24])] == pytest.approx(1., 0.1)
-    assert pos_dis[([20, 30], [20, 25])] == pytest.approx(0.11, 0.1)
-    assert pos_dis[([20, 25], [14, 24])] == pytest.approx(0.22, 0.1)
+    assert pos_dis[((4, 14), (40, 44))] == pytest.approx(22.2, 0.1)
+    assert pos_dis[((4, 14), (4, 14))] == pytest.approx(0., 0.1)
+    assert pos_dis[((4, 14), (20, 25))] == pytest.approx(3.2, 0.1)
+    assert pos_dis[((4, 14), (14, 24))] == pytest.approx(1., 0.1)
+    assert pos_dis[((20, 30), (20, 25))] == pytest.approx(0.11, 0.1)
+    assert pos_dis[((20, 25), (14, 24))] == pytest.approx(0.22, 0.1)
 
 
 def test_positional_dissimilarity_figure20_scale_effect():
     pos_dis = Positional_Dissimilarity('diarization', DELTA_EMPTY=1.0)
-    pos_dis[([0, 7], [0, 10])] == pos_dis[([0, 21], [0, 30])]
+    pos_dis[((0, 7), (0, 10))] == pos_dis[((0, 21), (0, 30))]
 
 
 def test_combi_categorical_dissimilarity():
@@ -171,13 +169,14 @@ def test_combi_categorical_dissimilarity():
     ], 0.001)
     assert combi_dis[(liza_unit, pierrot_unit), (
         continuum['liza'][liza_unit],
-        continuum['pierrot'][pierrot_unit])] == combi_dis[
-            [pierrot_unit, liza_unit], (continuum['pierrot'][pierrot_unit],
-                                        continuum['liza'][liza_unit])]
+        continuum['pierrot'][pierrot_unit])] == combi_dis[(
+            pierrot_unit, liza_unit), (continuum['pierrot'][pierrot_unit],
+                                       continuum['liza'][liza_unit])]
     assert combi_dis[(liza_unit,
                       liza_unit), (continuum['liza'][liza_unit],
                                    continuum['liza'][liza_unit])] == 0
-    assert combi_dis[(liza_unit), (continuum['liza'][liza_unit])] == 1 * 0.5
+    assert combi_dis[(liza_unit, ), (
+        continuum['liza'][liza_unit], )] == 1 * 0.5
 
 
 def test_combi_sequence_dissimilarity():
@@ -236,5 +235,5 @@ def test_combi_sequence_dissimilarity():
     assert combi_dis[(liza_unit,
                       liza_unit), (continuum['liza'][liza_unit],
                                    continuum['liza'][liza_unit])] == 0
-    assert combi_dis[(liza_unit), (
-        continuum['liza'][liza_unit])] == DELTA_EMPTY
+    assert combi_dis[(liza_unit, ), (
+        continuum['liza'][liza_unit], )] == DELTA_EMPTY
