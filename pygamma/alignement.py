@@ -37,7 +37,7 @@ from scipy.special import binom
 
 from matplotlib import pyplot as plt
 from itertools import product
-
+from functools import lru_cache
 import cvxpy as cp
 
 
@@ -84,6 +84,7 @@ class Unitary_Alignement(object):
         self.combined_dissimilarity = combined_dissimilarity
 
     @property
+    @lru_cache(maxsize=None)
     def disorder(self):
         """Compute the disorder for the unitary alignement
         >>> unitary_alignement.compute_disorder() = ...
@@ -156,6 +157,7 @@ class Alignement(object):
         return len(self.set_unitary_alignements)
 
     @property
+    @lru_cache(maxsize=None)
     def disorder(self):
         """Compute the disorder for the unitary alignement
         >>> unitary_alignement.compute_disorder() = ...
@@ -269,6 +271,7 @@ class Best_Alignement(object):
         return set_unitary_alignements
 
     @property
+    @lru_cache(maxsize=None)
     def disorder(self):
         """Compute the disorder for the unitary alignement
         >>> unitary_alignement.compute_disorder() = ...
