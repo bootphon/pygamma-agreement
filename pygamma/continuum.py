@@ -78,6 +78,7 @@ class Continuum(object):
     def _get_uri(self):
         return self._uri
 
+    @lru_cache(maxsize=None)
     def __len__(self):
         """Number of annotators
         >>> len(continuum)  # continuum contains 3 annotators
@@ -95,6 +96,7 @@ class Continuum(object):
         return len(self._annotators) > 0
 
     @property
+    @lru_cache(maxsize=None)
     def num_units(self):
         """Number of units"""
         num_units = 0
@@ -103,10 +105,12 @@ class Continuum(object):
         return num_units
 
     @property
+    @lru_cache(maxsize=None)
     def avg_num_annotations_per_annotator(self):
         return self.num_units / len(self)
 
     @property
+    @lru_cache(maxsize=None)
     def max_num_annotations_per_annotator(self):
         max_num_annotations_per_annotator = 0
         for annotator in self._annotators:
@@ -116,6 +120,7 @@ class Continuum(object):
         return max_num_annotations_per_annotator
 
     @property
+    @lru_cache(maxsize=None)
     def avg_length_unit(self):
         total_length_unit = 0
         for annotator in self.iterannotators():
@@ -211,6 +216,7 @@ class Corpus(object):
         return len(self._continuua) > 0
 
     @property
+    @lru_cache(maxsize=None)
     def num_units(self):
         """Number of units across continuua"""
         num_units = 0
@@ -219,6 +225,7 @@ class Corpus(object):
         return num_units
 
     @property
+    @lru_cache(maxsize=None)
     def avg_num_annotations_per_annotator(self):
         return self.num_units / len(self)
 
