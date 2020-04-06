@@ -3,11 +3,11 @@
 import tempfile
 import numpy as np
 from pygamma.continuum import Continuum
-from pygamma.dissimilarity import Categorical_Dissimilarity
-from pygamma.dissimilarity import Sequence_Dissimilarity
-from pygamma.dissimilarity import Positional_Dissimilarity
-from pygamma.dissimilarity import Combined_Categorical_Dissimilarity
-from pygamma.dissimilarity import Combined_Sequence_Dissimilarity
+from pygamma.dissimilarity import CategoricalDissimilarity
+from pygamma.dissimilarity import SequenceDissimilarity
+from pygamma.dissimilarity import PositionalDissimilarity
+from pygamma.dissimilarity import CombinedCategoricalDissimilarity
+from pygamma.dissimilarity import CombinedSequenceDissimilarity
 
 from pyannote.core import Annotation, Segment
 
@@ -33,7 +33,7 @@ def test_categorical_dissimilarity():
     cat = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
                     [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]])
 
-    cat_dis = Categorical_Dissimilarity(
+    cat_dis = CategoricalDissimilarity(
         'diarization',
         list_categories=categories,
         categorical_dissimilarity_matrix=cat,
@@ -71,7 +71,7 @@ def test_sequence_dissimilarity():
     cat = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
                     [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]])
 
-    seq_dis = Sequence_Dissimilarity(
+    seq_dis = SequenceDissimilarity(
         'SR', list_admitted_symbols=symbols, symbol_dissimlarity_matrix=cat)
 
     assert seq_dis[(('a', 'c', 'a', 'c'), ('a', 'c', 'a', 'c'))] == 0.0
@@ -98,7 +98,7 @@ def test_positional_dissimilarity():
     continuum['pierrot'] = annotation
     categories = ['Carol', 'Bob', 'Alice', 'Jeremy']
 
-    pos_dis = Positional_Dissimilarity('diarization', DELTA_EMPTY=0.5)
+    pos_dis = PositionalDissimilarity('diarization', DELTA_EMPTY=0.5)
 
     list_dis = []
     for liza_unit in continuum['liza'].itersegments():
@@ -117,7 +117,7 @@ def test_positional_dissimilarity():
 
 
 def test_positional_dissimilarity_figure10():
-    pos_dis = Positional_Dissimilarity('diarization', DELTA_EMPTY=1.0)
+    pos_dis = PositionalDissimilarity('diarization', DELTA_EMPTY=1.0)
     assert pos_dis[((4, 14), (40, 44))] == pytest.approx(22.2, 0.1)
     assert pos_dis[((4, 14), (4, 14))] == pytest.approx(0., 0.1)
     assert pos_dis[((4, 14), (20, 25))] == pytest.approx(3.2, 0.1)
@@ -127,7 +127,7 @@ def test_positional_dissimilarity_figure10():
 
 
 def test_positional_dissimilarity_figure20_scale_effect():
-    pos_dis = Positional_Dissimilarity('diarization', DELTA_EMPTY=1.0)
+    pos_dis = PositionalDissimilarity('diarization', DELTA_EMPTY=1.0)
     pos_dis[((0, 7), (0, 10))] == pos_dis[((0, 21), (0, 30))]
 
 
@@ -150,7 +150,7 @@ def test_combi_categorical_dissimilarity():
 
     cat = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
                     [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]])
-    combi_dis = Combined_Categorical_Dissimilarity(
+    combi_dis = CombinedCategoricalDissimilarity(
         'diarization',
         list_categories=categories,
         DELTA_EMPTY=0.5,
@@ -209,7 +209,7 @@ def test_combi_sequence_dissimilarity():
     DELTA_EMPTY = 0.5
     alpha = 1
     beta = 1
-    combi_dis = Combined_Sequence_Dissimilarity(
+    combi_dis = CombinedSequenceDissimilarity(
         'SR',
         list_admitted_symbols=symbols,
         DELTA_EMPTY=0.5,

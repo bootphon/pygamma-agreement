@@ -31,6 +31,7 @@ Alignement and disorder
 ##########
 
 """
+from typing import List
 
 import numpy as np
 from scipy.special import binom
@@ -39,6 +40,9 @@ from matplotlib import pyplot as plt
 from itertools import product
 from functools import lru_cache
 import cvxpy as cp
+
+from pygamma.continuum import Continuum
+from pygamma.dissimilarity import AbstractDissimilarity
 
 
 class Error(Exception):
@@ -57,7 +61,23 @@ class SetPartitionError(Error):
         self.message = message
 
 
-class Unitary_Alignement(object):
+class AbstractAlignment:
+
+    def __init__(
+            self,
+            continuum: Continuum,
+            combined_dissimilarity: AbstractDissimilarity,
+    ):
+
+        self.continuum = continuum
+        self.combined_dissimilarity = combined_dissimilarity
+
+    @property
+    def disorder(self) -> float:
+        raise NotImplemented()
+
+
+class UnitaryAlignement:
     """Unitary Alignement
     Parameters
     ----------
@@ -72,12 +92,11 @@ class Unitary_Alignement(object):
 
     def __init__(
             self,
-            continuum,
+            continuum: Continuum,
             n_tuple,
             combined_dissimilarity,
     ):
 
-        super(Unitary_Alignement, self).__init__()
         self.continuum = continuum
         self.n_tuple = n_tuple
         assert len(n_tuple) == len(self.continuum)
@@ -111,13 +130,13 @@ class Unitary_Alignement(object):
         return disorder
 
 
-class Alignement(object):
+class Alignement:
     """Alignement
     Parameters
     ----------
     continuum :
         Continuum where the unitary alignement is from
-    set_unitary_alignements :
+    set_unitary_alignments :
         set of unitary alignements that make a partition of the set of
         units/segments
     combined_dissimilarity :
@@ -126,21 +145,20 @@ class Alignement(object):
 
     def __init__(
             self,
-            continuum,
-            set_unitary_alignements,
+            continuum: Continuum,
+            set_unitary_alignments: List[UnitaryAlignement],
             combined_dissimilarity,
     ):
 
-        super(Alignement, self).__init__()
         self.continuum = continuum
-        self.set_unitary_alignements = set_unitary_alignements
+        self.set_unitary_alignments = set_unitary_alignments
         self.combined_dissimilarity = combined_dissimilarity
 
         # set partition tests for the unitary alignements
         for annotator in self.continuum.iterannotators():
             for unit in self.continuum[annotator].itersegments():
                 found = 0
-                for unitary_alignement in self.set_unitary_alignements:
+                for unitary_alignement in self.set_unitary_alignments:
                     if [annotator, unit] in unitary_alignement.n_tuple:
                         found += 1
                 if found == 0:
@@ -153,7 +171,7 @@ class Alignement(object):
 
     @property
     def num_alignements(self):
-        return len(self.set_unitary_alignements)
+        return len(self.set_unitary_alignments)
 
     @property
     @lru_cache(maxsize=None)
@@ -165,28 +183,27 @@ class Alignement(object):
         unit is the equivalent of segment in pyannote
         """
         disorder = 0.0
-        for unitary_alignement in self.set_unitary_alignements:
+        for unitary_alignement in self.set_unitary_alignments:
             disorder += unitary_alignement.disorder
         return disorder / self.num_alignements
 
 
-class Best_Alignement(object):
+class BestAlignement:
     """Alignement
     Parameters
     ----------
     continuum :
-        Continuum where the unitary alignement is from
+        Continuum where the unitary alignment is from
     combined_dissimilarity :
         combined_dissimilarity
     """
 
     def __init__(
             self,
-            continuum,
+            continuum: Continuum,
             combined_dissimilarity,
     ):
 
-        super(Best_Alignement, self).__init__()
         self.continuum = continuum
         self.combined_dissimilarity = combined_dissimilarity
 
@@ -223,7 +240,7 @@ class Best_Alignement(object):
         # Property section 5.1.1 to reduce initial complexity
         set_of_possible_unitary_alignements = []
         for n_tuple in set_of_possible_tuples:
-            unitary_alignement = Unitary_Alignement(
+            unitary_alignement = UnitaryAlignement(
                 self.continuum, n_tuple, self.combined_dissimilarity)
 
             # Property section 5.1.1 to reduce initial complexity
@@ -244,7 +261,6 @@ class Best_Alignement(object):
         # Constraints matrix
         A = np.zeros((self.continuum.num_units,
                       num_possible_unitary_alignements))
-        # A = A.astype(float)
 
         curr_idx = 0
         # fill unitary alignements matching with units

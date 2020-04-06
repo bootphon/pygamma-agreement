@@ -33,6 +33,8 @@ Continuum and corpus
 """
 
 import itertools
+from typing import Optional
+
 import numpy as np
 
 from sortedcontainers import SortedDict
@@ -42,7 +44,7 @@ from pyannote.core import Segment, Timeline, Annotation
 from functools import lru_cache
 
 
-class Continuum(object):
+class Continuum:
     """Continuum
     Parameters
     ----------
@@ -56,9 +58,8 @@ class Continuum(object):
         New continuum
     """
 
-    def __init__(self, uri=None, modality=None):
-
-        super(Continuum, self).__init__()
+    def __init__(self, uri: Optional[str] = None,
+                 modality: Optional[str] = None):
 
         self._uri = uri
         self.modality = modality
@@ -156,7 +157,7 @@ class Continuum(object):
         return iter(self._annotators)
 
 
-class Corpus(object):
+class Corpus:
     """Corpus
     Parameters
     ----------
@@ -171,8 +172,6 @@ class Corpus(object):
     """
 
     def __init__(self, uri=None, modality=None):
-
-        super(Corpus, self).__init__()
 
         self._uri = uri
         self.modality = modality
@@ -213,7 +212,7 @@ class Corpus(object):
     @property
     @lru_cache(maxsize=None)
     def num_units(self):
-        """Number of units across continuua"""
+        """Number of units across continua"""
         num_units = 0
         for continuum in self._continuua:
             num_units += self._continuua[continuum].num_units
@@ -240,7 +239,6 @@ class Corpus(object):
 
         self._continuua[file_name_annotated] = continuum
 
-    # continuum = corpus[file_name_annotated]
     def __getitem__(self, file_name_annotated):
         """Get continuum object
         >>> continuum = corpus[file_name_annotated]

@@ -31,15 +31,17 @@ Gamma Agreement
 ##########
 
 """
+from typing import Callable
 
 import numpy as np
 from pyannote.core import Segment, Timeline, Annotation
 
 from pygamma.continuum import Continuum, Corpus
-from pygamma.alignement import Unitary_Alignement, Alignement, Best_Alignement
+from pygamma.alignement import UnitaryAlignement, Alignement, BestAlignement
+from pygamma.dissimilarity import AbstractDissimilarity
 
 
-class Gamma_Agreement(object):
+class GammaAgreement:
     """Gamma Agreement
     Parameters
     ----------
@@ -67,16 +69,15 @@ class Gamma_Agreement(object):
     """
 
     def __init__(self,
-                 continuum,
-                 alignement,
-                 dissimilarity,
-                 strategy='single',
-                 corpus=Corpus(),
-                 confidence_level=0.95,
-                 number_samples=30,
-                 type_pivot='float_pivot'):
+                 continuum: Continuum,
+                 alignement: Alignement,
+                 dissimilarity: AbstractDissimilarity,
+                 strategy: str = 'single',
+                 corpus: Corpus = Corpus(),  # TODO : move this to __init__
+                 confidence_level: float = 0.95,
+                 number_samples: int = 30,
+                 type_pivot: str = 'float_pivot'):
 
-        super(Gamma_Agreement, self).__init__()
         self.continuum = continuum
         self.alignement = alignement
         self.confidence_level = confidence_level
@@ -152,7 +153,7 @@ class Gamma_Agreement(object):
         >>> gamma_agreement.sample_annotation_from_corpus() = random_annotation
         """
         # pivot = 6
-        if type_pivot == float:
+        if self.type_pivot == "float_pivot":
             pivot = np.random.uniform(self.continuum.avg_length_unit, 2)
         sampled_annotation = Annotation()
 
@@ -178,8 +179,8 @@ class Gamma_Agreement(object):
                 if self.strategy is 'multi':
                     sampled_continuum['Sampled_annotation {}'.format(
                         idx)] = self.sample_annotation_from_corpus()
-            best_seq_alignement = Best_Alignement(sampled_continuum,
-                                                  self.dissimilarity)
+            best_seq_alignement = BestAlignement(sampled_continuum,
+                                                 self.dissimilarity)
             chance_disorder_values.append(best_seq_alignement.disorder)
 
         return chance_disorder_values
