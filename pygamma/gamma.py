@@ -31,14 +31,13 @@ Gamma Agreement
 ##########
 
 """
-from typing import Callable
 
 import numpy as np
-from pyannote.core import Segment, Timeline, Annotation
+from pyannote.core import Segment, Annotation
 
-from pygamma.continuum import Continuum, Corpus
-from pygamma.alignement import UnitaryAlignement, Alignement, BestAlignement
-from pygamma.dissimilarity import AbstractDissimilarity
+from .alignment import Alignment, BestAlignment
+from .continuum import Continuum, Corpus
+from .dissimilarity import AbstractDissimilarity
 
 
 class GammaAgreement:
@@ -70,7 +69,7 @@ class GammaAgreement:
 
     def __init__(self,
                  continuum: Continuum,
-                 alignement: Alignement,
+                 alignement: Alignment,
                  dissimilarity: AbstractDissimilarity,
                  strategy: str = 'single',
                  corpus: Corpus = Corpus(),  # TODO : move this to __init__
@@ -179,8 +178,8 @@ class GammaAgreement:
                 if self.strategy is 'multi':
                     sampled_continuum['Sampled_annotation {}'.format(
                         idx)] = self.sample_annotation_from_corpus()
-            best_seq_alignement = BestAlignement(sampled_continuum,
-                                                 self.dissimilarity)
+            best_seq_alignement = BestAlignment(sampled_continuum,
+                                                self.dissimilarity)
             chance_disorder_values.append(best_seq_alignement.disorder)
 
         return chance_disorder_values

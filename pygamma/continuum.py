@@ -32,16 +32,12 @@ Continuum and corpus
 
 """
 
-import itertools
+from functools import lru_cache
 from typing import Optional
 
 import numpy as np
-
+from pyannote.core import Annotation
 from sortedcontainers import SortedDict
-
-from pyannote.core import Segment, Timeline, Annotation
-
-from functools import lru_cache
 
 
 class Continuum:
@@ -71,10 +67,6 @@ class Continuum:
 
         # values: {annotator: num_units} dictionary
         self._annotators_num_units = SortedDict()
-
-        # timeline meant to store all annotated segments
-        self._timeline = None
-        self._timelineNeedsUpdate = True
 
     def _get_uri(self):
         return self._uri
@@ -141,7 +133,6 @@ class Continuum:
         self._annotators[annotator] = annotation
         self._annotators_num_units[annotator] = len(annotation)
 
-    # annotation = continuum[annotator]
     def __getitem__(self, annotator):
         """Get annotation object
         >>> annotation = continuum[annotator]

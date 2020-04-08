@@ -31,19 +31,17 @@ Dissimilarity
 ##########
 
 """
-from typing import List, Optional
+from abc import ABCMeta, abstractmethod
+from functools import lru_cache
+from typing import List, Optional, Union
 
 import numpy as np
 from matplotlib import pyplot as plt
-
-from similarity.weighted_levenshtein import WeightedLevenshtein
 from similarity.weighted_levenshtein import CharacterSubstitutionInterface
-from similarity.weighted_levenshtein import CharacterInsDelInterface
-
-from functools import lru_cache
+from similarity.weighted_levenshtein import WeightedLevenshtein
 
 
-class AbstractDissimilarity:
+class AbstractDissimilarity(metaclass=ABCMeta):
 
     def __init__(self,
                  annotation_task: str,
@@ -51,7 +49,8 @@ class AbstractDissimilarity:
         self.annotation_task = annotation_task
         self.DELTA_EMPTY = DELTA_EMPTY
 
-    def __getitem__(self, units):
+    @abstractmethod
+    def __getitem__(self, units) -> float:
         pass
 
 
@@ -81,27 +80,27 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                  categorical_dissimilarity_matrix: Optional[np.ndarray] = None,
                  DELTA_EMPTY=1,
                  function_cat=lambda x: x):
+        super().__init__(annotation_task, DELTA_EMPTY)
 
-        self.annotation_task = annotation_task
         self.list_categories = list_categories
+        self.function_cat = function_cat
         assert len(list_categories) == len(set(list_categories))
         self.num_categories = len(self.list_categories)
-        self.dict_list_categories = dictionary = dict(
-            zip(self.list_categories, list(range(self.num_categories))))
-        cat_dissimilarity_matrix = categorical_dissimilarity_matrix
-        self.categorical_dissimilarity_matrix = cat_dissimilarity_matrix
+        self.dict_list_categories = dict(zip(self.list_categories,
+                                             range(self.num_categories)))
+        self.categorical_dissimilarity_matrix = categorical_dissimilarity_matrix
         if self.categorical_dissimilarity_matrix is None:
+            # building the default dissimilarity matrix
             self.categorical_dissimilarity_matrix = np.ones(
                 (self.num_categories, self.num_categories)) - np.eye(
                 self.num_categories)
         else:
-            assert type(self.categorical_dissimilarity_matrix) == np.ndarray
+            # sanity checks on the categorical_dissimilarity_matrix
+            assert isinstance(self.categorical_dissimilarity_matrix, np.ndarray)
             assert np.all(self.categorical_dissimilarity_matrix <= 1)
             assert np.all(0 <= self.categorical_dissimilarity_matrix)
             assert np.all(self.categorical_dissimilarity_matrix ==
                           categorical_dissimilarity_matrix.T)
-        self.function_cat = function_cat
-        self.DELTA_EMPTY = DELTA_EMPTY
 
     def plot_categorical_dissimilarity_matrix(self):
         fig, ax = plt.subplots()
@@ -155,38 +154,48 @@ class SequenceDissimilarity(AbstractDissimilarity):
         Dissimilarity
     """
 
+    class CharacterSubstitution(CharacterSubstitutionInterface):
+        def __init__(self, list_admitted_symbols, dict_list_symbols,
+                     symbol_dissimilarity_matrix):
+            super().__init__()
+            self.list_admitted_symbols = list_admitted_symbols
+            self.dict_list_symbols = dict_list_symbols
+            self.symbol_dissimilarity_matrix = symbol_dissimilarity_matrix
+
+        def cost(self, c0, c1):
+            return self.symbol_dissimilarity_matrix[self.dict_list_symbols[
+                c0]][self.dict_list_symbols[c1]]
+
     def __init__(self,
                  annotation_task,
                  list_admitted_symbols,
                  symbol_dissimlarity_matrix=None,
                  DELTA_EMPTY=1,
                  function_cat=lambda x: x):
+        super().__init__(annotation_task, DELTA_EMPTY)
 
-        super(SequenceDissimilarity, self).__init__()
-        self.annotation_task = annotation_task
+        self.function_cat = function_cat
         self.list_admitted_symbols = list_admitted_symbols
         assert len(list_admitted_symbols) == len(set(list_admitted_symbols))
         self.num_symbols = len(self.list_admitted_symbols)
-        self.dict_list_symbols = dictionary = dict(
-            zip(self.list_admitted_symbols, list(range(self.num_symbols))))
-        self.symbol_dissimlarity_matrix = symbol_dissimlarity_matrix
-        if self.symbol_dissimlarity_matrix is None:
-            self.symbol_dissimlarity_matrix = np.ones(
+        self.dict_list_symbols = dict(zip(self.list_admitted_symbols,
+                                          range(self.num_symbols)))
+        self.symbol_dissimilarity_matrix = symbol_dissimlarity_matrix
+        if self.symbol_dissimilarity_matrix is None:
+            self.symbol_dissimilarity_matrix = np.ones(
                 (self.num_symbols, self.num_symbols)) - np.eye(
                 self.num_symbols)
         else:
-            assert type(self.symbol_dissimlarity_matrix) == np.ndarray
-            assert np.all(self.symbol_dissimlarity_matrix <= 1)
-            assert np.all(0 <= self.symbol_dissimlarity_matrix)
-            assert np.all(self.symbol_dissimlarity_matrix ==
+            assert type(self.symbol_dissimilarity_matrix) == np.ndarray
+            assert np.all(self.symbol_dissimilarity_matrix <= 1)
+            assert np.all(0 <= self.symbol_dissimilarity_matrix)
+            assert np.all(self.symbol_dissimilarity_matrix ==
                           symbol_dissimlarity_matrix.T)
-        self.function_cat = function_cat
-        self.DELTA_EMPTY = DELTA_EMPTY
 
     def plot_symbol_dissimilarity_matrix(self):
         fig, ax = plt.subplots()
         im = plt.imshow(
-            self.symbol_dissimlarity_matrix,
+            self.symbol_dissimilarity_matrix,
             extent=[0, self.num_symbols, 0, self.num_symbols])
         ax.figure.colorbar(im, ax=ax)
         plt.xticks([el + 0.5 for el in range(self.num_symbols)],
@@ -203,22 +212,12 @@ class SequenceDissimilarity(AbstractDissimilarity):
 
     @lru_cache(maxsize=None)
     def __getitem__(self, units):
-        class CharacterSubstitution(CharacterSubstitutionInterface):
-            def __init__(self, list_admitted_symbols, dict_list_symbols,
-                         symbol_dissimlarity_matrix):
-                super(CharacterSubstitution, self).__init__()
-                self.list_admitted_symbols = list_admitted_symbols
-                self.dict_list_symbols = dict_list_symbols
-                self.symbol_dissimlarity_matrix = symbol_dissimlarity_matrix
-
-            def cost(self, c0, c1):
-                return self.symbol_dissimlarity_matrix[self.dict_list_symbols[
-                    c0]][self.dict_list_symbols[c1]]
 
         weighted_levenshtein = WeightedLevenshtein(
-            CharacterSubstitution(self.list_admitted_symbols,
-                                  self.dict_list_symbols,
-                                  self.symbol_dissimlarity_matrix))
+            self.CharacterSubstitution(self.list_admitted_symbols,
+                                       self.dict_list_symbols,
+                                       self.symbol_dissimilarity_matrix)
+        )
 
         # assert type(units) == list
         if len(units) < 2:
@@ -250,9 +249,7 @@ class PositionalDissimilarity(AbstractDissimilarity):
     """
 
     def __init__(self, annotation_task, DELTA_EMPTY=1, function_distance=None):
-
-        self.annotation_task = annotation_task
-        self.DELTA_EMPTY = DELTA_EMPTY
+        super().__init__(annotation_task, DELTA_EMPTY)
         self.function_distance = function_distance
 
     @lru_cache(maxsize=None)
@@ -272,7 +269,36 @@ class PositionalDissimilarity(AbstractDissimilarity):
                 return distance_pos
 
 
-class CombinedCategoricalDissimilarity(AbstractDissimilarity):
+class AbstractCombinedDissimilarity(AbstractDissimilarity):
+
+    def __init__(self,
+                 annotation_task: str,
+                 DELTA_EMPTY: int,
+                 alpha: float,
+                 beta: float,
+                 positional_dissimilarity: PositionalDissimilarity,
+                 annotation_dissimiliarity: Union[CategoricalDissimilarity,
+                                                  SequenceDissimilarity]):
+        super().__init__(annotation_task, DELTA_EMPTY)
+        self.alpha, self.beta = alpha, beta
+        self.positional_dissim = positional_dissimilarity
+        self.annotation_dissim = annotation_dissimiliarity
+
+    @lru_cache(maxsize=None)
+    def __getitem__(self, units):
+        timing_units, annot_units = units
+        # sanity check
+        assert len(timing_units) == len(annot_units)
+        if len(timing_units) < 2:
+            return self.DELTA_EMPTY
+        else:
+            dis = self.alpha * self.positional_dissim[timing_units]
+            dis += self.beta * self.annotation_dissim[annot_units]
+            return dis
+
+
+class CombinedCategoricalDissimilarity(AbstractCombinedDissimilarity):
+    # TODO : update this doc, it does not match the __init__ signature
     """Combined Dissimilarity
     Parameters
     ----------
@@ -286,7 +312,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         Function to adjust dissimilarity based on categorical matrix values
     DELTA_EMPTY :
         empty dissimilarity value
-    f_dis :
+    function_distance :
         position function difference
     Returns
     -------
@@ -295,58 +321,33 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
     """
 
     def __init__(self,
-                 annotation_task,
-                 list_categories,
-                 alpha=3,
-                 beta=1,
-                 DELTA_EMPTY=1,
+                 annotation_task: str,
+                 list_categories: List[str],
+                 alpha: int = 3,
+                 beta: int = 1,
+                 DELTA_EMPTY: int = 1,
                  function_distance=None,
                  categorical_dissimilarity_matrix=None,
                  function_cat=lambda x: x):
-
-        self.annotation_task = annotation_task
-        self.function_distance = function_distance
-        self.annotation_task = annotation_task
-        self.list_categories = list_categories
-        self.num_categories = len(self.list_categories)
-
-        self.alpha = alpha
-        self.beta = beta
-
-        self.dict_list_categories = dictionary = dict(
-            zip(self.list_categories, list(range(self.num_categories))))
-        cat_dissimilarity_matrix = categorical_dissimilarity_matrix
-        self.categorical_dissimilarity_matrix = cat_dissimilarity_matrix
-
-        self.function_cat = function_cat
-        self.function_distance = function_distance
-        self.DELTA_EMPTY = DELTA_EMPTY
-
-        self.positional_dissimilarity = PositionalDissimilarity(
+        #  building child positional and categorical dissimilarities objs
+        positional_dissimilarity = PositionalDissimilarity(
             annotation_task=annotation_task,
             DELTA_EMPTY=DELTA_EMPTY,
             function_distance=function_distance)
 
-        self.categorical_dissimlarity = CategoricalDissimilarity(
+        categorical_dissimilarity = CategoricalDissimilarity(
             annotation_task=annotation_task,
             list_categories=list_categories,
             categorical_dissimilarity_matrix=categorical_dissimilarity_matrix,
             DELTA_EMPTY=DELTA_EMPTY,
             function_cat=function_cat)
 
-    @lru_cache(maxsize=None)
-    def __getitem__(self, units):
-        timing_units, categorical_units = units
-        assert len(timing_units) == len(categorical_units)
-        if len(timing_units) < 2:
-            return self.DELTA_EMPTY
-        else:
-            dis = self.alpha * self.positional_dissimilarity[timing_units]
-            dis += self.beta * self.categorical_dissimlarity[categorical_units]
-            return dis
+        super().__init__(annotation_task, DELTA_EMPTY, alpha, beta,
+                         positional_dissimilarity,
+                         categorical_dissimilarity)
 
 
-class CombinedSequenceDissimilarity(AbstractDissimilarity):
+class CombinedSequenceDissimilarity(AbstractCombinedDissimilarity):
     """Combined Sequence Dissimilarity
     Parameters
     ----------
@@ -354,7 +355,7 @@ class CombinedSequenceDissimilarity(AbstractDissimilarity):
         task to be annotated
     list_admitted_symbols :
         list of admitted symbols in the sequence
-    symbol_dissimlarity_matrix :
+    symbol_dissimilarity_matrix :
         Dissimilarity matrix to compute between symbols
     function_cat :
         Function to adjust dissimilarity based on categorical matrix values
@@ -369,52 +370,26 @@ class CombinedSequenceDissimilarity(AbstractDissimilarity):
     """
 
     def __init__(self,
-                 annotation_task,
-                 list_admitted_symbols,
-                 alpha=3,
-                 beta=1,
-                 DELTA_EMPTY=1,
+                 annotation_task: str,
+                 list_admitted_symbols: List[str],
+                 alpha: int = 3,
+                 beta: int = 1,
+                 DELTA_EMPTY: int = 1,
                  function_distance=None,
-                 symbol_dissimlarity_matrix=None,
+                 symbol_dissimilarity_matrix=None,
                  function_cat=lambda x: x):
-
-        self.annotation_task = annotation_task
-        self.function_distance = function_distance
-        self.annotation_task = annotation_task
-        self.list_admitted_symbols = list_admitted_symbols
-
-        self.alpha = alpha
-        self.beta = beta
-
-        self.num_symbols = len(self.list_admitted_symbols)
-        self.dict_list_symbols = dictionary = dict(
-            zip(self.list_admitted_symbols, list(range(self.num_symbols))))
-        dissimilarity_matrix = symbol_dissimlarity_matrix
-        self.symbol_dissimlarity_matrix = dissimilarity_matrix
-
-        self.function_cat = function_cat
-        self.function_distance = function_distance
-        self.DELTA_EMPTY = DELTA_EMPTY
-
-        self.positional_dissimilarity = PositionalDissimilarity(
+        positional_dissimilarity = PositionalDissimilarity(
             annotation_task=annotation_task,
             DELTA_EMPTY=DELTA_EMPTY,
             function_distance=function_distance)
 
-        self.sequence_dissimlarity = SequenceDissimilarity(
+        sequence_dissimilarity = SequenceDissimilarity(
             annotation_task=annotation_task,
-            list_admitted_symbols=self.list_admitted_symbols,
-            symbol_dissimlarity_matrix=self.symbol_dissimlarity_matrix,
+            list_admitted_symbols=list_admitted_symbols,
+            symbol_dissimlarity_matrix=symbol_dissimilarity_matrix,
             DELTA_EMPTY=DELTA_EMPTY,
             function_cat=function_cat)
 
-    @lru_cache(maxsize=None)
-    def __getitem__(self, units):
-        timing_units, categorical_units = units
-        assert len(timing_units) == len(categorical_units)
-        if len(timing_units) < 2:
-            return self.DELTA_EMPTY
-        else:
-            dis = self.alpha * self.positional_dissimilarity[timing_units]
-            dis += self.beta * self.sequence_dissimlarity[categorical_units]
-            return dis
+        super().__init__(annotation_task, DELTA_EMPTY, alpha, beta,
+                         positional_dissimilarity,
+                         sequence_dissimilarity)

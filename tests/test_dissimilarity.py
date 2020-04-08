@@ -213,7 +213,7 @@ def test_combi_sequence_dissimilarity():
         'SR',
         list_admitted_symbols=symbols,
         DELTA_EMPTY=0.5,
-        symbol_dissimlarity_matrix=cat)
+        symbol_dissimilarity_matrix=cat)
     list_dis = []
     for liza_unit in continuum['liza'].itersegments():
         for pierrot_unit in continuum['pierrot'].itersegments():
