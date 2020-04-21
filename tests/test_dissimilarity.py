@@ -3,11 +3,11 @@
 import tempfile
 import numpy as np
 from pygamma.continuum import Continuum
-from pygamma.dissimilarity import CategoricalDissimilarity
-from pygamma.dissimilarity import SequenceDissimilarity
-from pygamma.dissimilarity import PositionalDissimilarity
-from pygamma.dissimilarity import CombinedCategoricalDissimilarity
-from pygamma.dissimilarity import CombinedSequenceDissimilarity
+from pygamma.dissimilarity import (CategoricalDissimilarity,
+                                   SequenceDissimilarity,
+                                   PositionalDissimilarity,
+                                   CombinedCategoricalDissimilarity,
+                                   CombinedSequenceDissimilarity)
 
 from pyannote.core import Annotation, Segment
 
@@ -170,8 +170,8 @@ def test_combi_categorical_dissimilarity():
     assert combi_dis[(liza_unit, pierrot_unit), (
         continuum['liza'][liza_unit],
         continuum['pierrot'][pierrot_unit])] == combi_dis[(
-            pierrot_unit, liza_unit), (continuum['pierrot'][pierrot_unit],
-                                       continuum['liza'][liza_unit])]
+                                                              pierrot_unit, liza_unit), (continuum['pierrot'][pierrot_unit],
+                                                                                         continuum['liza'][liza_unit])]
     assert combi_dis[(liza_unit,
                       liza_unit), (continuum['liza'][liza_unit],
                                    continuum['liza'][liza_unit])] == 0
@@ -230,8 +230,8 @@ def test_combi_sequence_dissimilarity():
     assert combi_dis[(liza_unit, pierrot_unit), (
         continuum['liza'][liza_unit],
         continuum['pierrot'][pierrot_unit])] == combi_dis[(
-            pierrot_unit, liza_unit), (continuum['pierrot'][pierrot_unit],
-                                       continuum['liza'][liza_unit])]
+                                                              pierrot_unit, liza_unit), (continuum['pierrot'][pierrot_unit],
+                                                                                         continuum['liza'][liza_unit])]
     assert combi_dis[(liza_unit,
                       liza_unit), (continuum['liza'][liza_unit],
                                    continuum['liza'][liza_unit])] == 0

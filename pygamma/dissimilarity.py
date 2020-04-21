@@ -175,10 +175,10 @@ class SequenceDissimilarity(AbstractDissimilarity):
         super().__init__(annotation_task, DELTA_EMPTY)
 
         self.function_cat = function_cat
-        self.list_admitted_symbols = list_admitted_symbols
-        assert len(list_admitted_symbols) == len(set(list_admitted_symbols))
-        self.num_symbols = len(self.list_admitted_symbols)
-        self.dict_list_symbols = dict(zip(self.list_admitted_symbols,
+        self.admitted_symbols_set = set(list_admitted_symbols)
+        assert len(list_admitted_symbols) == len(self.admitted_symbols_set)
+        self.num_symbols = len(self.admitted_symbols_set)
+        self.dict_list_symbols = dict(zip(self.admitted_symbols_set,
                                           range(self.num_symbols)))
         self.symbol_dissimilarity_matrix = symbol_dissimlarity_matrix
         if self.symbol_dissimilarity_matrix is None:
@@ -199,9 +199,9 @@ class SequenceDissimilarity(AbstractDissimilarity):
             extent=[0, self.num_symbols, 0, self.num_symbols])
         ax.figure.colorbar(im, ax=ax)
         plt.xticks([el + 0.5 for el in range(self.num_symbols)],
-                   self.list_admitted_symbols)
+                   self.admitted_symbols_set)
         plt.yticks([el + 0.5 for el in range(self.num_symbols)],
-                   self.list_admitted_symbols[::-1])
+                   self.admitted_symbols_set[::-1])
         plt.setp(
             ax.get_xticklabels(),
             rotation=45,
@@ -214,7 +214,7 @@ class SequenceDissimilarity(AbstractDissimilarity):
     def __getitem__(self, units):
 
         weighted_levenshtein = WeightedLevenshtein(
-            self.CharacterSubstitution(self.list_admitted_symbols,
+            self.CharacterSubstitution(self.admitted_symbols_set,
                                        self.dict_list_symbols,
                                        self.symbol_dissimilarity_matrix)
         )
@@ -223,10 +223,8 @@ class SequenceDissimilarity(AbstractDissimilarity):
         if len(units) < 2:
             return self.DELTA_EMPTY
         else:
-            for symbol in units[0]:
-                assert symbol in self.list_admitted_symbols
-            for symbol in units[1]:
-                assert symbol in self.list_admitted_symbols
+            assert set(units[0]) in self.admitted_symbols_set
+            assert set(units[1]) in self.admitted_symbols_set
             return self.function_cat(
                 weighted_levenshtein.distance(units[0], units[1]) / max(
                     len(units[0]), len(units[1]))) * self.DELTA_EMPTY
@@ -277,12 +275,12 @@ class AbstractCombinedDissimilarity(AbstractDissimilarity):
                  alpha: float,
                  beta: float,
                  positional_dissimilarity: PositionalDissimilarity,
-                 annotation_dissimiliarity: Union[CategoricalDissimilarity,
-                                                  SequenceDissimilarity]):
+                 annotation_dissimilarity: Union[CategoricalDissimilarity,
+                                                 SequenceDissimilarity]):
         super().__init__(annotation_task, DELTA_EMPTY)
         self.alpha, self.beta = alpha, beta
         self.positional_dissim = positional_dissimilarity
-        self.annotation_dissim = annotation_dissimiliarity
+        self.annotation_dissim = annotation_dissimilarity
 
     @lru_cache(maxsize=None)
     def __getitem__(self, units):
