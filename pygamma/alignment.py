@@ -290,6 +290,7 @@ class BestAlignment(AbstractAlignment):
         tuples_disorders = unit_batch.disorder()
         # Property section 5.1.1 to reduce initial complexity
         set_of_possible_unitary_alignments = []
+        alignments_disorders = []
         for idx, n_tuple in enumerate(set_of_possible_tuples):
             # Property section 5.1.1 to reduce initial complexity
             disorder = tuples_disorders[idx]
@@ -299,6 +300,7 @@ class BestAlignment(AbstractAlignment):
                                                      n_tuple,
                                                      self.combined_dissim)
                 set_of_possible_unitary_alignments.append(unitary_alignment)
+                alignments_disorders.append(disorder)
 
         # Definition of the integer linear program
         num_possible_unitary_alignments = len(
@@ -306,10 +308,7 @@ class BestAlignment(AbstractAlignment):
         # x is the alignment variable: contains the best alignment once the
         # problem has been solved
         x = cp.Variable(shape=num_possible_unitary_alignments, boolean=True)
-        d = np.array([
-            unitary_alignment.disorder
-            for unitary_alignment in set_of_possible_unitary_alignments
-        ])
+        d = np.array(alignments_disorders)
 
         # Constraints matrix
         A = np.zeros((self.continuum.num_units,
