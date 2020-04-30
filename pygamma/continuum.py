@@ -33,11 +33,14 @@ Continuum and corpus
 """
 
 from functools import lru_cache
-from typing import Optional
+from typing import Optional, Hashable, Dict
 
 import numpy as np
 from pyannote.core import Annotation
 from sortedcontainers import SortedDict
+
+# defining Annotator type
+Annotator = Hashable
 
 
 class Continuum:
@@ -79,7 +82,7 @@ class Continuum:
         return len(self._annotators)
 
     def __bool__(self):
-        """Emptiness
+        """Truthiness, basically tests for emptiness
         >>> if continuum:
         ...    # continuum is not empty
         ... else:
@@ -116,9 +119,9 @@ class Continuum:
                 total_length_unit += unit.duration
         return total_length_unit / self.num_units
 
-    def __setitem__(self, annotator, annotation):
+    def __setitem__(self, annotator: Annotator, annotation: Annotation):
         """Add new or update existing Annotation
-        >>> continuum[Annotator] = Annotation
+        >>> continuum[annotator] = Annotation
         If Annotator does not exist, it is added.
         If Annotator already exists, it is updated.
         Note
@@ -133,7 +136,7 @@ class Continuum:
         self._annotators[annotator] = annotation
         self._annotators_num_units[annotator] = len(annotation)
 
-    def __getitem__(self, annotator):
+    def __getitem__(self, annotator: Annotator):
         """Get annotation object
         >>> annotation = continuum[annotator]
         """
@@ -170,12 +173,12 @@ class Corpus:
         # sorted dictionary
         # keys: annotators
         # values: {annotator: annotations} dictionary
-        self._annotators = SortedDict()
+        self._annotators: Dict[Annotator, Annotation] = SortedDict()
 
         # sorted dictionary
         # keys: file_name_annotated
         # values: {file_name_annotated: continuum} dictionary
-        self._continuua = SortedDict()
+        self._continuua: Dict[str, Continuum] = SortedDict()
 
         # timeline meant to store all annotated segments
         self._timeline = None
@@ -214,7 +217,8 @@ class Corpus:
     def avg_num_annotations_per_annotator(self):
         return self.num_units / len(self)
 
-    def __setitem__(self, file_name_annotated, continuum):
+    def __setitem__(self, file_name_annotated: str,
+                    continuum: Continuum):
         """Add new or update existing Continuum
         >>> corpus[file_name_annotated] = Continuum
         If file_name_annotated does not exist, it is added.
@@ -230,7 +234,7 @@ class Corpus:
 
         self._continuua[file_name_annotated] = continuum
 
-    def __getitem__(self, file_name_annotated):
+    def __getitem__(self, file_name_annotated: str):
         """Get continuum object
         >>> continuum = corpus[file_name_annotated]
         """

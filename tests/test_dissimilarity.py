@@ -158,9 +158,9 @@ def test_combi_categorical_dissimilarity():
     list_dis = []
     for liza_unit in continuum['liza'].itersegments():
         for pierrot_unit in continuum['pierrot'].itersegments():
-            list_dis.append(combi_dis[(liza_unit, pierrot_unit), (
-                continuum['liza'][liza_unit],
-                continuum['pierrot'][pierrot_unit])])
+            list_dis.append(combi_dis[(liza_unit, pierrot_unit),
+                                      (continuum['liza'][liza_unit],
+                                       continuum['pierrot'][pierrot_unit])])
     assert list_dis == pytest.approx([
         0.09375, 5.11, 2.69375, 6.15, 8.790000000000001, 1.75,
         0.16666666666666666, 1.3020408163265305, 1.8, 6.3, 2.0237024221453286,

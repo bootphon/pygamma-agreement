@@ -33,12 +33,17 @@ Dissimilarity
 """
 from abc import ABCMeta, abstractmethod
 from functools import lru_cache
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Tuple, Any, Callable
 
 import numpy as np
 from matplotlib import pyplot as plt
+from pyannote.core import Segment
 from similarity.weighted_levenshtein import CharacterSubstitutionInterface
 from similarity.weighted_levenshtein import WeightedLevenshtein
+
+from pygamma.continuum import Annotator
+
+Unit = Tuple[Annotator, Segment]
 
 
 class AbstractDissimilarity(metaclass=ABCMeta):
@@ -50,7 +55,10 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         self.DELTA_EMPTY = DELTA_EMPTY
 
     @abstractmethod
-    def __getitem__(self, units) -> float:
+    def __getitem__(self, units: Tuple[Any, Any]) -> float:
+        pass
+
+    def batch_compute(self, batch: Any) -> np.ndarray:
         pass
 
 
@@ -78,8 +86,8 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                  annotation_task: str,
                  list_categories: List[str],
                  categorical_dissimilarity_matrix: Optional[np.ndarray] = None,
-                 DELTA_EMPTY=1,
-                 function_cat=lambda x: x):
+                 DELTA_EMPTY: float = 1,
+                 function_cat: Optional[Callable[[float], float]] = None):
         super().__init__(annotation_task, DELTA_EMPTY)
 
         self.list_categories = list_categories
@@ -121,7 +129,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         plt.show()
 
     @lru_cache(maxsize=None)
-    def __getitem__(self, units):
+    def __getitem__(self, units: Tuple[str, str]):
         # assert type(units) == list
         if len(units) < 2:
             return self.DELTA_EMPTY
@@ -129,9 +137,27 @@ class CategoricalDissimilarity(AbstractDissimilarity):
             assert units[0] in self.list_categories
             assert units[1] in self.list_categories
             cat_dis = self.categorical_dissimilarity_matrix[
-                self.dict_list_categories[units[0]]][self.dict_list_categories[
-                units[1]]]
-            return self.function_cat(cat_dis) * self.DELTA_EMPTY
+                self.dict_list_categories[units[0]]][self.dict_list_categories[units[1]]]
+            if self.function_cat is not None:
+                cat_dis = self.function_cat(cat_dis)
+
+            return cat_dis * self.DELTA_EMPTY
+
+    def batch_compute(self, units: List[Tuple[str, str]]) -> np.ndarray:
+        # embedding all categories (first as list, then coverting to array)
+        cat_embds_list = []
+        for cat_a, cat_b in units:
+            cat_embds_list.append((self.dict_list_categories[cat_a],
+                                   self.dict_list_categories[cat_b]))
+        cat_embds = np.array(cat_embds_list).swapaxes(0, 1)
+        # retrieving all the distances
+        cat_dists = self.categorical_dissimilarity_matrix[cat_embds[0],
+                                                          cat_embds[1]]
+        cat_dists *= cat_dists * self.DELTA_EMPTY
+        if self.function_cat is None:
+            return cat_dists
+        else:
+            return np.array([self.function_cat(d) for d in cat_dists])
 
 
 class SequenceDissimilarity(AbstractDissimilarity):
@@ -211,7 +237,7 @@ class SequenceDissimilarity(AbstractDissimilarity):
         plt.show()
 
     @lru_cache(maxsize=None)
-    def __getitem__(self, units):
+    def __getitem__(self, units: Tuple[str, str]):
 
         weighted_levenshtein = WeightedLevenshtein(
             self.CharacterSubstitution(self.admitted_symbols_set,
@@ -223,8 +249,8 @@ class SequenceDissimilarity(AbstractDissimilarity):
         if len(units) < 2:
             return self.DELTA_EMPTY
         else:
-            assert set(units[0]) in self.admitted_symbols_set
-            assert set(units[1]) in self.admitted_symbols_set
+            assert set(units[0]) <= self.admitted_symbols_set
+            assert set(units[1]) <= self.admitted_symbols_set
             return self.function_cat(
                 weighted_levenshtein.distance(units[0], units[1]) / max(
                     len(units[0]), len(units[1]))) * self.DELTA_EMPTY
@@ -251,27 +277,45 @@ class PositionalDissimilarity(AbstractDissimilarity):
         self.function_distance = function_distance
 
     @lru_cache(maxsize=None)
-    def __getitem__(self, units):
+    def __getitem__(self, units: List[Segment]):
         # assert type(units) == list
         if len(units) < 2:
             return self.DELTA_EMPTY
-        else:
+        elif len(units) == 2:
             if self.function_distance is None:
                 # triple indexing to tracks in pyannote
                 # DANGER if the api breaks
-                distance_pos = (np.abs(units[0][0] - units[1][0]) +
-                                np.abs(units[0][1] - units[1][1]))
-                distance_pos /= ((
-                        units[0][1] - units[0][0] + units[1][1] - units[1][0]))
+                first, second = units
+                distance_pos = (np.abs(first.start - second.start) +
+                                np.abs(first.end - second.end))
+                distance_pos /= (first.duration + second.duration)
                 distance_pos = distance_pos * distance_pos * self.DELTA_EMPTY
                 return distance_pos
+
+    def batch_compute(self, batch: List[Tuple[Segment, Segment]]) -> np.ndarray:
+        first_row_boundaries_list = []
+        second_row_boundaries_list = []
+        for first_seg, second_seg in batch:
+            first_row_boundaries_list.append((first_seg.start,
+                                              first_seg.end))
+            second_row_boundaries_list.append((second_seg.start,
+                                               second_seg.end))
+        first_row_bounds = np.array(first_row_boundaries_list).swapaxes(0, 1)
+        second_row_bounds = np.array(second_row_boundaries_list).swapaxes(0, 1)
+        starts_diffs = np.abs(first_row_bounds[0] - second_row_bounds[0])
+        ends_diffs = np.abs(first_row_bounds[1] - second_row_bounds[1])
+        durations_sum = ((first_row_bounds[1] - first_row_bounds[0]) +
+                         (second_row_bounds[1] - second_row_bounds[0]))
+        distance_pos = (starts_diffs + ends_diffs) / durations_sum
+        distance_pos = distance_pos * distance_pos * self.DELTA_EMPTY
+        return distance_pos
 
 
 class AbstractCombinedDissimilarity(AbstractDissimilarity):
 
     def __init__(self,
                  annotation_task: str,
-                 DELTA_EMPTY: int,
+                 DELTA_EMPTY: float,
                  alpha: float,
                  beta: float,
                  positional_dissimilarity: PositionalDissimilarity,
@@ -283,7 +327,8 @@ class AbstractCombinedDissimilarity(AbstractDissimilarity):
         self.annotation_dissim = annotation_dissimilarity
 
     @lru_cache(maxsize=None)
-    def __getitem__(self, units):
+    def __getitem__(self, units: Tuple[Tuple[Segment, Segment],
+                                       Tuple[str, str]]):
         timing_units, annot_units = units
         # sanity check
         assert len(timing_units) == len(annot_units)
@@ -293,6 +338,15 @@ class AbstractCombinedDissimilarity(AbstractDissimilarity):
             dis = self.alpha * self.positional_dissim[timing_units]
             dis += self.beta * self.annotation_dissim[annot_units]
             return dis
+
+    def batch_compute(self, batch: Tuple[List[Tuple[Segment, Segment]],
+                                         List[Tuple[str, str]]]) -> np.ndarray:
+        all_timings, all_annots = batch
+        assert len(all_annots) == len(all_timings)
+        timing_dists = self.positional_dissim.batch_compute(all_timings)
+        annot_dists = self.annotation_dissim.batch_compute(all_annots)
+        return timing_dists * self.alpha + annot_dists * self.beta
+
 
 
 class CombinedCategoricalDissimilarity(AbstractCombinedDissimilarity):
@@ -323,7 +377,7 @@ class CombinedCategoricalDissimilarity(AbstractCombinedDissimilarity):
                  list_categories: List[str],
                  alpha: int = 3,
                  beta: int = 1,
-                 DELTA_EMPTY: int = 1,
+                 DELTA_EMPTY: float = 1,
                  function_distance=None,
                  categorical_dissimilarity_matrix=None,
                  function_cat=lambda x: x):

@@ -247,23 +247,27 @@ def test_best_alignement():
         categorical_dissimilarity_matrix=cat)
     set_unitary_alignements = []
 
-    n_tuple = (['liza', Segment(1, 5)], ['pierrot', Segment(2, 6)],
+    n_tuple = (['liza', Segment(1, 5)],
+               ['pierrot', Segment(2, 6)],
                ['hadrien', Segment(1, 6)])
     unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignements.append(unitary_alignement)
 
-    n_tuple = (['liza', Segment(6, 8)], ['pierrot', Segment(7, 8)],
+    n_tuple = (['liza', Segment(6, 8)],
+               ['pierrot', Segment(7, 8)],
                ['hadrien', Segment(8, 10)])
     unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignements.append(unitary_alignement)
 
-    n_tuple = (['liza', Segment(7, 20)], ['pierrot', Segment(7, 19)],
+    n_tuple = (['liza', Segment(7, 20)],
+               ['pierrot', Segment(7, 19)],
                ['hadrien', Segment(7, 19)])
     unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignements.append(unitary_alignement)
 
-    n_tuple = (['liza', Segment(12, 18)], ['pierrot',
-                                           Segment(12, 18)], ['hadrien', None])
+    n_tuple = (['liza', Segment(12, 18)],
+               ['pierrot', Segment(12, 18)],
+               ['hadrien', None])
     unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignements.append(unitary_alignement)
 
