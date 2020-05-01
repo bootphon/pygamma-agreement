@@ -259,7 +259,7 @@ class BestAlignment(AbstractAlignment):
             for unit in self.continuum[annotator].itersegments():
                 found = 0
                 for unitary_alignment in self.set_unitary_alignments:
-                    if [annotator, unit] in unitary_alignment.n_tuple:
+                    if (annotator, unit) in unitary_alignment.n_tuple:
                         found += 1
                 if found == 0:
                     raise SetPartitionError(
@@ -320,7 +320,7 @@ class BestAlignment(AbstractAlignment):
             for unit in list(self.continuum[annotator].itersegments()):
                 for idx_ua, unitary_alignment in enumerate(
                         set_of_possible_unitary_alignments):
-                    if [annotator, unit] in unitary_alignment.n_tuple:
+                    if (annotator, unit) in unitary_alignment.n_tuple:
                         A[curr_idx][idx_ua] = 1
                 curr_idx += 1
         obj = cp.Minimize(d.T * x)
