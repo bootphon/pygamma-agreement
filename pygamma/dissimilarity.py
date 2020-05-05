@@ -263,6 +263,15 @@ class SequenceDissimilarity(AbstractDissimilarity):
             else:
                 return dist * self.DELTA_EMPTY
 
+    def batch_compute(self, batch: List[Tuple[List[str], List[str]]]) -> np.ndarray:
+        # Batch compute isn't much faster than regular __getitem__
+        # because we can't verotize anything with numpy, so we're falling back
+        # to __getitem__.
+        seq_dists = np.zeros(len(batch))
+        for idx, tuple in enumerate(batch):
+            seq_dists[idx] = self[tuple]
+        return seq_dists
+
 
 class PositionalDissimilarity(AbstractDissimilarity):
     """Positional Dissimilarity
