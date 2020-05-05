@@ -33,7 +33,7 @@ Dissimilarity
 """
 from abc import ABCMeta, abstractmethod
 from functools import lru_cache
-from typing import List, Optional, Union, Tuple, Any, Callable
+from typing import List, Optional, Union, Tuple, Any, Callable, Dict
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -144,7 +144,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
             return cat_dis * self.DELTA_EMPTY
 
     def batch_compute(self, units: List[Tuple[str, str]]) -> np.ndarray:
-        # embedding all categories (first as list, then coverting to array)
+        # embedding all categories (first as list, then converting to array)
         cat_embds_list = []
         for cat_a, cat_b in units:
             cat_embds_list.append((self.dict_list_categories[cat_a],
@@ -166,7 +166,7 @@ class SequenceDissimilarity(AbstractDissimilarity):
     ----------
     annotation_task :
         task to be annotated
-    list_admitted_symbols :
+    admitted_symbols :
         list of admitted symbols in the sequence
     categorical_symbol_dissimlarity_matrix :
         Dissimilarity matrix to compute between symbols
@@ -181,32 +181,38 @@ class SequenceDissimilarity(AbstractDissimilarity):
     """
 
     class CharacterSubstitution(CharacterSubstitutionInterface):
-        def __init__(self, list_admitted_symbols, dict_list_symbols,
-                     symbol_dissimilarity_matrix):
+        def __init__(self,
+                     symbols_mapping: Dict[str, int],
+                     symbol_dissimilarity_matrix: np.ndarray):
             super().__init__()
-            self.list_admitted_symbols = list_admitted_symbols
-            self.dict_list_symbols = dict_list_symbols
+            self.symbols_mapping = symbols_mapping
             self.symbol_dissimilarity_matrix = symbol_dissimilarity_matrix
 
         def cost(self, c0, c1):
-            return self.symbol_dissimilarity_matrix[self.dict_list_symbols[
-                c0]][self.dict_list_symbols[c1]]
+            c0_idx = self.symbols_mapping[c0]
+            c1_idx = self.symbols_mapping[c1]
+            return self.symbol_dissimilarity_matrix[c0_idx][c1_idx]
 
     def __init__(self,
                  annotation_task,
-                 list_admitted_symbols,
-                 symbol_dissimlarity_matrix=None,
-                 DELTA_EMPTY=1,
-                 function_cat=lambda x: x):
+                 admitted_symbols: List[str],
+                 symbol_dissimilarity_matrix: np.ndarray = None,
+                 DELTA_EMPTY: float = 1,
+                 function_cat: Optional[Callable[[float], float]] = None):
         super().__init__(annotation_task, DELTA_EMPTY)
 
         self.function_cat = function_cat
-        self.admitted_symbols_set = set(list_admitted_symbols)
-        assert len(list_admitted_symbols) == len(self.admitted_symbols_set)
-        self.num_symbols = len(self.admitted_symbols_set)
-        self.dict_list_symbols = dict(zip(self.admitted_symbols_set,
-                                          range(self.num_symbols)))
-        self.symbol_dissimilarity_matrix = symbol_dissimlarity_matrix
+
+        self.symbols_mapping = dict(zip(admitted_symbols,
+                                        range(len(admitted_symbols))))
+        # The set is used when running the dissim computations,
+        # having it pre-made as a set makes it faster
+        self.admitted_symbols_set = set(admitted_symbols)
+        self.num_symbols = len(self.symbols_mapping)
+        # checking that all elements in the list of symbols are unique
+        assert len(admitted_symbols) == len(self.admitted_symbols_set)
+
+        self.symbol_dissimilarity_matrix = symbol_dissimilarity_matrix
         if self.symbol_dissimilarity_matrix is None:
             self.symbol_dissimilarity_matrix = np.ones(
                 (self.num_symbols, self.num_symbols)) - np.eye(
@@ -216,7 +222,12 @@ class SequenceDissimilarity(AbstractDissimilarity):
             assert np.all(self.symbol_dissimilarity_matrix <= 1)
             assert np.all(0 <= self.symbol_dissimilarity_matrix)
             assert np.all(self.symbol_dissimilarity_matrix ==
-                          symbol_dissimlarity_matrix.T)
+                          symbol_dissimilarity_matrix.T)
+
+        self.weighted_levenshtein = WeightedLevenshtein(
+            self.CharacterSubstitution(self.symbols_mapping,
+                                       self.symbol_dissimilarity_matrix)
+        )
 
     def plot_symbol_dissimilarity_matrix(self):
         fig, ax = plt.subplots()
@@ -225,9 +236,9 @@ class SequenceDissimilarity(AbstractDissimilarity):
             extent=[0, self.num_symbols, 0, self.num_symbols])
         ax.figure.colorbar(im, ax=ax)
         plt.xticks([el + 0.5 for el in range(self.num_symbols)],
-                   self.admitted_symbols_set)
+                   self.symbols_mapping.keys())
         plt.yticks([el + 0.5 for el in range(self.num_symbols)],
-                   self.admitted_symbols_set[::-1])
+                   self.symbols_mapping.keys()[::-1])
         plt.setp(
             ax.get_xticklabels(),
             rotation=45,
@@ -236,14 +247,7 @@ class SequenceDissimilarity(AbstractDissimilarity):
         ax.xaxis.set_ticks_position('top')
         plt.show()
 
-    @lru_cache(maxsize=None)
-    def __getitem__(self, units: Tuple[str, str]):
-
-        weighted_levenshtein = WeightedLevenshtein(
-            self.CharacterSubstitution(self.admitted_symbols_set,
-                                       self.dict_list_symbols,
-                                       self.symbol_dissimilarity_matrix)
-        )
+    def __getitem__(self, units: Tuple[List[str], List[str]]):
 
         # assert type(units) == list
         if len(units) < 2:
@@ -251,9 +255,13 @@ class SequenceDissimilarity(AbstractDissimilarity):
         else:
             assert set(units[0]) <= self.admitted_symbols_set
             assert set(units[1]) <= self.admitted_symbols_set
-            return self.function_cat(
-                weighted_levenshtein.distance(units[0], units[1]) / max(
-                    len(units[0]), len(units[1]))) * self.DELTA_EMPTY
+            dist = (self.weighted_levenshtein.distance(units[0], units[1])
+                    / max(len(units[0]), len(units[1])))
+
+            if self.function_cat is not None:
+                return self.function_cat(dist) * self.DELTA_EMPTY
+            else:
+                return dist * self.DELTA_EMPTY
 
 
 class PositionalDissimilarity(AbstractDissimilarity):
@@ -277,7 +285,7 @@ class PositionalDissimilarity(AbstractDissimilarity):
         self.function_distance = function_distance
 
     @lru_cache(maxsize=None)
-    def __getitem__(self, units: List[Segment]):
+    def __getitem__(self, units: Tuple[Segment, Segment]):
         # assert type(units) == list
         if len(units) < 2:
             return self.DELTA_EMPTY
@@ -346,7 +354,6 @@ class AbstractCombinedDissimilarity(AbstractDissimilarity):
         timing_dists = self.positional_dissim.batch_compute(all_timings)
         annot_dists = self.annotation_dissim.batch_compute(all_annots)
         return timing_dists * self.alpha + annot_dists * self.beta
-
 
 
 class CombinedCategoricalDissimilarity(AbstractCombinedDissimilarity):
@@ -437,8 +444,8 @@ class CombinedSequenceDissimilarity(AbstractCombinedDissimilarity):
 
         sequence_dissimilarity = SequenceDissimilarity(
             annotation_task=annotation_task,
-            list_admitted_symbols=list_admitted_symbols,
-            symbol_dissimlarity_matrix=symbol_dissimilarity_matrix,
+            admitted_symbols=list_admitted_symbols,
+            symbol_dissimilarity_matrix=symbol_dissimilarity_matrix,
             DELTA_EMPTY=DELTA_EMPTY,
             function_cat=function_cat)
 

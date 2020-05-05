@@ -71,14 +71,13 @@ def test_sequence_dissimilarity():
     cat = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
                     [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]])
 
-    seq_dis = SequenceDissimilarity(
-        'SR', list_admitted_symbols=symbols, symbol_dissimlarity_matrix=cat)
+    seq_dis = SequenceDissimilarity('SR', admitted_symbols=symbols,
+                                    symbol_dissimilarity_matrix=cat)
 
-    assert seq_dis[(('a', 'c', 'a', 'c'), ('a', 'c', 'a', 'c'))] == 0.0
-    assert seq_dis[(('a', 'c', 'a', 'c'), ('a', 'c', 'b', 'c'))] == 0.125
-    assert seq_dis[(('a', 'c', 'a', 'c'),
-                    ('a', 'c', 'b', 'c'))] == seq_dis[(('a', 'c', 'b', 'c'),
-                                                       ('a', 'c', 'a', 'c'))]
+    assert seq_dis[(['a', 'c', 'a', 'c'], ['a', 'c', 'a', 'c'])] == 0.0
+    assert seq_dis[(['a', 'c', 'a', 'c'], ['a', 'c', 'b', 'c'])] == 0.125
+    assert (seq_dis[(['a', 'c', 'a', 'c'], ['a', 'c', 'b', 'c'])] ==
+            seq_dis[(['a', 'c', 'b', 'c'], ['a', 'c', 'a', 'c'])])
 
 
 def test_positional_dissimilarity():
@@ -118,17 +117,17 @@ def test_positional_dissimilarity():
 
 def test_positional_dissimilarity_figure10():
     pos_dis = PositionalDissimilarity('diarization', DELTA_EMPTY=1.0)
-    assert pos_dis[((4, 14), (40, 44))] == pytest.approx(22.2, 0.1)
-    assert pos_dis[((4, 14), (4, 14))] == pytest.approx(0., 0.1)
-    assert pos_dis[((4, 14), (20, 25))] == pytest.approx(3.2, 0.1)
-    assert pos_dis[((4, 14), (14, 24))] == pytest.approx(1., 0.1)
-    assert pos_dis[((20, 30), (20, 25))] == pytest.approx(0.11, 0.1)
-    assert pos_dis[((20, 25), (14, 24))] == pytest.approx(0.22, 0.1)
+    assert pos_dis[(Segment(4, 14), Segment(40, 44))] == pytest.approx(22.2, 0.1)
+    assert pos_dis[(Segment(4, 14), Segment(4, 14))] == pytest.approx(0., 0.1)
+    assert pos_dis[(Segment(4, 14), Segment(20, 25))] == pytest.approx(3.2, 0.1)
+    assert pos_dis[(Segment(4, 14), Segment(14, 24))] == pytest.approx(1., 0.1)
+    assert pos_dis[(Segment(20, 30), Segment(20, 25))] == pytest.approx(0.11, 0.1)
+    assert pos_dis[(Segment(20, 25), Segment(14, 24))] == pytest.approx(0.22, 0.1)
 
 
 def test_positional_dissimilarity_figure20_scale_effect():
     pos_dis = PositionalDissimilarity('diarization', DELTA_EMPTY=1.0)
-    pos_dis[((0, 7), (0, 10))] == pos_dis[((0, 21), (0, 30))]
+    assert pos_dis[(Segment(0, 7), Segment(0, 10))] == pos_dis[(Segment(0, 21), Segment(0, 30))]
 
 
 def test_combi_categorical_dissimilarity():
