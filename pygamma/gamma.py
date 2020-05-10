@@ -35,7 +35,7 @@ Gamma Agreement
 import numpy as np
 from pyannote.core import Segment, Annotation
 
-from .alignment import Alignment, BestAlignment
+from .alignment import Alignment
 from .continuum import Continuum, Corpus
 from .dissimilarity import AbstractDissimilarity
 
@@ -45,7 +45,7 @@ class GammaAgreement:
     Parameters
     ----------
     continuum :
-        Continuum where the alignement is from
+        Continuum where the alignment is from
     alignement :
         Alignement to evaluate
     dissimilarity :

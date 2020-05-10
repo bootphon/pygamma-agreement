@@ -32,8 +32,7 @@ Dissimilarity
 
 """
 from abc import ABCMeta, abstractmethod
-from functools import lru_cache
-from typing import List, Optional, Union, Tuple, Any, Callable, Dict
+from typing import List, Optional, Union, Tuple, Callable, Dict
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -41,13 +40,13 @@ from pyannote.core import Segment
 from similarity.weighted_levenshtein import CharacterSubstitutionInterface
 from similarity.weighted_levenshtein import WeightedLevenshtein
 
-from pygamma.continuum import Annotator
-
-Unit = Tuple[Annotator, Segment]
+Annot = Union[str, List[str]]
+Unit = Tuple[Segment, Annot]
 
 
 class AbstractDissimilarity(metaclass=ABCMeta):
 
+    # TODO : figure out if annotation task can be optional or not
     def __init__(self,
                  annotation_task: str,
                  DELTA_EMPTY: float):
@@ -55,15 +54,24 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         self.DELTA_EMPTY = DELTA_EMPTY
 
     @abstractmethod
-    def __getitem__(self, units: Tuple[Any, Any]) -> float:
-        pass
+    def __getitem__(self, units: Tuple[Unit, Unit]) -> float:
+        """
+        Computes the dissimilarity between two units
 
-    def batch_compute(self, batch: Any) -> np.ndarray:
+        Parameters
+        ----------
+        units:
+            The two units for which the dissimilarity should be computed.
+
+        """
+
+    def batch_compute(self, batch: List[Unit]) -> np.ndarray:
         pass
 
 
 class CategoricalDissimilarity(AbstractDissimilarity):
     """Categorical Dissimilarity
+
     Parameters
     ----------
     annotation_task :
@@ -76,10 +84,6 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         empty dissimilarity value
     function_cat :
         Function to adjust dissimilarity based on categorical matrix values
-    Returns
-    -------
-    dissimilarity : Dissimilarity
-        Dissimilarity
     """
 
     def __init__(self,
@@ -110,34 +114,15 @@ class CategoricalDissimilarity(AbstractDissimilarity):
             assert np.all(self.categorical_dissimilarity_matrix ==
                           categorical_dissimilarity_matrix.T)
 
-    def plot_categorical_dissimilarity_matrix(self):
-        fig, ax = plt.subplots()
-        im = plt.imshow(
-            self.categorical_dissimilarity_matrix,
-            extent=[0, self.num_categories, 0, self.num_categories])
-        ax.figure.colorbar(im, ax=ax)
-        plt.xticks([el + 0.5 for el in range(self.num_categories)],
-                   self.list_categories)
-        plt.yticks([el + 0.5 for el in range(self.num_categories)],
-                   self.list_categories[::-1])
-        plt.setp(
-            ax.get_xticklabels(),
-            rotation=45,
-            ha="right",
-            rotation_mode="anchor")
-        ax.xaxis.set_ticks_position('top')
-        plt.show()
-
-    @lru_cache(maxsize=None)
-    def __getitem__(self, units: Tuple[str, str]):
-        # assert type(units) == list
+    def __getitem__(self, units: Tuple[Unit, Unit]):
+        first, second = units[0][1], units[1][1]
         if len(units) < 2:
             return self.DELTA_EMPTY
         else:
-            assert units[0] in self.list_categories
-            assert units[1] in self.list_categories
+            assert first in self.list_categories
+            assert second in self.list_categories
             cat_dis = self.categorical_dissimilarity_matrix[
-                self.dict_list_categories[units[0]]][self.dict_list_categories[units[1]]]
+                self.dict_list_categories[first]][self.dict_list_categories[second]]
             if self.function_cat is not None:
                 cat_dis = self.function_cat(cat_dis)
 
@@ -159,9 +144,28 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         else:
             return np.array([self.function_cat(d) for d in cat_dists])
 
+    def plot_categorical_dissimilarity_matrix(self):
+        fig, ax = plt.subplots()
+        im = plt.imshow(
+            self.categorical_dissimilarity_matrix,
+            extent=[0, self.num_categories, 0, self.num_categories])
+        ax.figure.colorbar(im, ax=ax)
+        plt.xticks([el + 0.5 for el in range(self.num_categories)],
+                   self.list_categories)
+        plt.yticks([el + 0.5 for el in range(self.num_categories)],
+                   self.list_categories[::-1])
+        plt.setp(
+            ax.get_xticklabels(),
+            rotation=45,
+            ha="right",
+            rotation_mode="anchor")
+        ax.xaxis.set_ticks_position('top')
+        plt.show()
+
 
 class SequenceDissimilarity(AbstractDissimilarity):
     """Sequence Dissimilarity
+
     Parameters
     ----------
     annotation_task :
@@ -174,10 +178,7 @@ class SequenceDissimilarity(AbstractDissimilarity):
         empty dissimilarity value
     function_cat :
         Function to adjust dissimilarity based on categorical matrix values
-    Returns
-    -------
-    dissimilarity : Dissimilarity
-        Dissimilarity
+
     """
 
     class CharacterSubstitution(CharacterSubstitutionInterface):
@@ -229,6 +230,31 @@ class SequenceDissimilarity(AbstractDissimilarity):
                                        self.symbol_dissimilarity_matrix)
         )
 
+    def __getitem__(self, units: Tuple[Unit, Unit]):
+        # assert type(units) == list
+        first, second = units[0][1], units[1][1]
+        if len(units) < 2:
+            return self.DELTA_EMPTY
+        else:
+            assert set(first) <= self.admitted_symbols_set
+            assert set(second) <= self.admitted_symbols_set
+            dist = (self.weighted_levenshtein.distance(first, second)
+                    / max(len(first), len(second)))
+
+            if self.function_cat is not None:
+                return self.function_cat(dist) * self.DELTA_EMPTY
+            else:
+                return dist * self.DELTA_EMPTY
+
+    def batch_compute(self, batch: List[Tuple[List[str], List[str]]]) -> np.ndarray:
+        # Batch compute isn't much faster than regular __getitem__
+        # because we can't vectorize anything with numpy, so we're falling back
+        # to __getitem__.
+        seq_dists = np.zeros(len(batch))
+        for idx, tuple in enumerate(batch):
+            seq_dists[idx] = self[tuple]
+        return seq_dists
+
     def plot_symbol_dissimilarity_matrix(self):
         fig, ax = plt.subplots()
         im = plt.imshow(
@@ -247,62 +273,32 @@ class SequenceDissimilarity(AbstractDissimilarity):
         ax.xaxis.set_ticks_position('top')
         plt.show()
 
-    def __getitem__(self, units: Tuple[List[str], List[str]]):
-
-        # assert type(units) == list
-        if len(units) < 2:
-            return self.DELTA_EMPTY
-        else:
-            assert set(units[0]) <= self.admitted_symbols_set
-            assert set(units[1]) <= self.admitted_symbols_set
-            dist = (self.weighted_levenshtein.distance(units[0], units[1])
-                    / max(len(units[0]), len(units[1])))
-
-            if self.function_cat is not None:
-                return self.function_cat(dist) * self.DELTA_EMPTY
-            else:
-                return dist * self.DELTA_EMPTY
-
-    def batch_compute(self, batch: List[Tuple[List[str], List[str]]]) -> np.ndarray:
-        # Batch compute isn't much faster than regular __getitem__
-        # because we can't verotize anything with numpy, so we're falling back
-        # to __getitem__.
-        seq_dists = np.zeros(len(batch))
-        for idx, tuple in enumerate(batch):
-            seq_dists[idx] = self[tuple]
-        return seq_dists
-
 
 class PositionalDissimilarity(AbstractDissimilarity):
     """Positional Dissimilarity
+
     Parameters
     ----------
-    annotation_task :
+    annotation_task : string
         task to be annotated
-    DELTA_EMPTY :
+    DELTA_EMPTY : float
         empty dissimilarity value
-    function_distance :
+    function_distance : callable
         position function difference
-    Returns
-    -------
-    dissimilarity : Dissimilarity
-        Dissimilarity
     """
 
     def __init__(self, annotation_task, DELTA_EMPTY=1, function_distance=None):
         super().__init__(annotation_task, DELTA_EMPTY)
         self.function_distance = function_distance
 
-    @lru_cache(maxsize=None)
-    def __getitem__(self, units: Tuple[Segment, Segment]):
-        # assert type(units) == list
+    def __getitem__(self, units: Tuple[Unit, Unit]):
+        first, second = units[0][0], units[1][0]
         if len(units) < 2:
             return self.DELTA_EMPTY
         elif len(units) == 2:
             if self.function_distance is None:
                 # triple indexing to tracks in pyannote
                 # DANGER if the api breaks
-                first, second = units
                 distance_pos = (np.abs(first.start - second.start) +
                                 np.abs(first.end - second.end))
                 distance_pos /= (first.duration + second.duration)
@@ -343,17 +339,12 @@ class AbstractCombinedDissimilarity(AbstractDissimilarity):
         self.positional_dissim = positional_dissimilarity
         self.annotation_dissim = annotation_dissimilarity
 
-    @lru_cache(maxsize=None)
-    def __getitem__(self, units: Tuple[Tuple[Segment, Segment],
-                                       Tuple[str, str]]):
-        timing_units, annot_units = units
-        # sanity check
-        assert len(timing_units) == len(annot_units)
-        if len(timing_units) < 2:
+    def __getitem__(self, units: Tuple[Unit, Unit]):
+        if len(units) < 2:
             return self.DELTA_EMPTY
         else:
-            dis = self.alpha * self.positional_dissim[timing_units]
-            dis += self.beta * self.annotation_dissim[annot_units]
+            dis = self.alpha * self.positional_dissim[units]
+            dis += self.beta * self.annotation_dissim[units]
             return dis
 
     def batch_compute(self, batch: Tuple[List[Tuple[Segment, Segment]],
@@ -366,8 +357,8 @@ class AbstractCombinedDissimilarity(AbstractDissimilarity):
 
 
 class CombinedCategoricalDissimilarity(AbstractCombinedDissimilarity):
-    # TODO : update this doc, it does not match the __init__ signature
     """Combined Dissimilarity
+
     Parameters
     ----------
     annotation_task :
@@ -380,12 +371,12 @@ class CombinedCategoricalDissimilarity(AbstractCombinedDissimilarity):
         Function to adjust dissimilarity based on categorical matrix values
     DELTA_EMPTY :
         empty dissimilarity value
+    alpha:
+        coefficient weighting the positional dissimilarity value
+    beta:
+        coefficient weighting the categorical dissimilarity value
     function_distance :
         position function difference
-    Returns
-    -------
-    dissimilarity : Dissimilarity
-        Dissimilarity
     """
 
     def __init__(self,
@@ -417,6 +408,7 @@ class CombinedCategoricalDissimilarity(AbstractCombinedDissimilarity):
 
 class CombinedSequenceDissimilarity(AbstractCombinedDissimilarity):
     """Combined Sequence Dissimilarity
+
     Parameters
     ----------
     annotation_task :
@@ -429,12 +421,13 @@ class CombinedSequenceDissimilarity(AbstractCombinedDissimilarity):
         Function to adjust dissimilarity based on categorical matrix values
     DELTA_EMPTY :
         empty dissimilarity value
-    f_dis :
+    alpha:
+        coefficient weighting the positional dissimilarity value
+    beta:
+        coefficient weighting the categorical dissimilarity value
+    function_distance :
         position function difference
-    Returns
-    -------
-    dissimilarity : Dissimilarity
-        Dissimilarity
+
     """
 
     def __init__(self,

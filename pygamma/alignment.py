@@ -32,8 +32,6 @@ Alignement and disorder
 
 """
 from abc import ABCMeta, abstractmethod
-from collections import defaultdict
-from functools import lru_cache
 from itertools import product
 from typing import List, Tuple
 
@@ -43,7 +41,7 @@ from pyannote.core import Segment
 from scipy.special import binom
 
 from pygamma.continuum import Continuum, Annotator
-from pygamma.dissimilarity import AbstractDissimilarity, AbstractCombinedDissimilarity
+from pygamma.dissimilarity import AbstractCombinedDissimilarity
 
 
 class Error(Exception):
@@ -76,11 +74,19 @@ class AbstractAlignment(metaclass=ABCMeta):
     @property
     @abstractmethod
     def disorder(self) -> float:
+        """Compute the disorder for the alignement
+
+        >>> aligment.disorder()
+        ... 0.123
+
+        """
+
         raise NotImplemented()
 
 
 class UnitaryAlignment(AbstractAlignment):
     """Unitary Alignment
+
     Parameters
     ----------
     continuum :
@@ -103,14 +109,7 @@ class UnitaryAlignment(AbstractAlignment):
         assert len(n_tuple) == len(self.continuum)
 
     @property
-    @lru_cache(maxsize=None)
     def disorder(self):
-        """Compute the disorder for the unitary alignement
-        >>> unitary_alignement.compute_disorder() = ...
-        Based on formula (6) of the original paper
-        Note:
-        unit is the equivalent of segment in pyannote
-        """
         disorder = 0.0
         num_couples = 0
         for idx, (annotator_u, unit_u) in enumerate(self.n_tuple):
@@ -181,112 +180,47 @@ class UnitaryAlignmentBatch(AbstractAlignment):
 
 class Alignment(AbstractAlignment):
     """Alignment
+
     Parameters
     ----------
     continuum :
-        Continuum where the unitary alignment is from
+        Continuum where the alignment is from
     set_unitary_alignments :
         set of unitary alignments that make a partition of the set of
         units/segments
     combined_dissimilarity :
-        combined_dissimilarity
+        Combined dissimilarity measure used to compute this alignment's
+        disorder.
     """
 
-    def __init__(
-            self,
-            continuum: Continuum,
-            set_unitary_alignments: List[UnitaryAlignment],
-            combined_dissimilarity: AbstractCombinedDissimilarity,
-    ):
-        super().__init__(continuum, combined_dissimilarity)
-        self.set_unitary_alignments = set_unitary_alignments
+    @classmethod
+    def get_best_alignment(cls,
+                           continuum: Continuum,
+                           combined_dissimilarity: AbstractCombinedDissimilarity
+                           ) -> 'Alignment':
+        """Alignment
 
-        # set partition tests for the unitary alignments
-        for annotator in self.continuum.iterannotators():
-            for unit in self.continuum[annotator].itersegments():
-                found = 0
-                for unitary_alignment in self.set_unitary_alignments:
-                    if [annotator, unit] in unitary_alignment.n_tuple:
-                        found += 1
-                if found == 0:
-                    raise SetPartitionError(
-                        '{} {} not in the set of unitary alignments'.format(
-                            annotator, unit))
-                elif found > 1:
-                    raise SetPartitionError('{} {} assigned twice'.format(
-                        annotator, unit))
-
-    @property
-    def num_alignments(self):
-        return len(self.set_unitary_alignments)
-
-    @property
-    @lru_cache(maxsize=None)
-    def disorder(self):
-        """Compute the disorder as the mean of its child unitary alignments
-        >>> unitary_alignment.compute_disorder() = ...
-        Based on formula (6) of the original paper
-        Note:
-        unit is the equivalent of segment in pyannote
+        Parameters
+        ----------
+        continuum :
+            Continuum where the best alignment is computed from
+        combined_dissimilarity :
+            Dissimilarity measure used to compute the disorder
         """
-        disorder = 0.0
-        for unitary_alignment in self.set_unitary_alignments:
-            disorder += unitary_alignment.disorder
-        return disorder / self.num_alignments
 
-
-class BestAlignment(AbstractAlignment):
-    """Alignement
-    Parameters
-    ----------
-    continuum :
-        Continuum where the unitary alignment is from
-    combined_dissimilarity :
-        combined_dissimilarity
-    """
-
-    def __init__(
-            self,
-            continuum: Continuum,
-            combined_dissimilarity: AbstractCombinedDissimilarity,
-    ):
-        super().__init__(continuum, combined_dissimilarity)
-
-        self.set_unitary_alignments = self.get_unitary_alignments_best()
-
-        # set partition tests for the unitary alignements
-        for annotator in self.continuum.iterannotators():
-            for unit in self.continuum[annotator].itersegments():
-                found = 0
-                for unitary_alignment in self.set_unitary_alignments:
-                    if (annotator, unit) in unitary_alignment.n_tuple:
-                        found += 1
-                if found == 0:
-                    raise SetPartitionError(
-                        '{} {} not in the set of unitary alignements'.format(
-                            annotator, unit))
-                elif found > 1:
-                    raise SetPartitionError('{} {} assigned twice'.format(
-                        annotator, unit))
-
-    @property
-    def num_alignements(self):
-        return len(self.set_unitary_alignments)
-
-    def get_unitary_alignments_best(self):
         set_of_possible_segments = []
-        for annotator in self.continuum.iterannotators():
+        for annotator in continuum.iterannotators():
             annot_segments = []
-            for segment in self.continuum[annotator].itersegments():
+            for segment in continuum[annotator].itersegments():
                 annot_segments.append((annotator, segment))
             annot_segments.append((annotator, None))
             set_of_possible_segments.append(annot_segments)
 
         set_of_possible_tuples = list(product(*set_of_possible_segments))
         # computing all disorders for alignments in one big batch
-        unit_batch = UnitaryAlignmentBatch(self.continuum,
+        unit_batch = UnitaryAlignmentBatch(continuum,
                                            set_of_possible_tuples,
-                                           self.combined_dissim)
+                                           combined_dissimilarity)
         tuples_disorders = unit_batch.disorder()
         # Property section 5.1.1 to reduce initial complexity
         set_of_possible_unitary_alignments = []
@@ -294,11 +228,10 @@ class BestAlignment(AbstractAlignment):
         for idx, n_tuple in enumerate(set_of_possible_tuples):
             # Property section 5.1.1 to reduce initial complexity
             disorder = tuples_disorders[idx]
-            if disorder < len(self.continuum) * (
-                    self.combined_dissim.DELTA_EMPTY):
-                unitary_alignment = UnitaryAlignment(self.continuum,
+            if disorder < len(continuum) * combined_dissimilarity.DELTA_EMPTY:
+                unitary_alignment = UnitaryAlignment(continuum,
                                                      n_tuple,
-                                                     self.combined_dissim)
+                                                     combined_dissimilarity)
                 set_of_possible_unitary_alignments.append(unitary_alignment)
                 alignments_disorders.append(disorder)
 
@@ -311,13 +244,12 @@ class BestAlignment(AbstractAlignment):
         d = np.array(alignments_disorders)
 
         # Constraints matrix
-        A = np.zeros((self.continuum.num_units,
-                      num_possible_unitary_alignments))
+        A = np.zeros((continuum.num_units, num_possible_unitary_alignments))
 
         curr_idx = 0
         # fill unitary alignments matching with units
-        for annotator in self.continuum.iterannotators():
-            for unit in list(self.continuum[annotator].itersegments()):
+        for annotator in continuum.iterannotators():
+            for unit in list(continuum[annotator].itersegments()):
                 for idx_ua, unitary_alignment in enumerate(
                         set_of_possible_unitary_alignments):
                     if (annotator, unit) in unitary_alignment.n_tuple:
@@ -337,18 +269,41 @@ class BestAlignment(AbstractAlignment):
             if chosen_unitary_alignment:
                 set_unitary_alignments.append(
                     set_of_possible_unitary_alignments[idx])
-        return set_unitary_alignments
+
+        cls(continuum, set_unitary_alignments, combined_dissimilarity)
+
+
+    def __init__(
+            self,
+            continuum: Continuum,
+            set_unitary_alignments: List[UnitaryAlignment],
+            combined_dissimilarity: AbstractCombinedDissimilarity,
+    ):
+        super().__init__(continuum, combined_dissimilarity)
+        self.set_unitary_alignments = set_unitary_alignments
+
+        # set partition tests for the unitary alignments
+        for annotator in self.continuum.iterannotators():
+            for unit in self.continuum[annotator].itersegments():
+                found = 0
+                for unitary_alignment in self.set_unitary_alignments:
+                    if (annotator, unit) in unitary_alignment.n_tuple:
+                        found += 1
+                if found == 0:
+                    raise SetPartitionError(
+                        '{} {} not in the set of unitary alignments'.format(
+                            annotator, unit))
+                elif found > 1:
+                    raise SetPartitionError('{} {} assigned twice'.format(
+                        annotator, unit))
 
     @property
-    @lru_cache(maxsize=None)
+    def num_alignments(self):
+        return len(self.set_unitary_alignments)
+
+    @property
     def disorder(self):
-        """Compute the disorder for the unitary alignement
-        >>> unitary_alignment.compute_disorder() = ...
-        Based on formula (6) of the original paper
-        Note:
-        unit is the equivalent of segment in pyannote
-        """
         disorder = 0.0
         for unitary_alignment in self.set_unitary_alignments:
             disorder += unitary_alignment.disorder
-        return disorder / self.num_alignements
+        return disorder / self.num_alignments

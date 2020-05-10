@@ -1,22 +1,17 @@
-"""Test of the module pygamma.alignement"""
+"""Test of the module pygamma.alignment"""
 
-import tempfile
 import numpy as np
-from pygamma.continuum import Continuum
-from pygamma.dissimilarity import CategoricalDissimilarity
-from pygamma.dissimilarity import PositionalDissimilarity
-from pygamma.dissimilarity import CombinedCategoricalDissimilarity
-from pygamma.dissimilarity import CombinedSequenceDissimilarity
-from pygamma.alignment import UnitaryAlignment, Alignment, BestAlignment
-
-from pygamma.alignment import SetPartitionError
-
+import pytest
 from pyannote.core import Annotation, Segment
 
-import pytest
+from pygamma.alignment import SetPartitionError
+from pygamma.alignment import UnitaryAlignment, Alignment
+from pygamma.continuum import Continuum
+from pygamma.dissimilarity import CombinedCategoricalDissimilarity
+from pygamma.dissimilarity import CombinedSequenceDissimilarity
 
 
-def test_unitary_alignement():
+def test_unitary_alignment():
     continuum = Continuum()
     annotation = Annotation()
     annotation[Segment(1, 5)] = 'Carol'
@@ -50,13 +45,13 @@ def test_unitary_alignement():
         categorical_dissimilarity_matrix=cat)
     n_tuple = (['liza', Segment(12, 18)], ['pierrot',
                                            Segment(12, 18)], ['hadrien', None])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
 
-    assert unitary_alignement.disorder == pytest.approx(
+    assert unitary_alignment.disorder == pytest.approx(
         0.3833333333333333, 0.001)
 
 
-def test_alignement():
+def test_alignment():
     continuum = Continuum()
     annotation = Annotation()
     annotation[Segment(1, 5)] = 'Carol'
@@ -88,39 +83,39 @@ def test_alignement():
         list_categories=categories,
         DELTA_EMPTY=0.5,
         categorical_dissimilarity_matrix=cat)
-    set_unitary_alignements = []
+    set_unitary_alignments = []
 
     n_tuple = (['liza', Segment(1, 5)], ['pierrot', Segment(2, 6)],
                ['hadrien', Segment(1, 6)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = (['liza', Segment(6, 8)], ['pierrot', Segment(7, 8)],
                ['hadrien', Segment(8, 10)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = (['liza', Segment(7, 20)], ['pierrot', Segment(7, 19)],
                ['hadrien', Segment(7, 19)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = (['liza', Segment(12, 18)], ['pierrot',
                                            Segment(12, 18)], ['hadrien', None])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = (['liza', None], ['pierrot', Segment(8, 10)],
                ['hadrien', Segment(19, 20)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
-    alignement = Alignment(continuum, set_unitary_alignements, combi_dis)
+    alignment = Alignment(continuum, set_unitary_alignments, combi_dis)
 
-    assert alignement.disorder == pytest.approx(5.35015024691358, 0.001)
+    assert alignment.disorder == pytest.approx(5.35015024691358, 0.001)
 
 
-def test_wrong_set_unitary_alignement():
+def test_wrong_set_unitary_alignment():
     continuum = Continuum()
     annotation = Annotation()
     annotation[Segment(1, 5)] = 'Carol'
@@ -152,68 +147,68 @@ def test_wrong_set_unitary_alignement():
         list_categories=categories,
         DELTA_EMPTY=0.5,
         categorical_dissimilarity_matrix=cat)
-    set_unitary_alignements = []
+    set_unitary_alignments = []
 
     n_tuple = (['liza', Segment(1, 5)], ['pierrot', Segment(2, 6)],
                ['hadrien', Segment(1, 6)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = (['liza', Segment(6, 8)], ['pierrot', Segment(7, 8)],
                ['hadrien', Segment(8, 10)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = (['liza', Segment(7, 20)], ['pierrot', Segment(7, 19)],
                ['hadrien', Segment(7, 19)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = (['liza', Segment(12, 18)], ['pierrot',
                                            Segment(12, 18)], ['hadrien', None])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     # Error is here: segments used twice for liza
     n_tuple = (['liza', Segment(12, 18)], ['pierrot',
                                            Segment(8, 10)],
                ['hadrien', Segment(19, 20)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
     with pytest.raises(SetPartitionError):
-        alignement = Alignment(continuum, set_unitary_alignements, combi_dis)
+        alignment = Alignment(continuum, set_unitary_alignments, combi_dis)
 
-    set_unitary_alignements = []
+    set_unitary_alignments = []
 
     n_tuple = (['liza', Segment(1, 5)], ['pierrot', Segment(2, 6)],
                ['hadrien', Segment(1, 6)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = (['liza', Segment(6, 8)], ['pierrot', Segment(7, 8)],
                ['hadrien', Segment(8, 10)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = (['liza', Segment(7, 20)], ['pierrot', Segment(7, 19)],
                ['hadrien', Segment(7, 19)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = (['liza', Segment(12, 18)], ['pierrot',
                                            Segment(12, 18)], ['hadrien', None])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     # Error is here: segment from hadrien never mentionned
     n_tuple = (['liza', None], ['pierrot', Segment(8, 10)], ['hadrien', None])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
     with pytest.raises(SetPartitionError):
-        alignement = Alignment(continuum, set_unitary_alignements, combi_dis)
+        alignment = Alignment(continuum, set_unitary_alignments, combi_dis)
 
 
-def test_best_alignement():
+def test_best_alignment():
     continuum = Continuum()
     annotation = Annotation()
     annotation[Segment(1, 5)] = 'Carol'
@@ -245,47 +240,48 @@ def test_best_alignement():
         list_categories=categories,
         DELTA_EMPTY=0.5,
         categorical_dissimilarity_matrix=cat)
-    set_unitary_alignements = []
+    set_unitary_alignments = []
 
     n_tuple = (['liza', Segment(1, 5)],
                ['pierrot', Segment(2, 6)],
                ['hadrien', Segment(1, 6)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = (['liza', Segment(6, 8)],
                ['pierrot', Segment(7, 8)],
                ['hadrien', Segment(8, 10)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = (['liza', Segment(7, 20)],
                ['pierrot', Segment(7, 19)],
                ['hadrien', Segment(7, 19)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = (['liza', Segment(12, 18)],
                ['pierrot', Segment(12, 18)],
                ['hadrien', None])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', None], ['pierrot', Segment(8, 10)],
+    n_tuple = (['liza', None],
+               ['pierrot', Segment(8, 10)],
                ['hadrien', Segment(19, 20)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
-    alignement = Alignment(continuum, set_unitary_alignements, combi_dis)
+    alignment = Alignment(continuum, set_unitary_alignments, combi_dis)
 
-    best_alignement = BestAlignment(continuum, combi_dis)
+    best_alignment = Alignment.get_best_alignment(continuum, combi_dis)
 
-    assert best_alignement.disorder == pytest.approx(0.31401409465020574,
+    assert best_alignment.disorder == pytest.approx(0.31401409465020574,
                                                      0.001)
-    assert best_alignement.disorder < alignement.disorder
+    assert best_alignment.disorder < alignment.disorder
 
 
-def test_best_alignement_sequence():
+def test_best_alignment_sequence():
     continuum = Continuum()
     annotation = Annotation()
     annotation[Segment(1, 5)] = ('a', 'c', 'd')
@@ -319,35 +315,40 @@ def test_best_alignement_sequence():
         DELTA_EMPTY=0.5,
         symbol_dissimilarity_matrix=cat)
 
-    set_unitary_alignements = []
+    set_unitary_alignments = []
 
-    n_tuple = (['liza', Segment(1, 5)], ['pierrot', Segment(2, 6)],
+    n_tuple = (['liza', Segment(1, 5)],
+               ['pierrot', Segment(2, 6)],
                ['hadrien', Segment(1, 6)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', Segment(6, 8)], ['pierrot', Segment(7, 8)],
+    n_tuple = (['liza', Segment(6, 8)],
+               ['pierrot', Segment(7, 8)],
                ['hadrien', Segment(8, 10)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', Segment(7, 20)], ['pierrot', Segment(7, 19)],
+    n_tuple = (['liza', Segment(7, 20)],
+               ['pierrot', Segment(7, 19)],
                ['hadrien', Segment(7, 19)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', Segment(12, 18)], ['pierrot',
-                                           Segment(12, 18)], ['hadrien', None])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    n_tuple = (['liza', Segment(12, 18)],
+               ['pierrot', Segment(12, 18)],
+               ['hadrien', None])
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', None], ['pierrot', Segment(8, 10)],
+    n_tuple = (['liza', None],
+               ['pierrot', Segment(8, 10)],
                ['hadrien', Segment(19, 20)])
-    unitary_alignement = UnitaryAlignment(continuum, n_tuple, combi_dis)
-    set_unitary_alignements.append(unitary_alignement)
+    unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
+    set_unitary_alignments.append(unitary_alignment)
 
-    alignement = Alignment(continuum, set_unitary_alignements, combi_dis)
+    alignment = Alignment(continuum, set_unitary_alignments, combi_dis)
 
-    best_alignement = BestAlignment(continuum, combi_dis)
-    assert best_alignement.disorder == pytest.approx(0.3738289094650206, 0.001)
-    assert best_alignement.disorder < alignement.disorder
+    best_alignment = Alignment.get_best_alignment(continuum, combi_dis)
+    assert best_alignment.disorder == pytest.approx(0.3738289094650206, 0.001)
+    assert best_alignment.disorder < alignment.disorder

@@ -25,3 +25,12 @@
 
 # AUTHORS
 # Rachid RIAD
+
+from .continuum import Continuum, Corpus
+from .alignment import Alignment, UnitaryAlignment
+from .dissimilarity import (PositionalDissimilarity,
+                            SequenceDissimilarity,
+                            CategoricalDissimilarity,
+                            CombinedCategoricalDissimilarity,
+                            CombinedSequenceDissimilarity)
+from .gamma import GammaAgreement

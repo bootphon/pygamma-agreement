@@ -40,19 +40,15 @@ setup(
     packages=find_packages(),
     install_requires=requirements,
     extras_require={'test': ['pytest']},
-
-    # # versioneer
-    # version=versioneer.get_version(),
-    # cmdclass=versioneer.get_cmdclass(),
     version='0.0.1',
 
     # PyPI
     name='pygamma',
-    description=('Inter-annotator agreement measure and alginement'
+    description=('Inter-annotator agreement measure and alignment'
                  'written in python'),
     author='Rachid RIAD',
     author_email='rachid.riad@ens.fr',
-    # url='http://pyannote.github.io/',
+    url='http://pygamme.readthedocs.io/',
     classifiers=[
         "Development Status :: 0.1 - Beta",
         "Intended Audience :: Science/Research",

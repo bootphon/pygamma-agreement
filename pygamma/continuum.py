@@ -45,12 +45,14 @@ Annotator = Hashable
 
 class Continuum:
     """Continuum
+
     Parameters
     ----------
     uri : string, optional
         name of annotated resource (e.g. audio or video file)
     modality : string, optional
         name of annotated modality
+
     Returns
     -------
     continuum : Continuum
@@ -75,14 +77,16 @@ class Continuum:
         return self._uri
 
     def __len__(self):
-        """Number of annotators
+        """Number of annotators in the continuum
+
         >>> len(continuum)  # continuum contains 3 annotators
-        3
+        ... 3
         """
         return len(self._annotators)
 
     def __bool__(self):
         """Truthiness, basically tests for emptiness
+
         >>> if continuum:
         ...    # continuum is not empty
         ... else:
@@ -100,10 +104,13 @@ class Continuum:
 
     @property
     def avg_num_annotations_per_annotator(self):
+        """Average number of annotated segments per annotator"""
         return self.num_units / len(self)
 
     @property
     def max_num_annotations_per_annotator(self):
+        """The maximum number of annotated segments an annotator has
+        in this continuum"""
         max_num_annotations_per_annotator = 0
         for annotator in self._annotators:
             max_num_annotations_per_annotator = np.max(
@@ -113,6 +120,7 @@ class Continuum:
 
     @property
     def avg_length_unit(self):
+        """Mean of the annotated segments' durations"""
         total_length_unit = 0
         for annotator in self.iterannotators():
             for unit in self[annotator].itersegments():
@@ -121,9 +129,12 @@ class Continuum:
 
     def __setitem__(self, annotator: Annotator, annotation: Annotation):
         """Add new or update existing Annotation
+
         >>> continuum[annotator] = Annotation
+
         If Annotator does not exist, it is added.
         If Annotator already exists, it is updated.
+
         Note
         ----
         If `Annotation` is empty, it does nothing.
@@ -138,6 +149,7 @@ class Continuum:
 
     def __getitem__(self, annotator: Annotator):
         """Get annotation object
+
         >>> annotation = continuum[annotator]
         """
 
@@ -145,6 +157,7 @@ class Continuum:
 
     def iterannotators(self):
         """Iterate over annotator (in chronological order)
+
         >>> for annotator in annotation.iterannotators():
         ...     # do something with the annotator
         """
@@ -153,12 +166,14 @@ class Continuum:
 
 class Corpus:
     """Corpus
+
     Parameters
     ----------
     uri : string, optional
         name of annotated resource (e.g. audio or video file)
     modality : string, optional
         name of annotated modality
+
     Returns
     -------
     corpus : Corpus
@@ -180,15 +195,12 @@ class Corpus:
         # values: {file_name_annotated: continuum} dictionary
         self._continuua: Dict[str, Continuum] = SortedDict()
 
-        # timeline meant to store all annotated segments
-        self._timeline = None
-        self._timelineNeedsUpdate = True
-
     def _get_uri(self):
         return self._uri
 
     def __len__(self):
         """Number of annotators
+
         >>> len(corpus)  # corpus contains 2 annotated files
         2
         """
@@ -196,6 +208,7 @@ class Corpus:
 
     def __bool__(self):
         """Emptiness
+
         >>> if corpus:
         ...    # corpus is not empty
         ... else:
@@ -220,9 +233,11 @@ class Corpus:
     def __setitem__(self, file_name_annotated: str,
                     continuum: Continuum):
         """Add new or update existing Continuum
+
         >>> corpus[file_name_annotated] = Continuum
         If file_name_annotated does not exist, it is added.
         If file_name_annotated already exists, it is updated.
+
         Note
         ----
         If `Continuum` is empty, it does nothing.
@@ -236,6 +251,7 @@ class Corpus:
 
     def __getitem__(self, file_name_annotated: str):
         """Get continuum object
+
         >>> continuum = corpus[file_name_annotated]
         """
 
@@ -243,6 +259,7 @@ class Corpus:
 
     def itercontinuua(self):
         """Iterate over continuum (in chronological order)
+
         >>> for continuum in corpus.itercontinuua():
         ...     # do something with the continuum
         """
