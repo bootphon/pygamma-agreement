@@ -52,11 +52,6 @@ class Continuum:
         name of annotated resource (e.g. audio or video file)
     modality : string, optional
         name of annotated modality
-
-    Returns
-    -------
-    continuum : Continuum
-        New continuum
     """
 
     def __init__(self, uri: Optional[str] = None,
@@ -173,13 +168,8 @@ class Corpus:
         name of annotated resource (e.g. audio or video file)
     modality : string, optional
         name of annotated modality
-
-    Returns
-    -------
-    corpus : Corpus
-        New continuum
     """
-
+    
     def __init__(self, uri=None, modality=None):
 
         self._uri = uri

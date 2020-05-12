@@ -183,3 +183,8 @@ class GammaAgreement:
             chance_disorder_values.append(best_seq_alignement.disorder)
 
         return chance_disorder_values
+
+    @property
+    def gamma(self) -> float:
+        """Compute gamma value"""
+        pass

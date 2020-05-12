@@ -115,10 +115,10 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                           categorical_dissimilarity_matrix.T)
 
     def __getitem__(self, units: Tuple[Unit, Unit]):
-        first, second = units[0][1], units[1][1]
         if len(units) < 2:
             return self.DELTA_EMPTY
         else:
+            first, second = units[0][1], units[1][1]
             assert first in self.list_categories
             assert second in self.list_categories
             cat_dis = self.categorical_dissimilarity_matrix[
@@ -232,10 +232,10 @@ class SequenceDissimilarity(AbstractDissimilarity):
 
     def __getitem__(self, units: Tuple[Unit, Unit]):
         # assert type(units) == list
-        first, second = units[0][1], units[1][1]
         if len(units) < 2:
             return self.DELTA_EMPTY
         else:
+            first, second = units[0][1], units[1][1]
             assert set(first) <= self.admitted_symbols_set
             assert set(second) <= self.admitted_symbols_set
             dist = (self.weighted_levenshtein.distance(first, second)
@@ -248,8 +248,8 @@ class SequenceDissimilarity(AbstractDissimilarity):
 
     def batch_compute(self, batch: List[Tuple[List[str], List[str]]]) -> np.ndarray:
         # Batch compute isn't much faster than regular __getitem__
-        # because we can't vectorize anything with numpy, so we're falling back
-        # to __getitem__.
+        # because we can't vectorize the levenstein distance computation
+        # with numpy, so we're falling back to __getitem__.
         seq_dists = np.zeros(len(batch))
         for idx, tuple in enumerate(batch):
             seq_dists[idx] = self[tuple]
@@ -292,10 +292,10 @@ class PositionalDissimilarity(AbstractDissimilarity):
         self.function_distance = function_distance
 
     def __getitem__(self, units: Tuple[Unit, Unit]):
-        first, second = units[0][0], units[1][0]
         if len(units) < 2:
             return self.DELTA_EMPTY
         elif len(units) == 2:
+            first, second = units[0][0], units[1][0]
             if self.function_distance is None:
                 # triple indexing to tracks in pyannote
                 # DANGER if the api breaks
@@ -435,7 +435,7 @@ class CombinedSequenceDissimilarity(AbstractCombinedDissimilarity):
                  list_admitted_symbols: List[str],
                  alpha: int = 3,
                  beta: int = 1,
-                 DELTA_EMPTY: int = 1,
+                 DELTA_EMPTY: float = 1,
                  function_distance=None,
                  symbol_dissimilarity_matrix=None,
                  function_cat=lambda x: x):

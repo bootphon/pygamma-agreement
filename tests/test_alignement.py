@@ -85,28 +85,33 @@ def test_alignment():
         categorical_dissimilarity_matrix=cat)
     set_unitary_alignments = []
 
-    n_tuple = (['liza', Segment(1, 5)], ['pierrot', Segment(2, 6)],
-               ['hadrien', Segment(1, 6)])
+    n_tuple = (('liza', Segment(1, 5)),
+               ('pierrot', Segment(2, 6)),
+               ('hadrien', Segment(1, 6)))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', Segment(6, 8)], ['pierrot', Segment(7, 8)],
-               ['hadrien', Segment(8, 10)])
+    n_tuple = (('liza', Segment(6, 8)),
+               ('pierrot', Segment(7, 8)),
+               ('hadrien', Segment(8, 10)))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', Segment(7, 20)], ['pierrot', Segment(7, 19)],
-               ['hadrien', Segment(7, 19)])
+    n_tuple = (('liza', Segment(7, 20)),
+               ('pierrot', Segment(7, 19)),
+               ('hadrien', Segment(7, 19)))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', Segment(12, 18)], ['pierrot',
-                                           Segment(12, 18)], ['hadrien', None])
+    n_tuple = (('liza', Segment(12, 18)),
+               ('pierrot', Segment(12, 18)),
+               ('hadrien', None))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', None], ['pierrot', Segment(8, 10)],
-               ['hadrien', Segment(19, 20)])
+    n_tuple = (('liza', None),
+               ('pierrot', Segment(8, 10)),
+               ('hadrien', Segment(19, 20)))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
@@ -242,33 +247,33 @@ def test_best_alignment():
         categorical_dissimilarity_matrix=cat)
     set_unitary_alignments = []
 
-    n_tuple = (['liza', Segment(1, 5)],
-               ['pierrot', Segment(2, 6)],
-               ['hadrien', Segment(1, 6)])
+    n_tuple = (('liza', Segment(1, 5)),
+               ('pierrot', Segment(2, 6)),
+               ('hadrien', Segment(1, 6)))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', Segment(6, 8)],
-               ['pierrot', Segment(7, 8)],
-               ['hadrien', Segment(8, 10)])
+    n_tuple = (('liza', Segment(6, 8)),
+               ('pierrot', Segment(7, 8)),
+               ('hadrien', Segment(8, 10)))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', Segment(7, 20)],
-               ['pierrot', Segment(7, 19)],
-               ['hadrien', Segment(7, 19)])
+    n_tuple = (('liza', Segment(7, 20)),
+               ('pierrot', Segment(7, 19)),
+               ('hadrien', Segment(7, 19)))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', Segment(12, 18)],
-               ['pierrot', Segment(12, 18)],
-               ['hadrien', None])
+    n_tuple = (('liza', Segment(12, 18)),
+               ('pierrot', Segment(12, 18)),
+               ('hadrien', None))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', None],
-               ['pierrot', Segment(8, 10)],
-               ['hadrien', Segment(19, 20)])
+    n_tuple = (('liza', None),
+               ('pierrot', Segment(8, 10)),
+               ('hadrien', Segment(19, 20)))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
@@ -317,33 +322,33 @@ def test_best_alignment_sequence():
 
     set_unitary_alignments = []
 
-    n_tuple = (['liza', Segment(1, 5)],
-               ['pierrot', Segment(2, 6)],
-               ['hadrien', Segment(1, 6)])
+    n_tuple = (('liza', Segment(1, 5)),
+               ('pierrot', Segment(2, 6)),
+               ('hadrien', Segment(1, 6)))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', Segment(6, 8)],
-               ['pierrot', Segment(7, 8)],
-               ['hadrien', Segment(8, 10)])
+    n_tuple = (('liza', Segment(6, 8)),
+               ('pierrot', Segment(7, 8)),
+               ('hadrien', Segment(8, 10)))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', Segment(7, 20)],
-               ['pierrot', Segment(7, 19)],
-               ['hadrien', Segment(7, 19)])
+    n_tuple = (('liza', Segment(7, 20)),
+               ('pierrot', Segment(7, 19)),
+               ('hadrien', Segment(7, 19)))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', Segment(12, 18)],
-               ['pierrot', Segment(12, 18)],
-               ['hadrien', None])
+    n_tuple = (('liza', Segment(12, 18)),
+               ('pierrot', Segment(12, 18)),
+               ('hadrien', None))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = (['liza', None],
-               ['pierrot', Segment(8, 10)],
-               ['hadrien', Segment(19, 20)])
+    n_tuple = (('liza', None),
+               ('pierrot', Segment(8, 10)),
+               ('hadrien', Segment(19, 20)))
     unitary_alignment = UnitaryAlignment(continuum, n_tuple, combi_dis)
     set_unitary_alignments.append(unitary_alignment)
 

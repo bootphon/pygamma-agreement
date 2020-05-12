@@ -120,9 +120,8 @@ class UnitaryAlignment(AbstractAlignment):
                     disorder += self.combined_dissim.DELTA_EMPTY
                 else:
                     disorder += self.combined_dissim[
-                        (unit_u, unit_v),
-                        (self.continuum[annotator_u][unit_u],
-                         self.continuum[annotator_v][unit_v])
+                        (unit_u, self.continuum[annotator_u][unit_u]),
+                        (unit_v, self.continuum[annotator_v][unit_v]),
                     ]
                 num_couples += 1
         disorder = disorder / binom(len(self.n_tuple), 2)
@@ -270,8 +269,7 @@ class Alignment(AbstractAlignment):
                 set_unitary_alignments.append(
                     set_of_possible_unitary_alignments[idx])
 
-        cls(continuum, set_unitary_alignments, combined_dissimilarity)
-
+        return cls(continuum, set_unitary_alignments, combined_dissimilarity)
 
     def __init__(
             self,
