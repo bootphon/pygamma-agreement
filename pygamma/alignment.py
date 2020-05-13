@@ -141,37 +141,36 @@ class UnitaryAlignmentBatch(AbstractAlignment):
         self.tuples_list = tuples_list
 
     def disorder(self) -> np.ndarray:
-        # building batch units lists
-        timings_tuples_list = []
-        annots_tuples_list = []
+        # building batch units list
+        units_list = []
         tuples_idx_bounds = list()
-        tuples_num_couples = list()
+        units_bounds_idx = list()
         counter = 0
         for tuple_idx, n_tuple in enumerate(self.tuples_list):
             # all tuples in tuples_data are not None
-            tuples_data = [(unit, self.continuum[annotator][unit])
-                           for annotator, unit in n_tuple if unit is not None]
+            tuples_data = [(segment, self.continuum[annotator][segment])
+                           for annotator, segment in n_tuple
+                           if segment is not None]
             idx_start = counter
-            tuples_num_couples.append(binom(len(n_tuple), 2))
-            for idx, (unit_u, annot_u) in enumerate(tuples_data):
-                for (unit_v, annot_v) in tuples_data[idx + 1:]:
-                    timings_tuples_list.append((unit_u, unit_v))
-                    annots_tuples_list.append((annot_u, annot_v))
+            units_bounds_idx.append(binom(len(n_tuple), 2))
+            for idx, (seg_u, annot_u) in enumerate(tuples_data):
+                for (seg_v, annot_v) in tuples_data[idx + 1:]:
+                    units_list.append(((seg_u, annot_u),
+                                       (seg_v, annot_v)))
                     counter += 1
             idx_end = counter
             tuples_idx_bounds.append((idx_start, idx_end))
-        dissimilarities = self.combined_dissim.batch_compute((timings_tuples_list,
-                                                              annots_tuples_list))
+        dissimilarities = self.combined_dissim.batch_compute(units_list)
         tuples_disorders = []
         for idx, (start, end) in enumerate(tuples_idx_bounds):
             tuple_dissims = dissimilarities[start:end]
             # calculating the number of empty dissimilarities
-            empty_count = tuples_num_couples[idx] - (end - start)
+            empty_count = units_bounds_idx[idx] - (end - start)
             # computing the tuple's total disorder using the dissimilarities
             # and the empty couples count
             tuple_disorder = (tuple_dissims.sum()
                               + empty_count * self.combined_dissim.DELTA_EMPTY)
-            tuple_disorder = tuple_disorder / tuples_num_couples[idx]
+            tuple_disorder = tuple_disorder / units_bounds_idx[idx]
             tuples_disorders.append(tuple_disorder)
 
         return np.array(tuples_disorders)

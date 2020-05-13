@@ -65,7 +65,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
 
         """
 
-    def batch_compute(self, batch: List[Unit]) -> np.ndarray:
+    def batch_compute(self, batch: List[Tuple[Unit, Unit]]) -> np.ndarray:
         pass
 
 
@@ -128,10 +128,10 @@ class CategoricalDissimilarity(AbstractDissimilarity):
 
             return cat_dis * self.DELTA_EMPTY
 
-    def batch_compute(self, units: List[Tuple[str, str]]) -> np.ndarray:
+    def batch_compute(self, units: List[Tuple[Unit, Unit]]) -> np.ndarray:
         # embedding all categories (first as list, then converting to array)
         cat_embds_list = []
-        for cat_a, cat_b in units:
+        for (_, cat_a), (_, cat_b) in units:
             cat_embds_list.append((self.dict_list_categories[cat_a],
                                    self.dict_list_categories[cat_b]))
         cat_embds = np.array(cat_embds_list).swapaxes(0, 1)
@@ -246,7 +246,7 @@ class SequenceDissimilarity(AbstractDissimilarity):
             else:
                 return dist * self.DELTA_EMPTY
 
-    def batch_compute(self, batch: List[Tuple[List[str], List[str]]]) -> np.ndarray:
+    def batch_compute(self, batch: List[Tuple[Unit, Unit]]) -> np.ndarray:
         # Batch compute isn't much faster than regular __getitem__
         # because we can't vectorize the levenstein distance computation
         # with numpy, so we're falling back to __getitem__.
@@ -305,10 +305,10 @@ class PositionalDissimilarity(AbstractDissimilarity):
                 distance_pos = distance_pos * distance_pos * self.DELTA_EMPTY
                 return distance_pos
 
-    def batch_compute(self, batch: List[Tuple[Segment, Segment]]) -> np.ndarray:
+    def batch_compute(self, batch: List[Tuple[Unit, Unit]]) -> np.ndarray:
         first_row_boundaries_list = []
         second_row_boundaries_list = []
-        for first_seg, second_seg in batch:
+        for (first_seg, _), (second_seg, _) in batch:
             first_row_boundaries_list.append((first_seg.start,
                                               first_seg.end))
             second_row_boundaries_list.append((second_seg.start,
@@ -347,12 +347,9 @@ class AbstractCombinedDissimilarity(AbstractDissimilarity):
             dis += self.beta * self.annotation_dissim[units]
             return dis
 
-    def batch_compute(self, batch: Tuple[List[Tuple[Segment, Segment]],
-                                         List[Tuple[str, str]]]) -> np.ndarray:
-        all_timings, all_annots = batch
-        assert len(all_annots) == len(all_timings)
-        timing_dists = self.positional_dissim.batch_compute(all_timings)
-        annot_dists = self.annotation_dissim.batch_compute(all_annots)
+    def batch_compute(self, batch: List[Tuple[Unit, Unit]]) -> np.ndarray:
+        timing_dists = self.positional_dissim.batch_compute(batch)
+        annot_dists = self.annotation_dissim.batch_compute(batch)
         return timing_dists * self.alpha + annot_dists * self.beta
 
 
