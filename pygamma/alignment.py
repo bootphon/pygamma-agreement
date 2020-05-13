@@ -34,14 +34,17 @@ Alignement and disorder
 from abc import ABCMeta, abstractmethod
 from itertools import product
 from typing import List, Tuple
+import itertools
 
 import cvxpy as cp
 import numpy as np
+from multiprocess.pool import Pool
 from pyannote.core import Segment
 from scipy.special import binom
+from tornado.process import cpu_count
 
 from pygamma.continuum import Continuum, Annotator
-from pygamma.dissimilarity import AbstractCombinedDissimilarity
+from pygamma.dissimilarity import AbstractCombinedDissimilarity, AbstractDissimilarity
 
 
 class Error(Exception):
@@ -65,11 +68,10 @@ class AbstractAlignment(metaclass=ABCMeta):
     def __init__(
             self,
             continuum: Continuum,
-            combined_dissimilarity: AbstractCombinedDissimilarity,
+            dissimilarity: AbstractDissimilarity,
     ):
-
         self.continuum = continuum
-        self.combined_dissim = combined_dissimilarity
+        self.combined_dissim = dissimilarity
 
     @property
     @abstractmethod
@@ -94,7 +96,7 @@ class UnitaryAlignment(AbstractAlignment):
     n_tuple :
         n-tuple where n is the number of annotators of the continuum
         This is a list of (annotator, segment) couples
-    combined_dissimilarity :
+    dissimilarity :
         combined_dissimilarity
     """
 
@@ -102,9 +104,9 @@ class UnitaryAlignment(AbstractAlignment):
             self,
             continuum: Continuum,
             n_tuple: List[Tuple[Annotator, Segment]],
-            combined_dissimilarity,
+            dissimilarity,
     ):
-        super().__init__(continuum, combined_dissimilarity)
+        super().__init__(continuum, dissimilarity)
         self.n_tuple = n_tuple
         assert len(n_tuple) == len(self.continuum)
 
@@ -112,16 +114,16 @@ class UnitaryAlignment(AbstractAlignment):
     def disorder(self):
         disorder = 0.0
         num_couples = 0
-        for idx, (annotator_u, unit_u) in enumerate(self.n_tuple):
-            for (annotator_v, unit_v) in self.n_tuple[idx + 1:]:
+        for idx, (annotator_u, seg_u) in enumerate(self.n_tuple):
+            for (annotator_v, seg_v) in self.n_tuple[idx + 1:]:
                 # This is not as the paper formula (6)...
                 # for (annotator_v, unit_v) in self.n_tuple:
-                if unit_u is None or unit_v is None:
+                if seg_u is None or seg_v is None:
                     disorder += self.combined_dissim.DELTA_EMPTY
                 else:
                     disorder += self.combined_dissim[
-                        (unit_u, self.continuum[annotator_u][unit_u]),
-                        (unit_v, self.continuum[annotator_v][unit_v]),
+                        (seg_u, self.continuum[annotator_u][seg_u]),
+                        (seg_v, self.continuum[annotator_v][seg_v]),
                     ]
                 num_couples += 1
         disorder = disorder / binom(len(self.n_tuple), 2)
@@ -135,11 +137,12 @@ class UnitaryAlignmentBatch(AbstractAlignment):
             self,
             continuum: Continuum,
             tuples_list: List[List[Tuple[Annotator, Segment]]],
-            combined_dissimilarity,
+            dissimilarity,
     ):
-        super().__init__(continuum, combined_dissimilarity)
+        super().__init__(continuum, dissimilarity)
         self.tuples_list = tuples_list
 
+    @property
     def disorder(self) -> np.ndarray:
         # building batch units list
         units_list = []
@@ -176,6 +179,17 @@ class UnitaryAlignmentBatch(AbstractAlignment):
         return np.array(tuples_disorders)
 
 
+def get_disorder(unitary_alignment: UnitaryAlignment):
+    return unitary_alignment, unitary_alignment.disorder
+
+def grouper(n, iterable):
+    it = iter(iterable)
+    while True:
+       chunk = tuple(itertools.islice(it, n))
+       if not chunk:
+           return
+       yield chunk
+
 class Alignment(AbstractAlignment):
     """Alignment
 
@@ -186,15 +200,26 @@ class Alignment(AbstractAlignment):
     set_unitary_alignments :
         set of unitary alignments that make a partition of the set of
         units/segments
-    combined_dissimilarity :
+    dissimilarity :
         Combined dissimilarity measure used to compute this alignment's
         disorder.
     """
 
+    NB_UNITS_PER_BATCH = 50000
+
+    @staticmethod
+    def batch_runner(possible_segments: List[List],
+                     continuum: Continuum,
+                     dissimilarity: AbstractDissimilarity):
+
+
+
+        return possible_unitary_alignments, alignments_disorders
+
     @classmethod
     def get_best_alignment(cls,
                            continuum: Continuum,
-                           combined_dissimilarity: AbstractCombinedDissimilarity
+                           dissimilarity: AbstractDissimilarity
                            ) -> 'Alignment':
         """Alignment
 
@@ -202,40 +227,42 @@ class Alignment(AbstractAlignment):
         ----------
         continuum :
             Continuum where the best alignment is computed from
-        combined_dissimilarity :
+        dissimilarity :
             Dissimilarity measure used to compute the disorder
         """
 
-        set_of_possible_segments = []
+        possible_segments = []
         for annotator in continuum.iterannotators():
             annot_segments = []
             for segment in continuum[annotator].itersegments():
                 annot_segments.append((annotator, segment))
             annot_segments.append((annotator, None))
-            set_of_possible_segments.append(annot_segments)
+            possible_segments.append(annot_segments)
 
-        set_of_possible_tuples = list(product(*set_of_possible_segments))
-        # computing all disorders for alignments in one big batch
-        unit_batch = UnitaryAlignmentBatch(continuum,
-                                           set_of_possible_tuples,
-                                           combined_dissimilarity)
-        tuples_disorders = unit_batch.disorder()
-        # Property section 5.1.1 to reduce initial complexity
-        set_of_possible_unitary_alignments = []
-        alignments_disorders = []
-        for idx, n_tuple in enumerate(set_of_possible_tuples):
-            # Property section 5.1.1 to reduce initial complexity
-            disorder = tuples_disorders[idx]
-            if disorder < len(continuum) * combined_dissimilarity.DELTA_EMPTY:
-                unitary_alignment = UnitaryAlignment(continuum,
-                                                     n_tuple,
-                                                     combined_dissimilarity)
-                set_of_possible_unitary_alignments.append(unitary_alignment)
-                alignments_disorders.append(disorder)
+        def unit_alignment_generator():
+            for batch in grouper(2**18, product(*possible_segments)):
+                yield UnitaryAlignmentBatch(continuum, batch, dissimilarity)
+
+        with Pool(cpu_count()) as pool:
+            results = pool.imap_unordered(lambda alignment: (alignment,
+                                                             alignment.disorder),
+                                          unit_alignment_generator(),
+                                          chunksize=1)
+
+            possible_unitary_alignments = []
+            alignments_disorders = []
+            for unitary_alignment, disorders in results:
+                for idx, n_tuple in enumerate(unitary_alignment.tuples_list):
+                    disorder = disorders[idx]
+                    if disorder < len(continuum) * dissimilarity.DELTA_EMPTY:
+                        unitary_alignment = UnitaryAlignment(continuum,
+                                                             n_tuple,
+                                                             dissimilarity)
+                        possible_unitary_alignments.append(unitary_alignment)
+                        alignments_disorders.append(disorder)
 
         # Definition of the integer linear program
-        num_possible_unitary_alignments = len(
-            set_of_possible_unitary_alignments)
+        num_possible_unitary_alignments = len(possible_unitary_alignments)
         # x is the alignment variable: contains the best alignment once the
         # problem has been solved
         x = cp.Variable(shape=num_possible_unitary_alignments, boolean=True)
@@ -249,7 +276,7 @@ class Alignment(AbstractAlignment):
         for annotator in continuum.iterannotators():
             for unit in list(continuum[annotator].itersegments()):
                 for idx_ua, unitary_alignment in enumerate(
-                        set_of_possible_unitary_alignments):
+                        possible_unitary_alignments):
                     if (annotator, unit) in unitary_alignment.n_tuple:
                         A[curr_idx][idx_ua] = 1
                 curr_idx += 1
@@ -266,17 +293,17 @@ class Alignment(AbstractAlignment):
         for idx, chosen_unitary_alignment in enumerate(list(x.value > 0.9)):
             if chosen_unitary_alignment:
                 set_unitary_alignments.append(
-                    set_of_possible_unitary_alignments[idx])
+                    possible_unitary_alignments[idx])
 
-        return cls(continuum, set_unitary_alignments, combined_dissimilarity)
+        return cls(continuum, set_unitary_alignments, dissimilarity)
 
     def __init__(
             self,
             continuum: Continuum,
             set_unitary_alignments: List[UnitaryAlignment],
-            combined_dissimilarity: AbstractCombinedDissimilarity,
+            dissimilarity: AbstractDissimilarity,
     ):
-        super().__init__(continuum, combined_dissimilarity)
+        super().__init__(continuum, dissimilarity)
         self.set_unitary_alignments = set_unitary_alignments
 
         # set partition tests for the unitary alignments
