@@ -88,6 +88,7 @@ class GammaAgreement:
         if self.strategy is 'multi':
             assert self.corpus, 'Should be provided with a corpus object'
         self.number_samples = number_samples
+        # TODO : maybe change this to "low, high, higher, maximum" or smthg
         assert self.confidence_level in (0.9, 0.95, 0.98, 0.99)
         assert self.type_pivot in ('float_pivot', 'int_pivot')
         self.last_unit_start = 0.0
@@ -96,37 +97,12 @@ class GammaAgreement:
                 if unit.start > self.last_unit_start:
                     self.last_unit_start = unit.start
 
-    @property
-    def value(self):
-        """Compute the disorder for the unitary alignement
-        >>> unitary_alignement.compute_disorder() = ...
-        Based on formula (6) of the original paper
-        Note:
-        unit is the equivalent of segment in pyannote
-        """
-        disorder = 0.0
-        for idx, (annotator_u, unit_u) in enumerate(self.n_tuple):
-            for (annotator_v, unit_v) in self.n_tuple[idx + 1:]:
-                if unit_u is None and unit_v is None:
-                    return self.combined_dissimilarity.DELTA_EMPTY
-                elif unit_u is None:
-                    disorder += self.combined_dissimilarity[
-                        [unit_v], [self.continuum[annotator_v][unit_v]]]
-                elif unit_v is None:
-                    disorder += self.combined_dissimilarity[
-                        [unit_u], [self.continuum[annotator_u][unit_u]]]
-                else:
-                    disorder += self.combined_dissimilarity[[unit_u, unit_v], [
-                        self.continuum[annotator_u][unit_u], self.continuum[
-                            annotator_v][unit_v]
-                    ]]
-        disorder /= binom(len(self.n_tuple), 2)
-        return disorder
-
     def sample_annotation_from_single_continuum(self):
         """Generate a new random annotation from a single continuum
         Strategy from figure 12
-        >>> gamma_agreement.sample_from_single_continuum() = random_annotation
+
+        >>> gamma_agreement.sample_from_single_continuum()
+        ... <pyannote.core.annotation.Annotation at 0x7f5527a19588>
         """
         if self.type_pivot == 'float_pivot':
             pivot = np.random.uniform(self.continuum.avg_length_unit,
@@ -139,23 +115,26 @@ class GammaAgreement:
         annotation = self.continuum[annotator]
         for unit in annotation.itersegments():
             if pivot - unit.start < 0:
-                sampled_annotation[Segment(
-                    unit.start - pivot, unit.end - pivot)] = annotation[unit]
+                new_segment = Segment(unit.start - pivot, unit.end - pivot)
             else:
-                sampled_annotation[Segment(
-                    unit.start + pivot, unit.end + pivot)] = annotation[unit]
+                new_segment = Segment(unit.start + pivot, unit.end + pivot)
+            sampled_annotation[new_segment] = annotation[unit]
         return sampled_annotation
 
     def sample_annotation_from_corpus(self):
         """Generate a new random annotation from a corpus
         Strategy from figure 13
-        >>> gamma_agreement.sample_annotation_from_corpus() = random_annotation
+
+        >>> gamma_agreement.sample_annotation_from_corpus()
+        ... <pyannote.core.annotation.Annotation at 0x7f5527a19588>
         """
+        # TODO: doesn't seem finished
         # pivot = 6
         if self.type_pivot == "float_pivot":
             pivot = np.random.uniform(self.continuum.avg_length_unit, 2)
         sampled_annotation = Annotation()
-
+        annotator = np.random.choice(list(self.continuum.iterannotators()))
+        annotation = self.continuum[annotator]
         for unit in annotation.itersegments():
             if pivot - unit.start < 0:
                 sampled_annotation[Segment(
@@ -178,13 +157,13 @@ class GammaAgreement:
                 if self.strategy is 'multi':
                     sampled_continuum['Sampled_annotation {}'.format(
                         idx)] = self.sample_annotation_from_corpus()
-            best_seq_alignement = BestAlignment(sampled_continuum,
-                                                self.dissimilarity)
+            best_seq_alignement = Alignment.get_best_alignment(
+                sampled_continuum,
+                self.dissimilarity)
             chance_disorder_values.append(best_seq_alignement.disorder)
 
         return chance_disorder_values
 
-    @property
-    def gamma(self) -> float:
+    def get_gamma(self) -> float:
         """Compute gamma value"""
         pass

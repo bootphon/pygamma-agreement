@@ -132,6 +132,10 @@ class UnitaryAlignment(AbstractAlignment):
 
 
 class UnitaryAlignmentBatch(AbstractAlignment):
+    """Helper class. Shouldn't be used by an actual end-user.
+    Used to compute the disorder of unitary alignments in batches,
+    to prevent repeated calls to the __getitem__ method of
+    dissimilarities"""
 
     def __init__(
             self,
@@ -146,8 +150,11 @@ class UnitaryAlignmentBatch(AbstractAlignment):
     def disorder(self) -> np.ndarray:
         # building batch units list
         units_list = []
+        # we have to track the bounds of each tuple's position in the
+        # batch, as it has to be normalized by its total couple count
         tuples_idx_bounds = list()
-        units_bounds_idx = list()
+        tuples_unit_count = list()
+        # counter is used to keep track of the bounds
         counter = 0
         for tuple_idx, n_tuple in enumerate(self.tuples_list):
             # all tuples in tuples_data are not None
@@ -155,7 +162,7 @@ class UnitaryAlignmentBatch(AbstractAlignment):
                            for annotator, segment in n_tuple
                            if segment is not None]
             idx_start = counter
-            units_bounds_idx.append(binom(len(n_tuple), 2))
+            tuples_unit_count.append(binom(len(n_tuple), 2))
             for idx, (seg_u, annot_u) in enumerate(tuples_data):
                 for (seg_v, annot_v) in tuples_data[idx + 1:]:
                     units_list.append(((seg_u, annot_u),
@@ -167,13 +174,14 @@ class UnitaryAlignmentBatch(AbstractAlignment):
         tuples_disorders = []
         for idx, (start, end) in enumerate(tuples_idx_bounds):
             tuple_dissims = dissimilarities[start:end]
-            # calculating the number of empty dissimilarities
-            empty_count = units_bounds_idx[idx] - (end - start)
+            # calculating the number of empty units couples (either one
+            # of the unit is empty)
+            empty_count = tuples_unit_count[idx] - (end - start)
             # computing the tuple's total disorder using the dissimilarities
             # and the empty couples count
             tuple_disorder = (tuple_dissims.sum()
                               + empty_count * self.combined_dissim.DELTA_EMPTY)
-            tuple_disorder = tuple_disorder / units_bounds_idx[idx]
+            tuple_disorder = tuple_disorder / tuples_unit_count[idx]
             tuples_disorders.append(tuple_disorder)
 
         return np.array(tuples_disorders)
@@ -207,21 +215,15 @@ class Alignment(AbstractAlignment):
 
     NB_UNITS_PER_BATCH = 50000
 
-    @staticmethod
-    def batch_runner(possible_segments: List[List],
-                     continuum: Continuum,
-                     dissimilarity: AbstractDissimilarity):
-
-
-
-        return possible_unitary_alignments, alignments_disorders
-
     @classmethod
     def get_best_alignment(cls,
                            continuum: Continuum,
                            dissimilarity: AbstractDissimilarity
                            ) -> 'Alignment':
-        """Alignment
+        """Finds the best possible alignment for a continuum, using
+        a convex optimization algorithm.
+        WARNING: may take some time to run, as its complexity is exponentially
+        directed by the number of annotators in the continuum.
 
         Parameters
         ----------
@@ -231,6 +233,8 @@ class Alignment(AbstractAlignment):
             Dissimilarity measure used to compute the disorder
         """
 
+        # this block extracts all the (annotator, segment) couples from the
+        # continuum
         possible_segments = []
         for annotator in continuum.iterannotators():
             annot_segments = []
@@ -240,20 +244,26 @@ class Alignment(AbstractAlignment):
             possible_segments.append(annot_segments)
 
         def unit_alignment_generator():
+            """Generates batches of unitary alignment to be sent
+            to the multiprocessing module"""
             for batch in grouper(2**18, product(*possible_segments)):
                 yield UnitaryAlignmentBatch(continuum, batch, dissimilarity)
 
         with Pool(cpu_count()) as pool:
+            # we're using an unordered imap which is a lazy version of map.
+            # the fact that it's unordered potentially makes it faster as well
             results = pool.imap_unordered(lambda alignment: (alignment,
                                                              alignment.disorder),
                                           unit_alignment_generator(),
                                           chunksize=1)
 
+            # retained potential unitary alignments and their respective disorders
             possible_unitary_alignments = []
             alignments_disorders = []
             for unitary_alignment, disorders in results:
                 for idx, n_tuple in enumerate(unitary_alignment.tuples_list):
                     disorder = disorders[idx]
+                    # Property section 5.1.1 to reduce initial complexity
                     if disorder < len(continuum) * dissimilarity.DELTA_EMPTY:
                         unitary_alignment = UnitaryAlignment(continuum,
                                                              n_tuple,
