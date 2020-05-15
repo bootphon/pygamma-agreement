@@ -5,11 +5,18 @@ API Reference
 Data structures
 ---------------
 
-.. autoclass:: pygamma.Continuum
-    :members:
-    :special-members:
+There are 2 types aliases that are important to understand :ref:`dissimilarities`:
 
-.. autoclass:: pygamma.Corpus
+* `Annot = Union[str, List[str]]` :
+    this is either a simple string that represents a category
+    (used by the categorical dissimilarity), or a list of strings that represent a sequence
+    (used by the sequence dissimilarity).
+* `Unit = Tuple[Segment, Annot]` :
+    This corresponds to a concept introduced in the original gamma paper.
+    In practice, it's a segment and its corresponding annotation. The dissimilarity between two
+    `Unit` can be computed by being passed to :ref:`dissimilarities` instances.
+
+.. autoclass:: pygamma.Continuum
     :members:
     :special-members:
 
@@ -25,6 +32,8 @@ Alignments
 .. autoclass:: pygamma.Alignment
     :members:
     :special-members:
+
+.. _dissimilarities:
 
 Dissimilarities
 ---------------

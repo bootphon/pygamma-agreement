@@ -32,12 +32,18 @@ Gamma Agreement
 
 """
 
+import csv
+import logging
+from collections import defaultdict
+from typing import Iterable, Tuple
+
 import numpy as np
-from pyannote.core import Segment, Annotation
+from pyannote.core import Annotation, Segment
 
 from .alignment import Alignment
 from .continuum import Continuum, Corpus
 from .dissimilarity import AbstractDissimilarity
+from .dissimilarity import SequenceDissimilarity, CategoricalDissimilarity
 
 
 class GammaAgreement:
@@ -167,3 +173,33 @@ class GammaAgreement:
     def get_gamma(self) -> float:
         """Compute gamma value"""
         pass
+
+
+def compute_gamma(units: Iterable[Tuple[str, str, float, float]],
+                  dissimilarity: str = "categorical",) -> float:
+    assert dissimilarity in ("categorical", "sequence")
+    annotations = defaultdict(Annotation)
+    categories = set()
+    symbols = set()
+
+    for row in units:
+        if dissimilarity == "categorical":
+            categories.add(row[1])
+        else:
+            symbols.update(set(row[1]))
+        annotations[row[0]][Segment(int(row[2]), int(row[3]))] = row[1]
+
+    continuum = Continuum()
+    for annotator, annotation in annotations.items():
+        continuum[annotator] = annotation
+
+    if dissimilarity == "categorical":
+        dissim = CategoricalDissimilarity("", list(categories))
+    else:
+        dissim = SequenceDissimilarity("", list(symbols))
+
+    logging.info("Computing best alignment...")
+    best_alignment = Alignment.get_best_alignment(continuum, dissim)
+    gamma = GammaAgreement(continuum, best_alignment, dissim)
+    logging.info("Computing Gamma Agreement for that alignment...")
+    return gamma.get_gamma()
