@@ -7,3 +7,4 @@ matplotlib >= 2.0.0
 pyannote.core>=0.3
 cvxpy >= 1.0.0
 strsim == 0.0.3
+tqdm >= 4.46.0

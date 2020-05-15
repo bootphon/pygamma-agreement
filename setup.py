@@ -58,4 +58,9 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Topic :: Scientific/Engineering"
     ],
+    entry_points={
+        'console_scripts': [
+            'add-manager = pygamma.cli_apps.add_manager:pygamma_cmd',
+        ]
+    }
 )
