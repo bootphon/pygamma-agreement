@@ -36,7 +36,6 @@ with open("requirements.txt") as req_file:
 setup(
 
     # package
-    namespace_packages=['pygamma'],
     packages=find_packages(),
     install_requires=requirements,
     extras_require={'test': ['pytest']},
