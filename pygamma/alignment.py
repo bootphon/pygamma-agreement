@@ -33,6 +33,7 @@ Alignement and disorder
 """
 from abc import ABCMeta, abstractmethod
 from itertools import product
+from os import cpu_count
 from typing import List, Tuple
 import itertools
 
@@ -41,7 +42,6 @@ import numpy as np
 from multiprocess.pool import Pool
 from pyannote.core import Segment
 from scipy.special import binom
-from tornado.process import cpu_count
 
 from pygamma.continuum import Continuum, Annotator
 from pygamma.dissimilarity import AbstractCombinedDissimilarity, AbstractDissimilarity
