@@ -31,11 +31,11 @@ Alignement and disorder
 ##########
 
 """
+import itertools
 from abc import ABCMeta, abstractmethod
 from itertools import product
 from os import cpu_count
 from typing import List, Tuple
-import itertools
 
 import cvxpy as cp
 import numpy as np
@@ -44,7 +44,7 @@ from pyannote.core import Segment
 from scipy.special import binom
 
 from pygamma.continuum import Continuum, Annotator
-from pygamma.dissimilarity import AbstractCombinedDissimilarity, AbstractDissimilarity
+from pygamma.dissimilarity import AbstractDissimilarity
 
 
 class Error(Exception):

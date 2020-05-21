@@ -94,11 +94,12 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                  function_cat: Optional[Callable[[float], float]] = None):
         super().__init__(annotation_task, DELTA_EMPTY)
 
-        self.list_categories = list_categories
+        self.categories = list_categories
+        self.categories_set = set(self.categories)
+        assert len(list_categories) == len(self.categories_set)
+        self.num_categories = len(self.categories)
         self.function_cat = function_cat
-        assert len(list_categories) == len(set(list_categories))
-        self.num_categories = len(self.list_categories)
-        self.dict_list_categories = dict(zip(self.list_categories,
+        self.dict_list_categories = dict(zip(self.categories,
                                              range(self.num_categories)))
         self.categorical_dissimilarity_matrix = categorical_dissimilarity_matrix
         if self.categorical_dissimilarity_matrix is None:
@@ -118,31 +119,24 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         if len(units) < 2:
             return self.DELTA_EMPTY
         else:
-            first, second = units[0][1], units[1][1]
-            assert first in self.list_categories
-            assert second in self.list_categories
-            cat_dis = self.categorical_dissimilarity_matrix[
-                self.dict_list_categories[first]][self.dict_list_categories[second]]
-            if self.function_cat is not None:
-                cat_dis = self.function_cat(cat_dis)
-
-            return cat_dis * self.DELTA_EMPTY
+            return self.batch_compute([units])
 
     def batch_compute(self, units: List[Tuple[Unit, Unit]]) -> np.ndarray:
         # embedding all categories (first as list, then converting to array)
         cat_embds_list = []
         for (_, cat_a), (_, cat_b) in units:
+            assert cat_a in self.categories_set
+            assert cat_b in self.categories_set
             cat_embds_list.append((self.dict_list_categories[cat_a],
                                    self.dict_list_categories[cat_b]))
         cat_embds = np.array(cat_embds_list).swapaxes(0, 1)
         # retrieving all the distances
         cat_dists = self.categorical_dissimilarity_matrix[cat_embds[0],
                                                           cat_embds[1]]
-        cat_dists *= cat_dists * self.DELTA_EMPTY
-        if self.function_cat is None:
-            return cat_dists
-        else:
-            return np.array([self.function_cat(d) for d in cat_dists])
+        if self.function_cat is not None:
+            cat_dists =  np.array([self.function_cat(d) for d in cat_dists])
+
+        return cat_dists * self.DELTA_EMPTY
 
     def plot_categorical_dissimilarity_matrix(self):
         fig, ax = plt.subplots()
@@ -151,9 +145,9 @@ class CategoricalDissimilarity(AbstractDissimilarity):
             extent=[0, self.num_categories, 0, self.num_categories])
         ax.figure.colorbar(im, ax=ax)
         plt.xticks([el + 0.5 for el in range(self.num_categories)],
-                   self.list_categories)
+                   self.categories)
         plt.yticks([el + 0.5 for el in range(self.num_categories)],
-                   self.list_categories[::-1])
+                   self.categories[::-1])
         plt.setp(
             ax.get_xticklabels(),
             rotation=45,
@@ -172,7 +166,7 @@ class SequenceDissimilarity(AbstractDissimilarity):
         task to be annotated
     admitted_symbols :
         list of admitted symbols in the sequence
-    categorical_symbol_dissimlarity_matrix :
+    symbol_dissimilarity_matrix :
         Dissimilarity matrix to compute between symbols
     DELTA_EMPTY :
         empty dissimilarity value
@@ -235,24 +229,23 @@ class SequenceDissimilarity(AbstractDissimilarity):
         if len(units) < 2:
             return self.DELTA_EMPTY
         else:
-            first, second = units[0][1], units[1][1]
-            assert set(first) <= self.admitted_symbols_set
-            assert set(second) <= self.admitted_symbols_set
-            dist = (self.weighted_levenshtein.distance(first, second)
-                    / max(len(first), len(second)))
-
-            if self.function_cat is not None:
-                return self.function_cat(dist) * self.DELTA_EMPTY
-            else:
-                return dist * self.DELTA_EMPTY
+            return self.batch_compute([units])
 
     def batch_compute(self, batch: List[Tuple[Unit, Unit]]) -> np.ndarray:
         # Batch compute isn't much faster than regular __getitem__
         # because we can't vectorize the levenstein distance computation
         # with numpy, so we're falling back to __getitem__.
         seq_dists = np.zeros(len(batch))
-        for idx, tuple in enumerate(batch):
-            seq_dists[idx] = self[tuple]
+        for idx, ((_, seq_a), (_, seq_b)) in enumerate(batch):
+            assert set(seq_a) <= self.admitted_symbols_set
+            assert set(seq_b) <= self.admitted_symbols_set
+            dist = (self.weighted_levenshtein.distance(seq_a, seq_b)
+                    / max(len(seq_a), len(seq_b)))
+
+            if self.function_cat is not None:
+                seq_dists[idx] = self.function_cat(dist) * self.DELTA_EMPTY
+            else:
+                seq_dists[idx] = dist * self.DELTA_EMPTY
         return seq_dists
 
     def plot_symbol_dissimilarity_matrix(self):
@@ -295,15 +288,7 @@ class PositionalDissimilarity(AbstractDissimilarity):
         if len(units) < 2:
             return self.DELTA_EMPTY
         elif len(units) == 2:
-            first, second = units[0][0], units[1][0]
-            if self.function_distance is None:
-                # triple indexing to tracks in pyannote
-                # DANGER if the api breaks
-                distance_pos = (np.abs(first.start - second.start) +
-                                np.abs(first.end - second.end))
-                distance_pos /= (first.duration + second.duration)
-                distance_pos = distance_pos * distance_pos * self.DELTA_EMPTY
-                return distance_pos
+            return self.batch_compute([units])
 
     def batch_compute(self, batch: List[Tuple[Unit, Unit]]) -> np.ndarray:
         first_row_boundaries_list = []
@@ -343,9 +328,7 @@ class AbstractCombinedDissimilarity(AbstractDissimilarity):
         if len(units) < 2:
             return self.DELTA_EMPTY
         else:
-            dis = self.alpha * self.positional_dissim[units]
-            dis += self.beta * self.annotation_dissim[units]
-            return dis
+            return self.batch_compute([units])
 
     def batch_compute(self, batch: List[Tuple[Unit, Unit]]) -> np.ndarray:
         timing_dists = self.positional_dissim.batch_compute(batch)
