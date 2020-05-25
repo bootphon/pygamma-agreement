@@ -52,8 +52,8 @@ class GammaAgreement:
     ----------
     continuum :
         Continuum where the alignment is from
-    alignement :
-        Alignement to evaluate
+    alignment :
+        alignment to evaluate
     dissimilarity :
         Dissimilarity to be used to estimate the disorder and gamma agreement
     strategy :
@@ -75,7 +75,7 @@ class GammaAgreement:
 
     def __init__(self,
                  continuum: Continuum,
-                 alignement: Alignment,
+                 alignment: Alignment,
                  dissimilarity: AbstractDissimilarity,
                  strategy: str = 'single',
                  corpus: Corpus = Corpus(),  # TODO : move this to __init__
@@ -84,7 +84,7 @@ class GammaAgreement:
                  type_pivot: str = 'float_pivot'):
 
         self.continuum = continuum
-        self.alignement = alignement
+        self.alignment = alignment
         self.confidence_level = confidence_level
         self.type_pivot = type_pivot
         self.corpus = corpus
@@ -163,16 +163,18 @@ class GammaAgreement:
                 if self.strategy is 'multi':
                     sampled_continuum['Sampled_annotation {}'.format(
                         idx)] = self.sample_annotation_from_corpus()
-            best_seq_alignement = Alignment.get_best_alignment(
+            best_seq_alignment = Alignment.get_best_alignment(
                 sampled_continuum,
                 self.dissimilarity)
-            chance_disorder_values.append(best_seq_alignement.disorder)
+            chance_disorder_values.append(best_seq_alignment.disorder)
 
         return chance_disorder_values
 
     def get_gamma(self) -> float:
         """Compute gamma value"""
-        pass
+        chance_disorders = self.compute_chance_disorder_values()
+        best_seq_alignment_disorder = self.alignment.disorder
+        return 1 - (best_seq_alignment_disorder / np.mean(chance_disorders))
 
 
 def compute_gamma(units: Iterable[Tuple[str, str, float, float]],
