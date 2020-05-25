@@ -24,7 +24,7 @@
 # SOFTWARE.
 
 # AUTHORS
-# Rachid RIAD
+# Rachid RIAD & Hadrien TITEUX
 """
 ##########
 Alignement and disorder
@@ -78,7 +78,7 @@ class AbstractAlignment(metaclass=ABCMeta):
     def disorder(self) -> float:
         """Compute the disorder for the alignement
 
-        >>> aligment.disorder()
+        >>> aligment.disorder
         ... 0.123
 
         """
@@ -104,7 +104,7 @@ class UnitaryAlignment(AbstractAlignment):
             self,
             continuum: Continuum,
             n_tuple: List[Tuple[Annotator, Segment]],
-            dissimilarity,
+            dissimilarity: AbstractDissimilarity,
     ):
         super().__init__(continuum, dissimilarity)
         self.n_tuple = n_tuple
@@ -141,7 +141,7 @@ class UnitaryAlignmentBatch(AbstractAlignment):
             self,
             continuum: Continuum,
             tuples_list: List[List[Tuple[Annotator, Segment]]],
-            dissimilarity,
+            dissimilarity: AbstractDissimilarity,
     ):
         super().__init__(continuum, dissimilarity)
         self.tuples_list = tuples_list

@@ -15,4 +15,6 @@ formats: all
 python:
   version: 3.6
   install:
-    - requirements: docs/requirements.txt
+    # this runs `pip install .` before the doc is built
+    - method: pip
+      path: .

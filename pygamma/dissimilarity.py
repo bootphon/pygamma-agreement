@@ -24,7 +24,7 @@
 # SOFTWARE.
 
 # AUTHORS
-# Rachid RIAD
+# Rachid RIAD & Hadrien TITEUX
 """
 ##########
 Dissimilarity

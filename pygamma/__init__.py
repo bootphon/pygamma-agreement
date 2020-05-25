@@ -24,7 +24,7 @@
 # SOFTWARE.
 
 # AUTHORS
-# Rachid RIAD
+# Rachid RIAD & Hadrien TITEUX
 
 from .continuum import Continuum, Corpus
 from .alignment import Alignment, UnitaryAlignment
