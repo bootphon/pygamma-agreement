@@ -174,7 +174,7 @@ class GammaAgreement:
         """Compute gamma value"""
         pass
 
-
+# TODO add beta, alpha, et delta parameters
 def compute_gamma(units: Iterable[Tuple[str, str, float, float]],
                   dissimilarity: str = "categorical",) -> float:
     assert dissimilarity in ("categorical", "sequence")

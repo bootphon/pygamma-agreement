@@ -39,6 +39,7 @@ from typing import List, Tuple
 
 import cvxpy as cp
 import numpy as np
+import tqdm
 from multiprocess.pool import Pool
 from pyannote.core import Segment
 from scipy.special import binom
@@ -213,7 +214,7 @@ class Alignment(AbstractAlignment):
         disorder.
     """
 
-    NB_UNITS_PER_BATCH = 50000
+    NB_ALIGNS_PER_BATCH = 2 ** 18
 
     @classmethod
     def get_best_alignment(cls,
@@ -243,24 +244,27 @@ class Alignment(AbstractAlignment):
             annot_segments.append((annotator, None))
             possible_segments.append(annot_segments)
 
-        def unit_alignment_generator():
+        def unit_alignment_generator(aligns_per_batch: int):
             """Generates batches of unitary alignment to be sent
             to the multiprocessing module"""
-            for batch in grouper(2**18, product(*possible_segments)):
+            for batch in grouper(aligns_per_batch, product(*possible_segments)):
                 yield UnitaryAlignmentBatch(continuum, batch, dissimilarity)
 
+        p_lengths = np.array(list(map(lambda x: len(x), possible_segments)))
+        p_prod = p_lengths.prod()
+        batch_numbers = p_prod // cls.NB_ALIGNS_PER_BATCH
         with Pool(cpu_count()) as pool:
             # we're using an unordered imap which is a lazy version of map.
             # the fact that it's unordered potentially makes it faster as well
             results = pool.imap_unordered(lambda alignment: (alignment,
                                                              alignment.disorder),
-                                          unit_alignment_generator(),
+                                          unit_alignment_generator(cls.NB_ALIGNS_PER_BATCH),
                                           chunksize=1)
 
             # retained potential unitary alignments and their respective disorders
             possible_unitary_alignments = []
             alignments_disorders = []
-            for unitary_alignment, disorders in results:
+            for unitary_alignment, disorders in tqdm.tqdm(results, total=batch_numbers):
                 for idx, n_tuple in enumerate(unitary_alignment.tuples_list):
                     disorder = disorders[idx]
                     # Property section 5.1.1 to reduce initial complexity
