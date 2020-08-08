@@ -275,6 +275,8 @@ class Alignment(AbstractAlignment):
                         possible_unitary_alignments.append(unitary_alignment)
                         alignments_disorders.append(disorder)
 
+        print(np.array(alignments_disorders).mean())
+
         # Definition of the integer linear program
         num_possible_unitary_alignments = len(possible_unitary_alignments)
         # x is the alignment variable: contains the best alignment once the
@@ -284,7 +286,7 @@ class Alignment(AbstractAlignment):
 
         # Constraints matrix
         A = np.zeros((continuum.num_units, num_possible_unitary_alignments))
-
+        print(A.shape)
         curr_idx = 0
         # fill unitary alignments matching with units
         for annotator in continuum.iterannotators():
@@ -301,6 +303,7 @@ class Alignment(AbstractAlignment):
         # we don't actually need the optimal disorder value to build the
         # best alignment
         optimal_disorder = prob.solve()
+        print(optimal_disorder)
         set_unitary_alignments = []
 
         # compare with 0.9 as cvxpy returns 1.000 or small values 10e-14
