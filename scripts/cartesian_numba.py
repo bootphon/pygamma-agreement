@@ -3,24 +3,24 @@ import numpy as np
 from typing import List
 
 
-@nb.njit(nb.types.Tuple((nb.int32[:,:],
+@nb.njit(nb.types.Tuple((nb.int32[:, :],
                          nb.int32[:]))(nb.int32[:],
                                        nb.int32[:],
                                        nb.int64, nb.int64))
-def cproduct(sizes : np.ndarray, current_tuple: np.ndarray, start_idx: int, end_idx: int):
+def cproduct(sizes: np.ndarray, current_tuple: np.ndarray, start_idx: int, end_idx: int):
     assert len(sizes) >= 2
     assert start_idx < end_idx
 
     tuples = np.zeros((end_idx - start_idx, len(sizes)), dtype=np.int32)
-    tuple_idx = start_idx
-    current_tuple = current_tuple
-    while tuple_idx < end_idx:
-        current_tuple[0] += 1
+    tuple_idx = 0
+    current_tuple = current_tuple.copy()
+    while tuple_idx < end_idx - start_idx:
         tuples[tuple_idx] = current_tuple
+        current_tuple[0] += 1
         if current_tuple[0] == sizes[0]:
             current_tuple[0] = 0
             current_tuple[1] += 1
-            for i in range(1,len(sizes) - 1):
+            for i in range(1, len(sizes) - 1):
                 if current_tuple[i] == sizes[i]:
                     current_tuple[i + 1] += 1
                     current_tuple[i] = 0
@@ -32,20 +32,30 @@ def cproduct(sizes : np.ndarray, current_tuple: np.ndarray, start_idx: int, end_
 
 def chunked_cartesian_product(sizes: List[int], chunk_size: int):
     prod = np.prod(sizes)
+
     # putting the largest number at the front to more efficiently make use
     # of the cproduct numba function
-    sizes = np.sort(sizes)[::-1]
-    num_chunks = np.max(np.ceil(prod / chunk_size), 2).astype(np.int32)
-    chunk_bounds = (np.arange(num_chunks) * chunk_size).astype(np.int64)
-    chunk_bounds[-1] = prod
+    sizes = np.array(sizes, dtype=np.int32)
+    sorted_idx = np.argsort(sizes)[::-1]
+    sizes = sizes[sorted_idx]
+    if chunk_size > prod:
+        chunk_bounds = (np.array([0, prod])).astype(np.int64)
+    else:
+        num_chunks = np.maximum(np.ceil(prod / chunk_size), 2).astype(np.int32)
+        chunk_bounds = (np.arange(num_chunks + 1) * chunk_size).astype(np.int64)
+        chunk_bounds[-1] = prod
     current_tuple = np.zeros(len(sizes), dtype=np.int32)
     for start_idx, end_idx in zip(chunk_bounds[:-1], chunk_bounds[1:]):
         tuples, current_tuple = cproduct(sizes, current_tuple, start_idx, end_idx)
-        yield tuples
+        # re-arrange columns to match the original order of the sizes list
+        # before yielding
+        yield tuples[:, np.argsort(sorted_idx)]
+
 
 def cartesian_product(sizes: List[int]):
     return next(chunked_cartesian_product(sizes, np.prod(sizes)))
 
 
-
-print(cproduct(np.array([3,4,2], dtype=np.int32)))
+#print(cartesian_product([3, 2, 4]))
+for tuple in chunked_cartesian_product([100, 100, 100, 100, 5], 2 ** 26):
+    print(tuple.shape)
