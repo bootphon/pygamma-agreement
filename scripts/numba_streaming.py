@@ -35,25 +35,6 @@ LOOKUP_TABLE = np.array([
     20922789888000, 355687428096000, 6402373705728000,
     121645100408832000, 2432902008176640000], dtype='int64')
 
-def grouper(n, iterable):
-    it = iter(iterable)
-    while True:
-       chunk = itertools.islice(it, n)
-       if not chunk:
-           return
-       yield chunk
-
-
-def unit_tuples_generator(aligns_per_batch: int, possible_units: List[int]) -> np.ndarray:
-    """Generates batches of unitary alignment to be sent
-    to the multiprocessing module"""
-    iterables = [range(unit_count) for unit_count in possible_units]
-    for chunk in  grouper(aligns_per_batch, itertools.product(*iterables)):
-        chunk = list(chunk)
-        if not chunk:
-            return
-        yield np.array(chunk, dtype=np.int32)
-
 
 @nb.njit
 def fast_factorial(n):
@@ -63,18 +44,62 @@ def fast_factorial(n):
     return LOOKUP_TABLE[n]
 
 
+@nb.njit(nb.types.Tuple((nb.int32[:, :],
+                         nb.int32[:]))(nb.int32[:],
+                                       nb.int32[:],
+                                       nb.int64, nb.int64))
+def cproduct(sizes: np.ndarray, current_tuple: np.ndarray, start_idx: int, end_idx: int):
+    assert len(sizes) >= 2
+    assert start_idx < end_idx
+
+    tuples = np.zeros((end_idx - start_idx, len(sizes)), dtype=np.int32)
+    tuple_idx = 0
+    current_tuple = current_tuple.copy()
+    while tuple_idx < end_idx - start_idx:
+        tuples[tuple_idx] = current_tuple
+        current_tuple[0] += 1
+        if current_tuple[0] == sizes[0]:
+            current_tuple[0] = 0
+            current_tuple[1] += 1
+            for i in range(1, len(sizes) - 1):
+                if current_tuple[i] == sizes[i]:
+                    current_tuple[i + 1] += 1
+                    current_tuple[i] = 0
+                else:
+                    break
+        tuple_idx += 1
+    return tuples, current_tuple
+
+
+def chunked_cartesian_product(sizes: List[int], chunk_size: int):
+    prod = np.prod(sizes)
+
+    # putting the largest number at the front to more efficiently make use
+    # of the cproduct numba function
+    sizes = np.array(sizes, dtype=np.int32)
+    sorted_idx = np.argsort(sizes)[::-1]
+    sizes = sizes[sorted_idx]
+    if chunk_size > prod:
+        chunk_bounds = (np.array([0, prod])).astype(np.int64)
+    else:
+        num_chunks = np.maximum(np.ceil(prod / chunk_size), 2).astype(np.int32)
+        chunk_bounds = (np.arange(num_chunks + 1) * chunk_size).astype(np.int64)
+        chunk_bounds[-1] = prod
+    current_tuple = np.zeros(len(sizes), dtype=np.int32)
+    for start_idx, end_idx in zip(chunk_bounds[:-1], chunk_bounds[1:]):
+        tuples, current_tuple = cproduct(sizes, current_tuple, start_idx, end_idx)
+        # re-arrange columns to match the original order of the sizes list
+        # before yielding
+        yield tuples[:, np.argsort(sorted_idx)]
+
+
+def cartesian_product(sizes: List[int]):
+    return next(chunked_cartesian_product(sizes, np.prod(sizes)))
+
+
 @nb.njit(nb.int32(nb.int32, nb.int32))
 def binom(n, k):
     return fast_factorial(n) / (fast_factorial(k) * fast_factorial(n - k))
-
-
-def cartesian_product(*arrays):
-    la = len(arrays)
-    dtype = np.result_type(*arrays)
-    arr = np.empty([len(a) for a in arrays] + [la], dtype=dtype)
-    for i, a in enumerate(np.ix_(*arrays)):
-        arr[..., i] = a
-    return arr.reshape(-1, la)
 
 
 @nb.njit(nb.float32[:](nb.int32[:,:],
@@ -123,7 +148,7 @@ timer.start()
 print("Loading csv")
 annotations = defaultdict(SortedDict)
 categories = set()
-with open("DATA/2by5000.txt") as csvfile:
+with open("DATA/5by100.txt") as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
     for row in reader:
         seg = pa.Segment(float(row[4]), float(row[5]))
@@ -135,7 +160,7 @@ with open("DATA/2by5000.txt") as csvfile:
 
 DELTA_EMPTY = 0.5
 # size of each unit tuple chunk (in number of cells)
-CHUNK_SIZE = 2 ** 29
+CHUNK_SIZE = 2 ** 25
 categories_dict = {cat: i for i, cat in enumerate(categories)}
 
 cat_matrix = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
@@ -148,7 +173,7 @@ annotators_arrays: List[np.ndarray] = nb.typed.List()
 annotator_ids: Dict[int, str] = dict()
 unit_id = 0
 for annotator_id, (annotator, segments) in enumerate(annotations.items()):
-    #  dim x : segment
+    # dim x : segment
     # dim y : (start, end, dur, cat)
     annotator_ids[annotator_id] = annotator
     annot_array = np.zeros((len(segments) + 1, 5)).astype(np.float32)
@@ -174,9 +199,8 @@ print(f"Computing disorders for {number_tuples} alignments")
 all_disorders = []
 all_valid_tuples = []
 num_chunks = (number_tuples // CHUNK_SIZE) + 1
-for tuples_batch in tqdm(unit_tuples_generator(CHUNK_SIZE, nb_unit_per_annot),
+for tuples_batch in tqdm(chunked_cartesian_product(nb_unit_per_annot, CHUNK_SIZE),
                          total=num_chunks):
-    print(nb.typeof(tuples_batch))
     print(tuples_batch.shape)
     disorders = alignments_disorders(tuples_batch,
                                      annotators_arrays,
@@ -190,8 +214,8 @@ for tuples_batch in tqdm(unit_tuples_generator(CHUNK_SIZE, nb_unit_per_annot),
     all_valid_tuples.append(tuples_batch[valid_disorders_ids])
 
 
-disorders = np.hstack(all_disorders)
-possible_unitary_alignments = np.hstack(all_valid_tuples)
+disorders = np.concatenate(all_disorders)
+possible_unitary_alignments = np.concatenate(all_valid_tuples)
 
 timer.lap()
 print("Computing min disorder using the linear solver")
@@ -228,9 +252,6 @@ for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
         if not np.isnan(true_unit_id):
             A[int(true_unit_id), p_id] = 1
 
-# print(np.all(A == B))
-
-# TODO : dump A and compare it with other algorithm's run
 
 obj = cp.Minimize(disorders.T * x)
 constraints = [cp.matmul(A, x) == 1]
