@@ -29,8 +29,6 @@
 from .continuum import Continuum, Corpus
 from .alignment import Alignment, UnitaryAlignment
 from .dissimilarity import (PositionalDissimilarity,
-                            SequenceDissimilarity,
                             CategoricalDissimilarity,
-                            CombinedCategoricalDissimilarity,
-                            CombinedSequenceDissimilarity)
+                            CombinedCategoricalDissimilarity)
 from .gamma import GammaAgreement

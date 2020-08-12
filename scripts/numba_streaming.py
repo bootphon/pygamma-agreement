@@ -1,12 +1,13 @@
 import csv
 import time
 from collections import defaultdict
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 import cvxpy as cp
 import numba as nb
 import numpy as np
 import pyannote.core as pa
+from dataclasses import dataclass, field
 from sortedcontainers import SortedDict
 import itertools
 from tqdm import tqdm
@@ -26,6 +27,22 @@ class Timer:
 
     def total(self):
         print("All done in ", time.time() - self.start_time)
+
+
+@dataclass
+class Unit:
+    segment: pa.Segment
+    annot: str
+
+
+@dataclass
+class UnitaryAlignment:
+    units: Tuple[Tuple[str, Unit]]
+
+
+@dataclass
+class Alignment:
+    unitary_alignments: List[UnitaryAlignment] = field(default_factory=list)
 
 
 LOOKUP_TABLE = np.array([
@@ -102,10 +119,10 @@ def binom(n, k):
     return fast_factorial(n) / (fast_factorial(k) * fast_factorial(n - k))
 
 
-@nb.njit(nb.float32[:](nb.int32[:,:],
-                       nb.types.ListType(nb.float32[:,::1]),
+@nb.njit(nb.float32[:](nb.int32[:, :],
+                       nb.types.ListType(nb.float32[:, ::1]),
                        nb.float32,
-                       nb.float32[:,:],
+                       nb.float32[:, :],
                        nb.float32,
                        nb.float32))
 def alignments_disorders(units_tuples_ids: np.ndarray,
@@ -135,7 +152,7 @@ def alignments_disorders(units_tuples_ids: np.ndarray,
                     # unit[2] is the duration
                     distance_pos = (starts_diff + ends_diff) / (unit_a[2] + unit_b[2])
                     distance_pos = distance_pos * distance_pos * delta_empty
-                    distance_cat = cat_matrix[cat_a,cat_b] * delta_empty
+                    distance_cat = cat_matrix[cat_a, cat_b] * delta_empty
                     disorders[tuple_id] += distance_pos * alpha + distance_cat * beta
 
     disorders = disorders / binom(units_tuples_ids.shape[1], 2)
@@ -148,7 +165,7 @@ timer.start()
 print("Loading csv")
 annotations = defaultdict(SortedDict)
 categories = set()
-with open("DATA/5by100.txt") as csvfile:
+with open("DATA/2by1000.txt") as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
     for row in reader:
         seg = pa.Segment(float(row[4]), float(row[5]))
@@ -163,8 +180,7 @@ DELTA_EMPTY = 0.5
 CHUNK_SIZE = 2 ** 25
 categories_dict = {cat: i for i, cat in enumerate(categories)}
 
-cat_matrix = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
-                       [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]]).astype(np.float32)
+cat_matrix = (np.ones((4,4)) - np.eye(4)).astype(np.float32)
 
 timer.lap()
 print("Converting csv data to arrays")
@@ -213,7 +229,6 @@ for tuples_batch in tqdm(chunked_cartesian_product(nb_unit_per_annot, CHUNK_SIZE
     all_disorders.append(disorders[valid_disorders_ids])
     all_valid_tuples.append(tuples_batch[valid_disorders_ids])
 
-
 disorders = np.concatenate(all_disorders)
 possible_unitary_alignments = np.concatenate(all_valid_tuples)
 
@@ -249,9 +264,9 @@ print(A.shape)
 for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
     for annot_id, unit_id in enumerate(unit_ids_tuple):
         true_unit_id = annotators_arrays[annot_id][unit_id, 4]
+        print(unit_id, true_unit_id)
         if not np.isnan(true_unit_id):
             A[int(true_unit_id), p_id] = 1
-
 
 obj = cp.Minimize(disorders.T * x)
 constraints = [cp.matmul(A, x) == 1]
@@ -260,10 +275,16 @@ prob = cp.Problem(obj, constraints)
 optimal_disorder = prob.solve()
 print(f"Optimal disorder is {optimal_disorder}")
 # set_unitary_alignements = []
+timer.lap()
+print("Building best aligment")
 
-# # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
-# for idx, choosen_unitary_alignement in enumerate(list(x.value > 0.9)):
-#     if choosen_unitary_alignement:
-#         set_unitary_alignements.append(set_of_possible_unitary_alignements[idx])
+# compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
+chosen_alignments = possible_unitary_alignments[np.where(x.value > 0.9)]
+alignment = Alignment()
+for idx, chosen_unitary_alignement in enumerate(chosen_alignments):
+    u_align_tuple = tuple(("annotator_a", Unit(pa.Segment(0, 1), "C"))
+                          for _ in chosen_unitary_alignement)
+    alignment.unitary_alignments.append(UnitaryAlignment(u_align_tuple))
 
+timer.lap()
 timer.total()

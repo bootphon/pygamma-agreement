@@ -31,21 +31,13 @@ Alignement and disorder
 ##########
 
 """
-import itertools
 from abc import ABCMeta, abstractmethod
-from itertools import product
-from os import cpu_count
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
-import cvxpy as cp
-import numpy as np
-import tqdm
-from multiprocess.pool import Pool
-from pyannote.core import Segment
-from scipy.special import binom
+from typing import TYPE_CHECKING
 
-from pygamma.continuum import Continuum, Annotator
-from pygamma.dissimilarity import AbstractDissimilarity
+if TYPE_CHECKING:
+    from .continuum import Continuum, Unit, Annotator
 
 
 class Error(Exception):
@@ -66,14 +58,6 @@ class SetPartitionError(Error):
 
 class AbstractAlignment(metaclass=ABCMeta):
 
-    def __init__(
-            self,
-            continuum: Continuum,
-            dissimilarity: AbstractDissimilarity,
-    ):
-        self.continuum = continuum
-        self.combined_dissim = dissimilarity
-
     @property
     @abstractmethod
     def disorder(self) -> float:
@@ -92,8 +76,6 @@ class UnitaryAlignment(AbstractAlignment):
 
     Parameters
     ----------
-    continuum :
-        Continuum where the unitary alignment is from
     n_tuple :
         n-tuple where n is the number of annotators of the continuum
         This is a list of (annotator, segment) couples
@@ -101,103 +83,14 @@ class UnitaryAlignment(AbstractAlignment):
         combined_dissimilarity
     """
 
-    def __init__(
-            self,
-            continuum: Continuum,
-            n_tuple: List[Tuple[Annotator, Segment]],
-            dissimilarity: AbstractDissimilarity,
-    ):
-        super().__init__(continuum, dissimilarity)
+    def __init__(self, n_tuple: Tuple[Tuple['Annotator', Optional['Unit']]]):
         self.n_tuple = n_tuple
-        assert len(n_tuple) == len(self.continuum)
+        self._disorder: Optional[float] = None
 
     @property
-    def disorder(self):
-        disorder = 0.0
-        num_couples = 0
-        for idx, (annotator_u, seg_u) in enumerate(self.n_tuple):
-            for (annotator_v, seg_v) in self.n_tuple[idx + 1:]:
-                # This is not as the paper formula (6)...
-                # for (annotator_v, unit_v) in self.n_tuple:
-                if seg_u is None or seg_v is None:
-                    disorder += self.combined_dissim.DELTA_EMPTY
-                else:
-                    disorder += self.combined_dissim[
-                        (seg_u, self.continuum[annotator_u][seg_u]),
-                        (seg_v, self.continuum[annotator_v][seg_v]),
-                    ]
-                num_couples += 1
-        disorder = disorder / binom(len(self.n_tuple), 2)
-        assert num_couples == binom(len(self.n_tuple), 2)
-        return disorder
+    def disorder(self) -> float:
+        return self._disorder
 
-
-class UnitaryAlignmentBatch(AbstractAlignment):
-    """Helper class. Shouldn't be used by an actual end-user.
-    Used to compute the disorder of unitary alignments in batches,
-    to prevent repeated calls to the __getitem__ method of
-    dissimilarities"""
-
-    def __init__(
-            self,
-            continuum: Continuum,
-            tuples_list: List[List[Tuple[Annotator, Segment]]],
-            dissimilarity: AbstractDissimilarity,
-    ):
-        super().__init__(continuum, dissimilarity)
-        self.tuples_list = tuples_list
-
-    @property
-    def disorder(self) -> np.ndarray:
-        # building batch units list
-        units_list = []
-        # we have to track the bounds of each tuple's position in the
-        # batch, as it has to be normalized by its total couple count
-        tuples_idx_bounds = list()
-        tuples_unit_count = list()
-        # counter is used to keep track of the bounds
-        counter = 0
-        for tuple_idx, n_tuple in enumerate(self.tuples_list):
-            # all tuples in tuples_data are not None
-            tuples_data = [(segment, self.continuum[annotator][segment])
-                           for annotator, segment in n_tuple
-                           if segment is not None]
-            idx_start = counter
-            tuples_unit_count.append(binom(len(n_tuple), 2))
-            for idx, (seg_u, annot_u) in enumerate(tuples_data):
-                for (seg_v, annot_v) in tuples_data[idx + 1:]:
-                    units_list.append(((seg_u, annot_u),
-                                       (seg_v, annot_v)))
-                    counter += 1
-            idx_end = counter
-            tuples_idx_bounds.append((idx_start, idx_end))
-        dissimilarities = self.combined_dissim.batch_compute(units_list)
-        tuples_disorders = []
-        for idx, (start, end) in enumerate(tuples_idx_bounds):
-            tuple_dissims = dissimilarities[start:end]
-            # calculating the number of empty units couples (either one
-            # of the unit is empty)
-            empty_count = tuples_unit_count[idx] - (end - start)
-            # computing the tuple's total disorder using the dissimilarities
-            # and the empty couples count
-            tuple_disorder = (tuple_dissims.sum()
-                              + empty_count * self.combined_dissim.DELTA_EMPTY)
-            tuple_disorder = tuple_disorder / tuples_unit_count[idx]
-            tuples_disorders.append(tuple_disorder)
-
-        return np.array(tuples_disorders)
-
-
-def get_disorder(unitary_alignment: UnitaryAlignment):
-    return unitary_alignment, unitary_alignment.disorder
-
-def grouper(n, iterable):
-    it = iter(iterable)
-    while True:
-       chunk = tuple(itertools.islice(it, n))
-       if not chunk:
-           return
-       yield chunk
 
 class Alignment(AbstractAlignment):
     """Alignment
@@ -209,123 +102,18 @@ class Alignment(AbstractAlignment):
     set_unitary_alignments :
         set of unitary alignments that make a partition of the set of
         units/segments
-    dissimilarity :
-        Combined dissimilarity measure used to compute this alignment's
-        disorder.
     """
 
-    NB_ALIGNS_PER_BATCH = 2 ** 18
-
-    @classmethod
-    def get_best_alignment(cls,
-                           continuum: Continuum,
-                           dissimilarity: AbstractDissimilarity
-                           ) -> 'Alignment':
-        """Finds the best possible alignment for a continuum, using
-        a convex optimization algorithm.
-        WARNING: may take some time to run, as its complexity is exponentially
-        directed by the number of annotators in the continuum.
-
-        Parameters
-        ----------
-        continuum :
-            Continuum where the best alignment is computed from
-        dissimilarity :
-            Dissimilarity measure used to compute the disorder
-        """
-
-        # this block extracts all the (annotator, segment) couples from the
-        # continuum
-        possible_segments = []
-        for annotator in continuum.iterannotators():
-            annot_segments = []
-            for segment in continuum[annotator].itersegments():
-                annot_segments.append((annotator, segment))
-            annot_segments.append((annotator, None))
-            possible_segments.append(annot_segments)
-
-        def unit_alignment_generator(aligns_per_batch: int):
-            """Generates batches of unitary alignment to be sent
-            to the multiprocessing module"""
-            for batch in grouper(aligns_per_batch, product(*possible_segments)):
-                yield UnitaryAlignmentBatch(continuum, batch, dissimilarity)
-
-        p_lengths = np.array(list(map(lambda x: len(x), possible_segments)))
-        p_prod = p_lengths.prod()
-        batch_numbers = p_prod // cls.NB_ALIGNS_PER_BATCH
-        with Pool(cpu_count()) as pool:
-            # we're using an unordered imap which is a lazy version of map.
-            # the fact that it's unordered potentially makes it faster as well
-            results = pool.imap_unordered(lambda alignment: (alignment,
-                                                             alignment.disorder),
-                                          unit_alignment_generator(cls.NB_ALIGNS_PER_BATCH),
-                                          chunksize=1)
-
-            # retained potential unitary alignments and their respective disorders
-            possible_unitary_alignments = []
-            alignments_disorders = []
-            for unitary_alignment, disorders in tqdm.tqdm(results, total=batch_numbers):
-                for idx, n_tuple in enumerate(unitary_alignment.tuples_list):
-                    disorder = disorders[idx]
-                    # Property section 5.1.1 to reduce initial complexity
-                    if disorder < len(continuum) * dissimilarity.DELTA_EMPTY:
-                        unitary_alignment = UnitaryAlignment(continuum,
-                                                             n_tuple,
-                                                             dissimilarity)
-                        possible_unitary_alignments.append(unitary_alignment)
-                        alignments_disorders.append(disorder)
-
-        print(np.array(alignments_disorders).mean())
-
-        # Definition of the integer linear program
-        num_possible_unitary_alignments = len(possible_unitary_alignments)
-        # x is the alignment variable: contains the best alignment once the
-        # problem has been solved
-        x = cp.Variable(shape=num_possible_unitary_alignments, boolean=True)
-        d = np.array(alignments_disorders)
-
-        # Constraints matrix
-        A = np.zeros((continuum.num_units, num_possible_unitary_alignments))
-        print(A.shape)
-        curr_idx = 0
-        # fill unitary alignments matching with units
-        for annotator in continuum.iterannotators():
-            for unit in list(continuum[annotator].itersegments()):
-                for idx_ua, unitary_alignment in enumerate(
-                        possible_unitary_alignments):
-                    if (annotator, unit) in unitary_alignment.n_tuple:
-                        A[curr_idx][idx_ua] = 1
-                curr_idx += 1
-        obj = cp.Minimize(d.T * x)
-        constraints = [cp.matmul(A, x) == 1]
-        prob = cp.Problem(obj, constraints)
-
-        # we don't actually need the optimal disorder value to build the
-        # best alignment
-        optimal_disorder = prob.solve()
-        print(optimal_disorder)
-        set_unitary_alignments = []
-
-        # compare with 0.9 as cvxpy returns 1.000 or small values 10e-14
-        for idx, chosen_unitary_alignment in enumerate(list(x.value > 0.9)):
-            if chosen_unitary_alignment:
-                set_unitary_alignments.append(
-                    possible_unitary_alignments[idx])
-
-        return cls(continuum, set_unitary_alignments, dissimilarity)
-
-    def __init__(
-            self,
-            continuum: Continuum,
-            set_unitary_alignments: List[UnitaryAlignment],
-            dissimilarity: AbstractDissimilarity,
-    ):
-        super().__init__(continuum, dissimilarity)
+    def __init__(self,
+                 continuum: 'Continuum',
+                 set_unitary_alignments: List[UnitaryAlignment]):
         self.set_unitary_alignments = set_unitary_alignments
+        self.continuum = continuum
 
         # set partition tests for the unitary alignments
-        for annotator in self.continuum.iterannotators():
-            for unit in self.continuum[annotator].itersegments():
+        # TODO : this has to be seriously sped up
+        for annotator, units in self.continuum:
+            for unit in units.values():
                 found = 0
                 for unitary_alignment in self.set_unitary_alignments:
                     if (annotator, unit) in unitary_alignment.n_tuple:
@@ -344,7 +132,5 @@ class Alignment(AbstractAlignment):
 
     @property
     def disorder(self):
-        disorder = 0.0
-        for unitary_alignment in self.set_unitary_alignments:
-            disorder += unitary_alignment.disorder
-        return disorder / self.num_alignments
+        return sum(u_align.disorder for u_align
+                   in self.set_unitary_alignments) / self.num_alignments

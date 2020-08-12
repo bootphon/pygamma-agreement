@@ -35,15 +35,14 @@ Gamma Agreement
 import csv
 import logging
 from collections import defaultdict
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Optional
 
 import numpy as np
 from pyannote.core import Annotation, Segment
 
 from .alignment import Alignment
 from .continuum import Continuum, Corpus
-from .dissimilarity import AbstractDissimilarity
-from .dissimilarity import SequenceDissimilarity, CategoricalDissimilarity
+from .dissimilarity import AbstractDissimilarity, CategoricalDissimilarity
 
 
 class GammaAgreement:
@@ -78,7 +77,7 @@ class GammaAgreement:
                  alignment: Alignment,
                  dissimilarity: AbstractDissimilarity,
                  strategy: str = 'single',
-                 corpus: Corpus = Corpus(),  # TODO : move this to __init__
+                 corpus: Optional[Corpus] = None,  # TODO : move this to __init__
                  confidence_level: float = 0.95,
                  number_samples: int = 30,
                  type_pivot: str = 'float_pivot'):
@@ -94,7 +93,7 @@ class GammaAgreement:
         if self.strategy is 'multi':
             assert self.corpus, 'Should be provided with a corpus object'
         self.number_samples = number_samples
-        # TODO : maybe change this to "low, high, higher, maximum" or smthg
+        # TODO : maybe change this to "low, high, higher, maximum" or smthg
         assert self.confidence_level in (0.9, 0.95, 0.98, 0.99)
         assert self.type_pivot in ('float_pivot', 'int_pivot')
         self.last_unit_start = 0.0
@@ -156,27 +155,24 @@ class GammaAgreement:
         chance_disorder_values = []
         for _ in range(self.number_samples):
             sampled_continuum = Continuum()
-            for idx in range(len(self.continuum)):
+            for idx in range(self.continuum.num_annotators):
                 if self.strategy is 'single':
-                    sampled_continuum['Sampled_annotation {}'.format(
-                        idx)] = self.sample_annotation_from_single_continuum()
+                    sample = self.sample_annotation_from_single_continuum()
                 if self.strategy is 'multi':
-                    sampled_continuum['Sampled_annotation {}'.format(
-                        idx)] = self.sample_annotation_from_corpus()
-            best_seq_alignment = Alignment.get_best_alignment(
-                sampled_continuum,
-                self.dissimilarity)
-            chance_disorder_values.append(best_seq_alignment.disorder)
+                    sample = self.sample_annotation_from_corpus()
+                sampled_continuum[f'Sampled_annotation {idx}'] = sample
+            disorder = sampled_continuum.compute_disorder(self.dissimilarity)
+            chance_disorder_values.append(disorder)
 
         return chance_disorder_values
 
     def get_gamma(self) -> float:
         """Compute gamma value"""
         chance_disorders = self.compute_chance_disorder_values()
-        best_seq_alignment_disorder = self.alignment.disorder
-        return 1 - (best_seq_alignment_disorder / np.mean(chance_disorders))
+        best_alignment_disorder = self.continuum.compute_disorder(self.dissimilarity)
+        return 1 - (best_alignment_disorder / np.mean(chance_disorders))
 
-# TODO add beta, alpha, et delta parameters
+# TODO add beta, alpha, et delta parameters
 def compute_gamma(units: Iterable[Tuple[str, str, float, float]],
                   dissimilarity: str = "categorical",) -> float:
     assert dissimilarity in ("categorical", "sequence")
