@@ -31,42 +31,30 @@ Dissimilarity
 ##########
 
 """
-from abc import ABCMeta, abstractmethod
-from typing import List, Optional, Union, Tuple, Callable, Dict
+from typing import List, Optional, TYPE_CHECKING
 
+import numba as nb
 import numpy as np
 from matplotlib import pyplot as plt
-from pyannote.core import Segment
-from similarity.weighted_levenshtein import CharacterSubstitutionInterface
-from similarity.weighted_levenshtein import WeightedLevenshtein
+from sortedcontainers import SortedSet
 
-Annot = Union[str, List[str]]
-Unit = Tuple[Segment, Annot]
+from pygamma.numba_utils import binom
+
+if TYPE_CHECKING:
+    from .continuum import Continuum
 
 
-class AbstractDissimilarity(metaclass=ABCMeta):
+class AbstractDissimilarity:
 
-    # TODO : figure out if annotation task can be optional or not
-    def __init__(self,
-                 annotation_task: str,
-                 DELTA_EMPTY: float):
-        self.annotation_task = annotation_task
-        self.DELTA_EMPTY = DELTA_EMPTY
+    def __init__(self, delta_empty: float):
+        self.delta_empty = np.float32(delta_empty)
 
-    @abstractmethod
-    def __getitem__(self, units: Tuple[Unit, Unit]) -> float:
-        """
-        Computes the dissimilarity between two units
+    @staticmethod
+    def tuples_disorders(*args, **kwargs):
+        raise NotImplemented()
 
-        Parameters
-        ----------
-        units:
-            The two units for which the dissimilarity should be computed.
-
-        """
-
-    def batch_compute(self, batch: List[Tuple[Unit, Unit]]) -> np.ndarray:
-        pass
+    def __call__(self, *args) -> np.ndarray:
+        raise NotImplemented()
 
 
 class CategoricalDissimilarity(AbstractDissimilarity):
@@ -74,79 +62,63 @@ class CategoricalDissimilarity(AbstractDissimilarity):
 
     Parameters
     ----------
-    annotation_task :
-        task to be annotated
     list_categories :
         list of categories
     categorical_dissimilarity_matrix :
         Dissimilarity matrix to compute
-    DELTA_EMPTY :
+    delta_empty :
         empty dissimilarity value
-    function_cat :
-        Function to adjust dissimilarity based on categorical matrix values
     """
 
     def __init__(self,
-                 annotation_task: str,
                  list_categories: List[str],
                  categorical_dissimilarity_matrix: Optional[np.ndarray] = None,
-                 DELTA_EMPTY: float = 1,
-                 function_cat: Optional[Callable[[float], float]] = None):
-        super().__init__(annotation_task, DELTA_EMPTY)
+                 delta_empty: float = 1):
+        super().__init__(delta_empty)
 
-        self.categories = list_categories
-        self.categories_set = set(self.categories)
-        assert len(list_categories) == len(self.categories_set)
-        self.num_categories = len(self.categories)
-        self.function_cat = function_cat
-        self.dict_list_categories = dict(zip(self.categories,
-                                             range(self.num_categories)))
-        self.categorical_dissimilarity_matrix = categorical_dissimilarity_matrix
-        if self.categorical_dissimilarity_matrix is None:
+        self.categories = SortedSet(list_categories)
+        assert len(list_categories) == len(self.categories)
+        self.categories_nb = len(self.categories)
+        self.cat_matrix = categorical_dissimilarity_matrix
+        if self.cat_matrix is None:
             # building the default dissimilarity matrix
-            self.categorical_dissimilarity_matrix = np.ones(
-                (self.num_categories, self.num_categories)) - np.eye(
-                self.num_categories)
+            self.cat_matrix = (np.ones((self.categories_nb, self.categories_nb))
+                               - np.eye(self.categories_nb))
         else:
             # sanity checks on the categorical_dissimilarity_matrix
-            assert isinstance(self.categorical_dissimilarity_matrix, np.ndarray)
-            assert np.all(self.categorical_dissimilarity_matrix <= 1)
-            assert np.all(0 <= self.categorical_dissimilarity_matrix)
-            assert np.all(self.categorical_dissimilarity_matrix ==
+            assert isinstance(self.cat_matrix, np.ndarray)
+            assert np.all(self.cat_matrix <= 1)
+            assert np.all(0 <= self.cat_matrix)
+            assert np.all(self.cat_matrix ==
                           categorical_dissimilarity_matrix.T)
+        self.cat_matrix = self.cat_matrix.astype(np.float32)
 
-    def __getitem__(self, units: Tuple[Unit, Unit]):
-        if len(units) < 2:
-            return self.DELTA_EMPTY
-        else:
-            return self.batch_compute([units])
-
-    def batch_compute(self, units: List[Tuple[Unit, Unit]]) -> np.ndarray:
-        # embedding all categories (first as list, then converting to array)
-        cat_embds_list = []
-        for (_, cat_a), (_, cat_b) in units:
-            assert cat_a in self.categories_set
-            assert cat_b in self.categories_set
-            cat_embds_list.append((self.dict_list_categories[cat_a],
-                                   self.dict_list_categories[cat_b]))
-        cat_embds = np.array(cat_embds_list).swapaxes(0, 1)
-        # retrieving all the distances
-        cat_dists = self.categorical_dissimilarity_matrix[cat_embds[0],
-                                                          cat_embds[1]]
-        if self.function_cat is not None:
-            cat_dists =  np.array([self.function_cat(d) for d in cat_dists])
-
-        return cat_dists * self.DELTA_EMPTY
+    def build_categories_arrays(self, continuum: 'Continuum'):
+        categories_arrays = nb.typed.List()
+        for annotator_id, (annotator, units) in enumerate(continuum._annotations.items()):
+            cat_array = np.zeros(len(units) + 1).astype(np.int16)
+            for unit_id, (segment, unit) in enumerate(units.items()):
+                if unit.annotation is None:
+                    raise ValueError(f"In segment {segment} for annotator {annotator}: annotation cannot be None")
+                try:
+                    cat_array[unit_id] = self.categories.index(unit.annotation)
+                except ValueError:
+                    raise ValueError(f"In segment {segment} for annotator {annotator}: "
+                                     f"annotation of category {unit.category} is not in set {set(self.categories)} "
+                                     f"of allowed categories")
+            cat_array[-1] = -1
+            categories_arrays.append(cat_array)
+        return categories_arrays
 
     def plot_categorical_dissimilarity_matrix(self):
         fig, ax = plt.subplots()
         im = plt.imshow(
-            self.categorical_dissimilarity_matrix,
-            extent=[0, self.num_categories, 0, self.num_categories])
+            self.cat_matrix,
+            extent=[0, self.categories_nb, 0, self.categories_nb])
         ax.figure.colorbar(im, ax=ax)
-        plt.xticks([el + 0.5 for el in range(self.num_categories)],
+        plt.xticks([el + 0.5 for el in range(self.categories_nb)],
                    self.categories)
-        plt.yticks([el + 0.5 for el in range(self.num_categories)],
+        plt.yticks([el + 0.5 for el in range(self.categories_nb)],
                    self.categories[::-1])
         plt.setp(
             ax.get_xticklabels(),
@@ -156,115 +128,8 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         ax.xaxis.set_ticks_position('top')
         plt.show()
 
-
-class SequenceDissimilarity(AbstractDissimilarity):
-    """Sequence Dissimilarity
-
-    Parameters
-    ----------
-    annotation_task :
-        task to be annotated
-    admitted_symbols :
-        list of admitted symbols in the sequence
-    symbol_dissimilarity_matrix :
-        Dissimilarity matrix to compute between symbols
-    DELTA_EMPTY :
-        empty dissimilarity value
-    function_cat :
-        Function to adjust dissimilarity based on categorical matrix values
-
-    """
-
-    class CharacterSubstitution(CharacterSubstitutionInterface):
-        def __init__(self,
-                     symbols_mapping: Dict[str, int],
-                     symbol_dissimilarity_matrix: np.ndarray):
-            super().__init__()
-            self.symbols_mapping = symbols_mapping
-            self.symbol_dissimilarity_matrix = symbol_dissimilarity_matrix
-
-        def cost(self, c0, c1):
-            c0_idx = self.symbols_mapping[c0]
-            c1_idx = self.symbols_mapping[c1]
-            return self.symbol_dissimilarity_matrix[c0_idx][c1_idx]
-
-    def __init__(self,
-                 annotation_task,
-                 admitted_symbols: List[str],
-                 symbol_dissimilarity_matrix: np.ndarray = None,
-                 DELTA_EMPTY: float = 1,
-                 function_cat: Optional[Callable[[float], float]] = None):
-        super().__init__(annotation_task, DELTA_EMPTY)
-
-        self.function_cat = function_cat
-
-        self.symbols_mapping = dict(zip(admitted_symbols,
-                                        range(len(admitted_symbols))))
-        # The set is used when running the dissim computations,
-        # having it pre-made as a set makes it faster
-        self.admitted_symbols_set = set(admitted_symbols)
-        self.num_symbols = len(self.symbols_mapping)
-        # checking that all elements in the list of symbols are unique
-        assert len(admitted_symbols) == len(self.admitted_symbols_set)
-
-        self.symbol_dissimilarity_matrix = symbol_dissimilarity_matrix
-        if self.symbol_dissimilarity_matrix is None:
-            self.symbol_dissimilarity_matrix = np.ones(
-                (self.num_symbols, self.num_symbols)) - np.eye(
-                self.num_symbols)
-        else:
-            assert type(self.symbol_dissimilarity_matrix) == np.ndarray
-            assert np.all(self.symbol_dissimilarity_matrix <= 1)
-            assert np.all(0 <= self.symbol_dissimilarity_matrix)
-            assert np.all(self.symbol_dissimilarity_matrix ==
-                          symbol_dissimilarity_matrix.T)
-
-        self.weighted_levenshtein = WeightedLevenshtein(
-            self.CharacterSubstitution(self.symbols_mapping,
-                                       self.symbol_dissimilarity_matrix)
-        )
-
-    def __getitem__(self, units: Tuple[Unit, Unit]):
-        # assert type(units) == list
-        if len(units) < 2:
-            return self.DELTA_EMPTY
-        else:
-            return self.batch_compute([units])
-
-    def batch_compute(self, batch: List[Tuple[Unit, Unit]]) -> np.ndarray:
-        # Batch compute isn't much faster than regular __getitem__
-        # because we can't vectorize the levenstein distance computation
-        # with numpy, so we're falling back to __getitem__.
-        seq_dists = np.zeros(len(batch))
-        for idx, ((_, seq_a), (_, seq_b)) in enumerate(batch):
-            assert set(seq_a) <= self.admitted_symbols_set
-            assert set(seq_b) <= self.admitted_symbols_set
-            dist = (self.weighted_levenshtein.distance(seq_a, seq_b)
-                    / max(len(seq_a), len(seq_b)))
-
-            if self.function_cat is not None:
-                seq_dists[idx] = self.function_cat(dist) * self.DELTA_EMPTY
-            else:
-                seq_dists[idx] = dist * self.DELTA_EMPTY
-        return seq_dists
-
-    def plot_symbol_dissimilarity_matrix(self):
-        fig, ax = plt.subplots()
-        im = plt.imshow(
-            self.symbol_dissimilarity_matrix,
-            extent=[0, self.num_symbols, 0, self.num_symbols])
-        ax.figure.colorbar(im, ax=ax)
-        plt.xticks([el + 0.5 for el in range(self.num_symbols)],
-                   self.symbols_mapping.keys())
-        plt.yticks([el + 0.5 for el in range(self.num_symbols)],
-                   self.symbols_mapping.keys()[::-1])
-        plt.setp(
-            ax.get_xticklabels(),
-            rotation=45,
-            ha="right",
-            rotation_mode="anchor")
-        ax.xaxis.set_ticks_position('top')
-        plt.show()
+    def __call__(self, *args, **kwargs) -> np.ndarray:
+        raise NotImplemented()
 
 
 class PositionalDissimilarity(AbstractDissimilarity):
@@ -272,165 +137,149 @@ class PositionalDissimilarity(AbstractDissimilarity):
 
     Parameters
     ----------
-    annotation_task : string
-        task to be annotated
-    DELTA_EMPTY : float
+    delta_empty : float
         empty dissimilarity value
-    function_distance : callable
-        position function difference
     """
 
-    def __init__(self, annotation_task, DELTA_EMPTY=1, function_distance=None):
-        super().__init__(annotation_task, DELTA_EMPTY)
-        self.function_distance = function_distance
+    def build_positions_arrays(self, continuum: 'Continuum'):
+        positions_arrays = nb.typed.List()
+        for annotator_id, (annotator, units) in enumerate(continuum._annotations.items()):
+            # dim x : segment
+            # dim y : (start, end, dur)
+            unit_dists_array = np.zeros((len(units) + 1, 3)).astype(np.float32)
+            for unit_id, (segment, unit) in enumerate(units.items()):
+                unit_dists_array[unit_id][0] = segment.start
+                unit_dists_array[unit_id][1] = segment.end
+                unit_dists_array[unit_id][2] = segment.duration
+            unit_dists_array[-1, :] = np.array([np.NaN for _ in range(3)])
+            positions_arrays.append(unit_dists_array)
+        return positions_arrays
 
-    def __getitem__(self, units: Tuple[Unit, Unit]):
-        if len(units) < 2:
-            return self.DELTA_EMPTY
-        elif len(units) == 2:
-            return self.batch_compute([units])
+    @staticmethod
+    @nb.njit(nb.float32[:](nb.int32[:, :],
+                           nb.types.ListType(nb.float32[:, ::1]),
+                           nb.float32))
+    def alignments_disorders(units_tuples_ids: np.ndarray,
+                             units_positions: List[np.ndarray],
+                             delta_empty: float = 1.0):
+        disorders = np.zeros(len(units_tuples_ids), dtype=np.float32)
+        annotator_id = np.arange(units_tuples_ids.shape[1]).astype(np.int16)
+        for tuple_id in np.arange(len(units_tuples_ids)):
+            # for each tuple (corresponding to a unitary alignment), compute disorder
+            for annot_a in annotator_id:
+                for annot_b in annotator_id[annot_a + 1:]:
+                    # this block looks a bit slow (because of all the variables
+                    # declarations) but should be fairly sped up automatically
+                    # by the LLVM optimization pass
+                    unit_a_id, unit_b_id = units_tuples_ids[tuple_id, annot_a], units_tuples_ids[tuple_id, annot_b]
+                    unit_a, unit_b = units_positions[annot_a][unit_a_id], units_positions[annot_b][unit_b_id]
+                    if np.isnan(unit_a[0]) or np.isnan(unit_b[0]):
+                        disorders[tuple_id] += delta_empty
+                    else:
+                        ends_diff = np.abs(unit_a[1] - unit_b[1])
+                        starts_diff = np.abs(unit_a[0] - unit_b[0])
+                        # unit[2] is the duration
+                        distance_pos = (starts_diff + ends_diff) / (unit_a[2] + unit_b[2])
+                        distance_pos = distance_pos * distance_pos * delta_empty
+                        disorders[tuple_id] += distance_pos
 
-    def batch_compute(self, batch: List[Tuple[Unit, Unit]]) -> np.ndarray:
-        first_row_boundaries_list = []
-        second_row_boundaries_list = []
-        for (first_seg, _), (second_seg, _) in batch:
-            first_row_boundaries_list.append((first_seg.start,
-                                              first_seg.end))
-            second_row_boundaries_list.append((second_seg.start,
-                                               second_seg.end))
-        first_row_bounds = np.array(first_row_boundaries_list).swapaxes(0, 1)
-        second_row_bounds = np.array(second_row_boundaries_list).swapaxes(0, 1)
-        starts_diffs = np.abs(first_row_bounds[0] - second_row_bounds[0])
-        ends_diffs = np.abs(first_row_bounds[1] - second_row_bounds[1])
-        durations_sum = ((first_row_bounds[1] - first_row_bounds[0]) +
-                         (second_row_bounds[1] - second_row_bounds[0]))
-        distance_pos = (starts_diffs + ends_diffs) / durations_sum
-        distance_pos = distance_pos * distance_pos * self.DELTA_EMPTY
-        return distance_pos
+        disorders = disorders / binom(units_tuples_ids.shape[1], 2)
 
+        return disorders
 
-class AbstractCombinedDissimilarity(AbstractDissimilarity):
-
-    def __init__(self,
-                 annotation_task: str,
-                 DELTA_EMPTY: float,
-                 alpha: float,
-                 beta: float,
-                 positional_dissimilarity: PositionalDissimilarity,
-                 annotation_dissimilarity: Union[CategoricalDissimilarity,
-                                                 SequenceDissimilarity]):
-        super().__init__(annotation_task, DELTA_EMPTY)
-        self.alpha, self.beta = alpha, beta
-        self.positional_dissim = positional_dissimilarity
-        self.annotation_dissim = annotation_dissimilarity
-
-    def __getitem__(self, units: Tuple[Unit, Unit]):
-        if len(units) < 2:
-            return self.DELTA_EMPTY
-        else:
-            return self.batch_compute([units])
-
-    def batch_compute(self, batch: List[Tuple[Unit, Unit]]) -> np.ndarray:
-        timing_dists = self.positional_dissim.batch_compute(batch)
-        annot_dists = self.annotation_dissim.batch_compute(batch)
-        return timing_dists * self.alpha + annot_dists * self.beta
+    def __call__(self, positional_arrays: np.ndarray,
+                 units_positions: List[np.ndarray]) -> np.ndarray:
+        return self.alignments_disorders(units_tuples_ids=positional_arrays,
+                                         units_positions=units_positions)
 
 
-class CombinedCategoricalDissimilarity(AbstractCombinedDissimilarity):
+class CombinedCategoricalDissimilarity(AbstractDissimilarity):
     """Combined Dissimilarity
 
     Parameters
     ----------
-    annotation_task :
-        task to be annotated
     list_categories :
         list of categories
     categorical_dissimilarity_matrix :
         Dissimilarity matrix to compute
-    function_cat :
-        Function to adjust dissimilarity based on categorical matrix values
-    DELTA_EMPTY :
+    delta_empty :
         empty dissimilarity value
     alpha:
         coefficient weighting the positional dissimilarity value
     beta:
         coefficient weighting the categorical dissimilarity value
-    function_distance :
-        position function difference
     """
 
     def __init__(self,
-                 annotation_task: str,
                  list_categories: List[str],
                  alpha: int = 3,
                  beta: int = 1,
-                 DELTA_EMPTY: float = 1,
-                 function_distance=None,
-                 categorical_dissimilarity_matrix=None,
-                 function_cat=lambda x: x):
-        #  building child positional and categorical dissimilarities objs
-        positional_dissimilarity = PositionalDissimilarity(
-            annotation_task=annotation_task,
-            DELTA_EMPTY=DELTA_EMPTY,
-            function_distance=function_distance)
+                 delta_empty: float = 1,
+                 categorical_dissimilarity_matrix=None):
+        super().__init__(delta_empty)
+        self.categorical_dissim = CategoricalDissimilarity(
+            list_categories,
+            categorical_dissimilarity_matrix,
+            delta_empty)
+        self.positional_dissim = PositionalDissimilarity(delta_empty)
+        self.alpha = np.float32(alpha)
+        self.beta = np.float32(beta)
 
-        categorical_dissimilarity = CategoricalDissimilarity(
-            annotation_task=annotation_task,
-            list_categories=list_categories,
-            categorical_dissimilarity_matrix=categorical_dissimilarity_matrix,
-            DELTA_EMPTY=DELTA_EMPTY,
-            function_cat=function_cat)
+    def build_positions_arrays(self, continuum: 'Continuum'):
+        return self.positional_dissim.build_positions_arrays(continuum)
 
-        super().__init__(annotation_task, DELTA_EMPTY, alpha, beta,
-                         positional_dissimilarity,
-                         categorical_dissimilarity)
+    def build_categories_arrays(self, continuum: 'Continuum'):
+        return self.categorical_dissim.build_categories_arrays(continuum)
 
+    @staticmethod
+    @nb.njit(nb.float32[:](nb.int32[:, :],
+                           nb.types.ListType(nb.float32[:, ::1]),
+                           nb.types.ListType(nb.int16[::1]),
+                           nb.float32,
+                           nb.float32[:, :],
+                           nb.float32,
+                           nb.float32))
+    def alignments_disorders(units_tuples_ids: np.ndarray,
+                             units_positions: List[np.ndarray],
+                             units_categories: List[np.ndarray],
+                             delta_empty: float,
+                             cat_matrix: np.ndarray,
+                             alpha: float,
+                             beta: float):
+        disorders = np.zeros(len(units_tuples_ids), dtype=np.float32)
+        annotator_id = np.arange(units_tuples_ids.shape[1]).astype(np.int16)
+        for tuple_id in np.arange(len(units_tuples_ids)):
+            # for each tuple (corresponding to a unitary alignment), compute disorder
+            for annot_a in annotator_id:
+                for annot_b in annotator_id[annot_a + 1:]:
+                    # this block looks a bit slow (because of all the variables
+                    # declarations) but should be fairly sped up automatically
+                    # by the LLVM optimization pass
+                    unit_a_id, unit_b_id = units_tuples_ids[tuple_id, annot_a], units_tuples_ids[tuple_id, annot_b]
+                    unit_a, unit_b = units_positions[annot_a][unit_a_id], units_positions[annot_b][unit_b_id]
+                    cat_a, cat_b = units_categories[annot_a][unit_a_id], units_categories[annot_b][unit_b_id]
+                    if np.isnan(unit_a[0]) or np.isnan(unit_b[0]):
+                        disorders[tuple_id] += delta_empty
+                    else:
+                        ends_diff = np.abs(unit_a[1] - unit_b[1])
+                        starts_diff = np.abs(unit_a[0] - unit_b[0])
+                        # unit[2] is the duration
+                        distance_pos = (starts_diff + ends_diff) / (unit_a[2] + unit_b[2])
+                        distance_pos = distance_pos * distance_pos * delta_empty
+                        distance_cat = cat_matrix[cat_a, cat_b] * delta_empty
+                        disorders[tuple_id] += distance_pos * alpha + distance_cat * beta
 
-class CombinedSequenceDissimilarity(AbstractCombinedDissimilarity):
-    """Combined Sequence Dissimilarity
+        disorders = disorders / binom(units_tuples_ids.shape[1], 2)
 
-    Parameters
-    ----------
-    annotation_task :
-        task to be annotated
-    list_admitted_symbols :
-        list of admitted symbols in the sequence
-    symbol_dissimilarity_matrix :
-        Dissimilarity matrix to compute between symbols
-    function_cat :
-        Function to adjust dissimilarity based on categorical matrix values
-    DELTA_EMPTY :
-        empty dissimilarity value
-    alpha:
-        coefficient weighting the positional dissimilarity value
-    beta:
-        coefficient weighting the categorical dissimilarity value
-    function_distance :
-        position function difference
+        return disorders
 
-    """
-
-    def __init__(self,
-                 annotation_task: str,
-                 list_admitted_symbols: List[str],
-                 alpha: int = 3,
-                 beta: int = 1,
-                 DELTA_EMPTY: float = 1,
-                 function_distance=None,
-                 symbol_dissimilarity_matrix=None,
-                 function_cat=lambda x: x):
-        positional_dissimilarity = PositionalDissimilarity(
-            annotation_task=annotation_task,
-            DELTA_EMPTY=DELTA_EMPTY,
-            function_distance=function_distance)
-
-        sequence_dissimilarity = SequenceDissimilarity(
-            annotation_task=annotation_task,
-            admitted_symbols=list_admitted_symbols,
-            symbol_dissimilarity_matrix=symbol_dissimilarity_matrix,
-            DELTA_EMPTY=DELTA_EMPTY,
-            function_cat=function_cat)
-
-        super().__init__(annotation_task, DELTA_EMPTY, alpha, beta,
-                         positional_dissimilarity,
-                         sequence_dissimilarity)
+    def __call__(self, positional_arrays: np.ndarray,
+                 units_positions: List[np.ndarray],
+                 units_categories: List[np.ndarray]) -> np.ndarray:
+        return self.alignments_disorders(units_tuples_ids=positional_arrays,
+                                         units_positions=units_positions,
+                                         units_categories=units_categories,
+                                         delta_empty=self.delta_empty,
+                                         cat_matrix=self.categorical_dissim.cat_matrix,
+                                         alpha=self.alpha,
+                                         beta=self.beta)
