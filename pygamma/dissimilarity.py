@@ -273,10 +273,10 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
 
         return disorders
 
-    def __call__(self, positional_arrays: np.ndarray,
+    def __call__(self, units_tuples: np.ndarray,
                  units_positions: List[np.ndarray],
                  units_categories: List[np.ndarray]) -> np.ndarray:
-        return self.alignments_disorders(units_tuples_ids=positional_arrays,
+        return self.alignments_disorders(units_tuples_ids=units_tuples,
                                          units_positions=units_positions,
                                          units_categories=units_categories,
                                          delta_empty=self.delta_empty,

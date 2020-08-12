@@ -106,13 +106,14 @@ class Continuum:
                 ... <pyannote.core.annotation.Annotation at 0x7f5527a19588>
                 """
         last_start_time = max(unit.segment.start for unit in continuum.iterunits())
-        if pivot_type == 'float_pivot':
-            pivot = np.random.uniform(continuum.avg_length_unit, last_start_time)
-        else:
-            pivot = np.random.randint(continuum.avg_length_unit, last_start_time)
         new_continuum = Continuum()
         # TODO: why not sample from the whole continuum?
         for idx in range(continuum.num_annotators):
+            if pivot_type == 'float_pivot':
+                pivot = np.random.uniform(continuum.avg_length_unit, last_start_time)
+            else:
+                pivot = np.random.randint(continuum.avg_length_unit, last_start_time)
+
             rnd_annotator = np.random.choice(continuum.annotators)
             units = continuum._annotations[rnd_annotator]
             sampled_annotation = SortedDict()
@@ -194,7 +195,7 @@ class Continuum:
 
     def add(self, annotator: Annotator, segment: Segment, annotation: Optional[str] = None):
         if segment.duration == 0.0: # TODO: use pyannote segment precision?
-            raise ValueError("Added segment of duration 0.0")
+            raise ValueError("Tried adding segment of duration 0.0")
 
         if annotator not in self._annotations:
             self._annotations[annotator] = SortedDict()
@@ -263,14 +264,12 @@ class Continuum:
         number_tuples = np.product(nb_unit_per_annot)
         all_disorders = []
         all_valid_tuples = []
-        num_chunks = (number_tuples // CHUNK_SIZE) + 1
-        for tuples_batch in tqdm(chunked_cartesian_product(nb_unit_per_annot, CHUNK_SIZE),
-                                 total=num_chunks):
-            disorders = dissimilarity(tuples_batch, *disorder_args)
+        for tuples_batch in chunked_cartesian_product(nb_unit_per_annot, CHUNK_SIZE):
+            batch_disorders = dissimilarity(tuples_batch, *disorder_args)
 
             # Property section 5.1.1 to reduce initial complexity
-            valid_disorders_ids = np.where(disorders < self.num_annotators * dissimilarity.delta_empty)
-            all_disorders.append(disorders[valid_disorders_ids])
+            valid_disorders_ids,  = np.where(batch_disorders < self.num_annotators * dissimilarity.delta_empty)
+            all_disorders.append(batch_disorders[valid_disorders_ids])
             all_valid_tuples.append(tuples_batch[valid_disorders_ids])
 
         disorders = np.concatenate(all_disorders)
@@ -288,14 +287,13 @@ class Continuum:
 
         # Constraints matrix
         A = np.zeros((num_units, num_possible_unitary_alignements))
-        print(A.shape)
 
         for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
             for annotator_id, unit_id in enumerate(unit_ids_tuple):
                 if unit_id != len(true_units_ids[annotator_id]):
                    A[true_units_ids[annotator_id][unit_id], p_id] = 1
 
-        obj = cp.Minimize(disorders.T * x)
+        obj = cp.Minimize(disorders.T @ x)
         constraints = [cp.matmul(A, x) == 1]
         prob = cp.Problem(obj, constraints)
 
@@ -337,20 +335,31 @@ class Continuum:
                       strategy: str = "single",
                       pivot_type: str = "float_pivot",
                       number_samples: int = 30,
+                      confidence_level: float = 0.95, # # TODO
                       corpus: Optional['Corpus'] = None):
         assert strategy in ("single", "multi")
         chance_disorders = []
-        for _ in range(number_samples):
+        for _ in tqdm(list(range(number_samples))):
             if strategy == "single":
                 sampled_continuum = Continuum.sample_from_continuum(self, pivot_type)
             elif strategy == "multi":
                 assert corpus is not None
                 sampled_continuum = Continuum.sample_from_corpus(corpus, pivot_type)
-            chance_disorders.append(sampled_continuum.compute_disorder(dissimilarity))
+            sample_disorder = sampled_continuum.compute_disorder(dissimilarity)
+            chance_disorders.append(sample_disorder)
 
         best_align_disorder = self.compute_disorder(dissimilarity)
         return 1 - (best_align_disorder / np.mean(chance_disorders))
 
+    def to_csv(self, path: Union[str, Path]):
+        if isinstance(path, str):
+            path = Path(path)
+        with open(path, "w") as csv_file:
+            writer = csv.writer(csv_file, delimiter=",")
+            idx = 0
+            for annotator, units in self._annotations.items():
+                for unit in units.values():
+                    writer.writerow([idx, annotator, unit.annotation, "", unit.segment.start, unit.segment.end])
 
 
 class Corpus:

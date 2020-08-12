@@ -22,15 +22,17 @@ timer = Timer()
 timer.start()
 
 print("Loading")
-continuum = Continuum.from_csv(Path("DATA/2by1000.txt"))
+continuum = Continuum.from_csv(Path("DATA/AlexPaulSuzan.csv"))
 timer.lap()
 
 dissim = CombinedCategoricalDissimilarity(list(continuum.categories),
-                                          delta_empty=0.5,
-                                          alpha=3,
+                                          delta_empty=1,
+                                          alpha=1,
                                           beta=1)
+print("Computing disorder")
+print(continuum.compute_disorder(dissim))
 print("Computing gamma")
-gamma = continuum.compute_gamma(dissim)
+gamma = continuum.compute_gamma(dissim, number_samples=100)
 print(f"Gamma is {gamma}")
 timer.lap()
 

@@ -154,6 +154,7 @@ def alignments_disorders(units_tuples_ids: np.ndarray,
                     distance_pos = distance_pos * distance_pos * delta_empty
                     distance_cat = cat_matrix[cat_a, cat_b] * delta_empty
                     disorders[tuple_id] += distance_pos * alpha + distance_cat * beta
+        # print(disorders[tuple_id])
 
     disorders = disorders / binom(units_tuples_ids.shape[1], 2)
 
@@ -165,7 +166,7 @@ timer.start()
 print("Loading csv")
 annotations = defaultdict(SortedDict)
 categories = set()
-with open("DATA/2by1000.txt") as csvfile:
+with open("DATA/AlexPaulSuzan.csv") as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
     for row in reader:
         seg = pa.Segment(float(row[4]), float(row[5]))
@@ -175,7 +176,7 @@ with open("DATA/2by1000.txt") as csvfile:
         categories.add(row[2])
         annotations[row[1]][seg] = row[2]
 
-DELTA_EMPTY = 0.5
+DELTA_EMPTY = 1.0
 # size of each unit tuple chunk (in number of cells)
 CHUNK_SIZE = 2 ** 25
 categories_dict = {cat: i for i, cat in enumerate(categories)}
@@ -218,15 +219,15 @@ num_chunks = (number_tuples // CHUNK_SIZE) + 1
 for tuples_batch in tqdm(chunked_cartesian_product(nb_unit_per_annot, CHUNK_SIZE),
                          total=num_chunks):
     print(tuples_batch.shape)
-    disorders = alignments_disorders(tuples_batch,
+    batch_disorders = alignments_disorders(tuples_batch,
                                      annotators_arrays,
                                      delta_empty=np.float32(DELTA_EMPTY),
                                      cat_matrix=cat_matrix,
-                                     alpha=np.float32(3.0),
+                                     alpha=np.float32(1.0),
                                      beta=np.float32(1.0))
 
-    valid_disorders_ids = np.where(disorders < len(annotators_arrays) * DELTA_EMPTY)
-    all_disorders.append(disorders[valid_disorders_ids])
+    valid_disorders_ids,  = np.where(batch_disorders < len(annotators_arrays) * DELTA_EMPTY)
+    all_disorders.append(batch_disorders[valid_disorders_ids])
     all_valid_tuples.append(tuples_batch[valid_disorders_ids])
 
 disorders = np.concatenate(all_disorders)
@@ -247,24 +248,10 @@ num_units = sum([len(arr) - 1 for arr in annotators_arrays])
 A = np.zeros((num_units, num_possible_unitary_alignements))
 print(A.shape)
 
-# fill unitary alignments matching with units:
-# for each row of unit, retrieve the unit id, then
-# for i in range(len(annotators_arrays)):
-#     # p_ids is possible unit ids
-#     p_ids = np.arange(num_possible_unitary_alignements)
-#     unit_ids = possible_unitary_alignments[:,i]
-#     true_unit_ids = annotators_arrays[i][unit_ids,4]
-#     # filtering out nan values
-#     non_nan = np.where(~np.isnan(true_unit_ids))
-#     p_ids = p_ids[non_nan]
-#     true_unit_ids = true_unit_ids[non_nan]
-#     true_unit_ids = true_unit_ids.astype(np.int32)
-#     A[true_unit_ids,p_ids] = 1
 
 for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
     for annot_id, unit_id in enumerate(unit_ids_tuple):
         true_unit_id = annotators_arrays[annot_id][unit_id, 4]
-        print(unit_id, true_unit_id)
         if not np.isnan(true_unit_id):
             A[int(true_unit_id), p_id] = 1
 
@@ -279,7 +266,9 @@ timer.lap()
 print("Building best aligment")
 
 # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
-chosen_alignments = possible_unitary_alignments[np.where(x.value > 0.9)]
+#print(np.where(x.value > 0.9))
+chosen_alignments = possible_unitary_alignments[np.where(x.value > 0.9)[0]]
+print("disorder:", disorders[np.where(x.value > 0.9)].sum() / len(chosen_alignments))
 alignment = Alignment()
 for idx, chosen_unitary_alignement in enumerate(chosen_alignments):
     u_align_tuple = tuple(("annotator_a", Unit(pa.Segment(0, 1), "C"))
