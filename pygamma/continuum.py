@@ -42,7 +42,6 @@ import pandas as pd
 from dataclasses import dataclass
 from pyannote.core import Annotation, Segment, Timeline
 from sortedcontainers import SortedDict
-from tqdm import tqdm
 
 from .alignment import UnitaryAlignment, Alignment
 from .dissimilarity import AbstractDissimilarity, PositionalDissimilarity, CombinedCategoricalDissimilarity
@@ -339,7 +338,7 @@ class Continuum:
                       corpus: Optional['Corpus'] = None):
         assert strategy in ("single", "multi")
         chance_disorders = []
-        for _ in tqdm(list(range(number_samples))):
+        for _ in list(range(number_samples)):
             if strategy == "single":
                 sampled_continuum = Continuum.sample_from_continuum(self, pivot_type)
             elif strategy == "multi":
