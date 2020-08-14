@@ -34,6 +34,7 @@ Continuum and corpus
 import csv
 from functools import lru_cache
 from pathlib import Path
+import random
 from typing import Optional, Dict, Tuple, List, Union, Set, Iterable
 
 import cvxpy as cp
@@ -96,7 +97,8 @@ class Continuum:
 
     @classmethod
     def sample_from_continuum(cls, continuum: 'Continuum',
-                              pivot_type: str = "float_pivot") -> 'Continuum':
+                              pivot_type: str = "float_pivot",
+                              ground_truth_annotators: Optional[List[Annotator]] = None) -> 'Continuum':
         assert pivot_type in ('float_pivot', 'int_pivot')
         """Generate a new random annotation from a single continuum
                 Strategy from figure 12
@@ -106,6 +108,12 @@ class Continuum:
                 """
         last_start_time = max(unit.segment.start for unit in continuum.iterunits())
         new_continuum = Continuum()
+        if ground_truth_annotators is not None:
+            assert set(continuum.annotators).issuperset(set(ground_truth_annotators))
+            annotators = ground_truth_annotators
+        else:
+            annotators = continuum.annotators
+
         # TODO: why not sample from the whole continuum?
         for idx in range(continuum.num_annotators):
             if pivot_type == 'float_pivot':
@@ -113,7 +121,7 @@ class Continuum:
             else:
                 pivot = np.random.randint(continuum.avg_length_unit, last_start_time)
 
-            rnd_annotator = np.random.choice(continuum.annotators)
+            rnd_annotator = random.choice(annotators)
             units = continuum._annotations[rnd_annotator]
             sampled_annotation = SortedDict()
             for segment, unit in units.items():
@@ -248,6 +256,8 @@ class Continuum:
 
     def compute_disorder(self, dissimilarity: AbstractDissimilarity):
         assert isinstance(dissimilarity, AbstractDissimilarity)
+        assert len(self.annotators) >= 2
+
         if isinstance(dissimilarity, PositionalDissimilarity):
             self._positions_arrays = dissimilarity.build_positions_arrays(self)
             disorder_args = (self._positions_arrays, )
@@ -335,12 +345,13 @@ class Continuum:
                       pivot_type: str = "float_pivot",
                       number_samples: int = 30,
                       confidence_level: float = 0.95, # # TODO
+                      ground_truth_annotators: Optional[List[Annotator]] = None,
                       corpus: Optional['Corpus'] = None):
         assert strategy in ("single", "multi")
         chance_disorders = []
         for _ in list(range(number_samples)):
             if strategy == "single":
-                sampled_continuum = Continuum.sample_from_continuum(self, pivot_type)
+                sampled_continuum = Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators)
             elif strategy == "multi":
                 assert corpus is not None
                 sampled_continuum = Continuum.sample_from_corpus(corpus, pivot_type)
