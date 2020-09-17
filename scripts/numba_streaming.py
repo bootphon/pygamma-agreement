@@ -255,6 +255,8 @@ for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
         if not np.isnan(true_unit_id):
             A[int(true_unit_id), p_id] = 1
 
+print(A)
+print(disorders)
 obj = cp.Minimize(disorders.T * x)
 constraints = [cp.matmul(A, x) == 1]
 prob = cp.Problem(obj, constraints)

@@ -7,14 +7,15 @@ from .gamma import compute_gamma
 
 def pygamma_cmd():
     # TODO : detail row structure in help
-    # TODO : talk about the best way for sequence dissim to be implemented (input-wise)
-    # TODO : figure out hte best way to save or display gamma output for users
     argparser = argparse.ArgumentParser()
     argparser.add_argument("input_csv", type=Path,
                            help="Path to an input csv file")
-    argparser.add_argument("-d", "--dissimilarity",
-                           choices=["categorical", "sequence"],
-                           help="Type of dissimilarity that is to be used")
+    argparser.add_argument("-a", "--alpha",
+                           default=2, type=float,
+                           help="Alpha coefficient (positional dissimilarity ponderation)")
+    argparser.add_argument("-b", "--beta",
+                           default=1, type=float,
+                           help="Beta coefficient (categorical dissimilarity ponderation)")
 
     args = argparser.parse_args()
     units_tuples = []

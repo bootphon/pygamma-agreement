@@ -79,6 +79,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         self.categories = SortedSet(list_categories)
         assert len(list_categories) == len(self.categories)
         self.categories_nb = len(self.categories)
+        # TODO: make sure that the categorical dissim matrix matches the categories order
         self.cat_matrix = categorical_dissimilarity_matrix
         if self.cat_matrix is None:
             # building the default dissimilarity matrix

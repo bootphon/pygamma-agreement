@@ -22,7 +22,7 @@ timer = Timer()
 timer.start()
 
 print("Loading")
-continuum = Continuum.from_csv(Path("DATA/AlexPaulSuzan.csv"))
+continuum = Continuum.from_csv(Path("DATA/example_figure19.csv"))
 timer.lap()
 
 dissim = CombinedCategoricalDissimilarity(list(continuum.categories),

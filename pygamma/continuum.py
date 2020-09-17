@@ -114,7 +114,7 @@ class Continuum:
         else:
             annotators = continuum.annotators
 
-        # TODO: why not sample from the whole continuum?
+        # TODO: why not sample from the whole continuum?
         for idx in range(continuum.num_annotators):
             if pivot_type == 'float_pivot':
                 pivot = np.random.uniform(continuum.avg_length_unit, last_start_time)
@@ -132,12 +132,6 @@ class Continuum:
                 sampled_annotation[new_segment] = Unit(new_segment, unit.annotation)
             new_continuum._annotations[f'Sampled_annotation {idx}'] = sampled_annotation
         return new_continuum
-
-    @classmethod
-    def sample_from_corpus(cls, corpus: 'Corpus',
-                           pivot_type: str = "float_pivot") -> 'Continuum':
-        assert pivot_type in ('float_pivot', 'int_pivot')
-        # TODO
 
     def __init__(self, uri: Optional[str] = None):
         self.uri = uri
@@ -345,16 +339,11 @@ class Continuum:
                       pivot_type: str = "float_pivot",
                       number_samples: int = 30,
                       confidence_level: float = 0.95, # # TODO
-                      ground_truth_annotators: Optional[List[Annotator]] = None,
-                      corpus: Optional['Corpus'] = None):
+                      ground_truth_annotators: Optional[List[Annotator]] = None):
         assert strategy in ("single", "multi")
         chance_disorders = []
         for _ in list(range(number_samples)):
-            if strategy == "single":
-                sampled_continuum = Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators)
-            elif strategy == "multi":
-                assert corpus is not None
-                sampled_continuum = Continuum.sample_from_corpus(corpus, pivot_type)
+            sampled_continuum = Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators)
             sample_disorder = sampled_continuum.compute_disorder(dissimilarity)
             chance_disorders.append(sample_disorder)
 
