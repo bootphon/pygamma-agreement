@@ -43,6 +43,7 @@ import pandas as pd
 from dataclasses import dataclass
 from pyannote.core import Annotation, Segment, Timeline
 from sortedcontainers import SortedDict
+from typing_extensions import Literal
 
 from .alignment import UnitaryAlignment, Alignment
 from .dissimilarity import AbstractDissimilarity, PositionalDissimilarity, CombinedCategoricalDissimilarity
@@ -52,6 +53,12 @@ CHUNK_SIZE = 2 ** 25
 
 # defining Annotator type
 Annotator = str
+
+Z_TABLE = {
+    "high": 2.58,
+    "medium": 1.96,
+    "low": 1.65
+}
 
 
 @dataclass
@@ -338,27 +345,43 @@ class Continuum:
                       strategy: str = "single",
                       pivot_type: str = "float_pivot",
                       number_samples: int = 30,
-                      confidence_level: float = 0.95,  # # TODO
+                      # TODO: figure out if this should be optional or not
+                      confidence_level: Optional[Literal["low", "medium", "high"]] = None,
                       ground_truth_annotators: Optional[List[Annotator]] = None) -> float:
         assert strategy in ("single", "multi")
         chance_disorders = []
-        for _ in list(range(number_samples)):
+        for _ in range(number_samples):
             sampled_continuum = Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators)
             sample_disorder = sampled_continuum.compute_disorder(dissimilarity)
             chance_disorders.append(sample_disorder)
 
+        if confidence_level is not None:
+            # taken from subsection 5.3 of the original paper
+            # precision e = 2%
+            variation_coeff = np.mean(chance_disorders) / np.mean(chance_disorders)
+            z_value = Z_TABLE[confidence_level]
+            required_samples = np.ceil((variation_coeff * z_value / 0.02) ** 2).astype(np.int32)
+
+            if required_samples > number_samples:
+                for _ in range(required_samples - number_samples):
+                    sampled_continuum = Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators)
+                    sample_disorder = sampled_continuum.compute_disorder(dissimilarity)
+                    chance_disorders.append(sample_disorder)
+
         best_align_disorder = self.compute_disorder(dissimilarity)
         return 1 - (best_align_disorder / np.mean(chance_disorders))
 
-    def to_csv(self, path: Union[str, Path]):
+    def compute_gamma_cat(self):
+        pass
+
+    def to_csv(self, path: Union[str, Path], delimiter=","):
         if isinstance(path, str):
             path = Path(path)
         with open(path, "w") as csv_file:
-            writer = csv.writer(csv_file, delimiter=",")
-            idx = 0
+            writer = csv.writer(csv_file, delimiter=delimiter)
             for annotator, units in self._annotations.items():
                 for unit in units.values():
-                    writer.writerow([idx, annotator, unit.annotation, "", unit.segment.start, unit.segment.end])
+                    writer.writerow([annotator, unit.annotation, unit.segment.start, unit.segment.end])
 
 
 class Corpus:

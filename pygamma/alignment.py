@@ -32,28 +32,23 @@ Alignement and disorder
 
 """
 from abc import ABCMeta, abstractmethod
+from collections import Counter
 from typing import List, Tuple, Optional
 
 from typing import TYPE_CHECKING
+
+from pyannote.core import Segment
 
 if TYPE_CHECKING:
     from .continuum import Continuum, Unit, Annotator
 
 
-class Error(Exception):
-    """Base class for exceptions in this module."""
-    pass
-
-
-class SetPartitionError(Error):
+class SetPartitionError(Exception):
     """Exception raised for errors in the partition of units of continuum.
 
     Attributes:
         message -- explanation of the error
     """
-
-    def __init__(self, message):
-        self.message = message
 
 
 class AbstractAlignment(metaclass=ABCMeta):
@@ -111,20 +106,35 @@ class Alignment(AbstractAlignment):
         self.continuum = continuum
 
         # set partition tests for the unitary alignments
-        # TODO : this has to be seriously sped up
+        # TODO : this has to be tested
+        continuum_tuples = set()
         for annotator, units in self.continuum:
-            for unit in units.values():
-                found = 0
-                for unitary_alignment in self.set_unitary_alignments:
-                    if (annotator, unit) in unitary_alignment.n_tuple:
-                        found += 1
-                if found == 0:
-                    raise SetPartitionError(
-                        '{} {} not in the set of unitary alignments'.format(
-                            annotator, unit))
-                elif found > 1:
-                    raise SetPartitionError('{} {} assigned twice'.format(
-                        annotator, unit))
+            continuum_tuples.update(set((annotator, segment) for segment in units.key()))
+
+        alignment_tuples = list()
+        for unitary_alignment in self.set_unitary_alignments:
+            for (annotator, unit) in unitary_alignment.n_tuple:
+                alignment_tuples.append((annotator, unit.segment))
+
+        # let's first look for missing ones, then for repeated assignments
+        missing_tuples = set(alignment_tuples) - continuum_tuples
+        if missing_tuples:
+            repeated_tuples_str = ', '.join(f"{annotator}->{segment}"
+                                           for annotator, segment in missing_tuples)
+
+            raise SetPartitionError(f'{repeated_tuples_str} '
+                                    f'not in the set of unitary alignments')
+
+        tuples_counts = Counter(alignment_tuples)
+        repeated_tuples = {tup for tup, count in tuples_counts.items() if count > 1}
+        if repeated_tuples:
+            repeated_tuples_str = ', '.join(f"{annotator}->{segment}"
+                                           for annotator, segment in repeated_tuples)
+
+            raise SetPartitionError(f'{repeated_tuples_str} '
+                                    f'are found more than once in the set '
+                                    f'of unitary alignments')
+
 
     @property
     def num_alignments(self):
