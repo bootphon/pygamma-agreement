@@ -32,9 +32,9 @@ Continuum and corpus
 
 """
 import csv
+import random
 from functools import lru_cache
 from pathlib import Path
-import random
 from typing import Optional, Dict, Tuple, List, Union, Set, Iterable
 
 import cvxpy as cp
@@ -76,17 +76,19 @@ class Continuum:
         raise NotImplemented()
 
     @classmethod
-    def from_csv(cls, path: Union[str, Path], discard_invalid_rows=True):
+    def from_csv(cls, path: Union[str, Path],
+                 discard_invalid_rows=True,
+                 delimiter: str = ","):
         if isinstance(path, str):
             path = Path(path)
 
         continuum = cls()
         with open(path) as csv_file:
-            reader = csv.reader(csv_file, delimiter=',')
+            reader = csv.reader(csv_file, delimiter=delimiter)
             for row in reader:
-                seg = Segment(float(row[4]), float(row[5]))
+                seg = Segment(float(row[2]), float(row[3]))
                 try:
-                    continuum.add(row[1], seg, row[2])
+                    continuum.add(row[0], seg, row[1])
                 except ValueError as e:
                     if discard_invalid_rows:
                         print(f"Discarded invalid segment : {str(e)}")
@@ -172,7 +174,6 @@ class Continuum:
         """Number of annotators"""
         return len(self._annotations)
 
-
     @property
     def avg_num_annotations_per_annotator(self):
         """Average number of annotated segments per annotator"""
@@ -195,7 +196,7 @@ class Continuum:
         return sum(unit.segment.duration for unit in self.iterunits()) / self.num_units
 
     def add(self, annotator: Annotator, segment: Segment, annotation: Optional[str] = None):
-        if segment.duration == 0.0: # TODO: use pyannote segment precision?
+        if segment.duration == 0.0:  # TODO: use pyannote segment precision?
             raise ValueError("Tried adding segment of duration 0.0")
 
         if annotator not in self._annotations:
@@ -254,7 +255,7 @@ class Continuum:
 
         if isinstance(dissimilarity, PositionalDissimilarity):
             self._positions_arrays = dissimilarity.build_positions_arrays(self)
-            disorder_args = (self._positions_arrays, )
+            disorder_args = (self._positions_arrays,)
         elif isinstance(dissimilarity, CombinedCategoricalDissimilarity):
             self._positions_arrays = dissimilarity.build_positions_arrays(self)
             self._categories_arrays = dissimilarity.build_categories_arrays(self)
@@ -271,7 +272,7 @@ class Continuum:
             batch_disorders = dissimilarity(tuples_batch, *disorder_args)
 
             # Property section 5.1.1 to reduce initial complexity
-            valid_disorders_ids,  = np.where(batch_disorders < self.num_annotators * dissimilarity.delta_empty)
+            valid_disorders_ids, = np.where(batch_disorders < self.num_annotators * dissimilarity.delta_empty)
             all_disorders.append(batch_disorders[valid_disorders_ids])
             all_valid_tuples.append(tuples_batch[valid_disorders_ids])
 
@@ -294,7 +295,7 @@ class Continuum:
         for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
             for annotator_id, unit_id in enumerate(unit_ids_tuple):
                 if unit_id != len(true_units_ids[annotator_id]):
-                   A[true_units_ids[annotator_id][unit_id], p_id] = 1
+                    A[true_units_ids[annotator_id][unit_id], p_id] = 1
 
         obj = cp.Minimize(disorders.T @ x)
         constraints = [cp.matmul(A, x) == 1]
@@ -304,7 +305,7 @@ class Continuum:
         optimal_disorder = prob.solve()
 
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
-        chosen_alignments_ids,  = np.where(x.value > 0.9)
+        chosen_alignments_ids, = np.where(x.value > 0.9)
         self._chosen_alignments = possible_unitary_alignments[chosen_alignments_ids]
         self._alignments_disorders = disorders[chosen_alignments_ids]
         return self._alignments_disorders.sum() / len(self._alignments_disorders)
@@ -317,7 +318,6 @@ class Continuum:
                 raise ValueError("Best alignment disorder hasn't been computed, "
                                  "a the dissimilarity argument is required")
 
-
         set_unitary_alignements = []
         for alignment_id, alignment in enumerate(self._chosen_alignments):
             u_align_tuple = []
@@ -326,7 +326,7 @@ class Continuum:
                 try:
                     _, unit = units.peekitem(unit_id)
                     u_align_tuple.append((annotator, unit))
-                except IndexError: # it's a "null unit"
+                except IndexError:  # it's a "null unit"
                     u_align_tuple.append((annotator, None))
             unitary_alignment = UnitaryAlignment(tuple(u_align_tuple))
             unitary_alignment._disorder = self._alignments_disorders[alignment_id]
@@ -338,8 +338,8 @@ class Continuum:
                       strategy: str = "single",
                       pivot_type: str = "float_pivot",
                       number_samples: int = 30,
-                      confidence_level: float = 0.95, # # TODO
-                      ground_truth_annotators: Optional[List[Annotator]] = None):
+                      confidence_level: float = 0.95,  # # TODO
+                      ground_truth_annotators: Optional[List[Annotator]] = None) -> float:
         assert strategy in ("single", "multi")
         chance_disorders = []
         for _ in list(range(number_samples)):
