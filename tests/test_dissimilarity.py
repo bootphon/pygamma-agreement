@@ -15,72 +15,21 @@ import pytest
 
 
 def test_categorical_dissimilarity():
-    continuum = Continuum()
-    annotation = Annotation()
-    annotation[Segment(1, 5)] = 'Carol'
-    annotation[Segment(6, 8)] = 'Bob'
-    annotation[Segment(12, 18)] = 'Carol'
-    annotation[Segment(7, 20)] = 'Alice'
-    continuum['liza'] = annotation
-    annotation = Annotation()
-    annotation[Segment(2, 6)] = 'Carol'
-    annotation[Segment(7, 8)] = 'Bob'
-    annotation[Segment(12, 18)] = 'Alice'
-    annotation[Segment(8, 10)] = 'Alice'
-    annotation[Segment(7, 19)] = 'Jeremy'
-    continuum['pierrot'] = annotation
     categories = ['Carol', 'Bob', 'Alice', 'Jeremy']
     cat = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
                     [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]])
 
     cat_dis = CategoricalDissimilarity(
-        'diarization',
         list_categories=categories,
         categorical_dissimilarity_matrix=cat,
-        DELTA_EMPTY=0.5)
+        delta_empty=0.5)
     fake_seg = Segment(0, 1)
+    # TODO
     assert cat_dis[((fake_seg, 'Carol'), (fake_seg, 'Carol'))] == 0.
     assert cat_dis[((fake_seg, 'Carol'), (fake_seg, 'Jeremy'))] == 0.35
     assert (cat_dis[((fake_seg, 'Carol'), (fake_seg, 'Jeremy'))]
             ==
             cat_dis[((fake_seg, 'Jeremy'), (fake_seg, 'Carol'))])
-
-
-def test_sequence_dissimilarity():
-    continuum = Continuum()
-    annotation = Annotation()
-    annotation[Segment(1, 5)] = ('a', 'b', 'b')
-    annotation[Segment(6, 8)] = ('a', 'b')
-    annotation[Segment(12, 18)] = ('a', 'c', 'c', 'c')
-    annotation[Segment(7, 20)] = ('b', 'b', 'c', 'c', 'a')
-    continuum['liza'] = annotation
-    annotation = Annotation()
-    annotation[Segment(2, 6)] = ('a', 'b', 'b')
-    annotation[Segment(7, 8)] = ('a')
-    annotation[Segment(12, 18)] = ('b', 'c', 'b', 'c')
-    annotation[Segment(8, 10)] = ('a', 'a')
-    annotation[Segment(7, 19)] = ('b', 'b', 'a', 'c', 'a')
-    continuum['pierrot'] = annotation
-    annotation = Annotation()
-
-    annotation[Segment(1, 6)] = ('a', 'b', 'b')
-    annotation[Segment(8, 10)] = ('a', 'b')
-    annotation[Segment(7, 19)] = ('a', 'c', 'b', 'c')
-    annotation[Segment(19, 20)] = ('a', 'c')
-
-    continuum['hadrien'] = annotation
-    symbols = ['a', 'b', 'c', 'd']
-    cat = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
-                    [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]])
-
-    seq_dis = SequenceDissimilarity('SR', admitted_symbols=symbols,
-                                    symbol_dissimilarity_matrix=cat)
-
-    fake_seg = Segment(0, 1)
-    assert seq_dis[((fake_seg, ['a', 'c', 'a', 'c']), (fake_seg, ['a', 'c', 'a', 'c']))] == 0.0
-    assert seq_dis[((fake_seg, ['a', 'c', 'a', 'c']), (fake_seg, ['a', 'c', 'b', 'c']))] == 0.125
-    assert (seq_dis[((fake_seg, ['a', 'c', 'a', 'c']), (fake_seg, ['a', 'c', 'b', 'c']))] ==
-            seq_dis[((fake_seg, ['a', 'c', 'b', 'c']), (fake_seg, ['a', 'c', 'a', 'c']))])
 
 
 def test_positional_dissimilarity():
@@ -90,16 +39,16 @@ def test_positional_dissimilarity():
     annotation[Segment(6, 8)] = 'Bob'
     annotation[Segment(12, 18)] = 'Carol'
     annotation[Segment(7, 20)] = 'Alice'
-    continuum['liza'] = annotation
+    continuum.add_annotation('liza', annotation)
     annotation = Annotation()
     annotation[Segment(2, 6)] = 'Carol'
     annotation[Segment(7, 8)] = 'Bob'
     annotation[Segment(12, 18)] = 'Alice'
     annotation[Segment(8, 10)] = 'Alice'
     annotation[Segment(7, 19)] = 'Jeremy'
-    continuum['pierrot'] = annotation
+    continuum.add_annotation('pierrot', annotation)
 
-    pos_dis = PositionalDissimilarity('diarization', DELTA_EMPTY=0.5)
+    pos_dis = PositionalDissimilarity(delta_empty=0.5)
 
     list_dis = []
     for liza_unit in continuum['liza'].itersegments():

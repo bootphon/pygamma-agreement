@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 import numpy as np
 import time
@@ -20,9 +21,10 @@ class Timer:
 
 timer = Timer()
 timer.start()
+logging.getLogger().setLevel(logging.DEBUG)
 
 print("Loading")
-continuum = Continuum.from_csv(Path("DATA/example_figure19.csv"))
+continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
 timer.lap()
 
 dissim = CombinedCategoricalDissimilarity(list(continuum.categories),
@@ -30,9 +32,9 @@ dissim = CombinedCategoricalDissimilarity(list(continuum.categories),
                                           alpha=1,
                                           beta=1)
 print("Computing disorder")
-print(continuum.compute_disorder(dissim))
+print(continuum.compute_disorders(dissim))
 print("Computing gamma")
-gamma = continuum.compute_gamma(dissim, number_samples=100)
+gamma = continuum.compute_gamma(dissim, confidence_level="low")
 print(f"Gamma is {gamma}")
 timer.lap()
 

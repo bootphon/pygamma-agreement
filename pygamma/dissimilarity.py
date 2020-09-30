@@ -44,6 +44,17 @@ if TYPE_CHECKING:
     from .continuum import Continuum
 
 
+@nb.njit(nb.float32(nb.float32[:], nb.float32[:], nb.float32))
+def positional_dissim(unit_a: np.ndarray,
+                      unit_b: np.ndarray,
+                      delta_empty: float):
+    ends_diff = np.abs(unit_a[1] - unit_b[1])
+    starts_diff = np.abs(unit_a[0] - unit_b[0])
+    # unit[2] is the duration
+    distance_pos = (starts_diff + ends_diff) / (unit_a[2] + unit_b[2])
+    return distance_pos * distance_pos * delta_empty
+
+
 class AbstractDissimilarity:
 
     def __init__(self, delta_empty: float):
@@ -129,8 +140,60 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         ax.xaxis.set_ticks_position('top')
         plt.show()
 
-    def __call__(self, *args, **kwargs) -> np.ndarray:
-        raise NotImplemented()
+    @staticmethod
+    @nb.njit(nb.float32(nb.int32[:, :],
+                        nb.types.ListType(nb.float32[:, ::1]),
+                        nb.types.ListType(nb.int16[::1]),
+                        nb.float32,
+                        nb.float32[:, :]))
+    def alignments_disorder(units_tuples_ids: np.ndarray,
+                            units_positions: List[np.ndarray],
+                            units_categories: List[np.ndarray],
+                            delta_empty: np.float32,
+                            cat_matrix: np.ndarray):
+        disorder, weight_tot = 0.0, 0.0
+        annotator_id = np.arange(units_tuples_ids.shape[1]).astype(np.int16)
+        couples_count = binom(units_tuples_ids.shape[1], 2)
+        for tuple_id in np.arange(len(units_tuples_ids)):
+            real_couples_count = 0
+            couple_id = 0
+            # weight and categorical dissim vectors for all categories
+            weights_confidence = np.zeros(couples_count, dtype=np.float32)
+            dissim = np.zeros(couples_count, dtype=np.float32)
+            # for each tuple (corresponding to a unitary alignment), compute disorder
+            for annot_a in annotator_id:
+                for annot_b in annotator_id[annot_a + 1:]:
+                    # this block looks a bit slow (because of all the variables
+                    # declarations) but should be fairly sped up automatically
+                    # by the LLVM optimization pass
+                    unit_a_id, unit_b_id = units_tuples_ids[tuple_id, annot_a], units_tuples_ids[tuple_id, annot_b]
+                    unit_a, unit_b = units_positions[annot_a][unit_a_id], units_positions[annot_b][unit_b_id]
+                    cat_a, cat_b = units_categories[annot_a][unit_a_id], units_categories[annot_b][unit_b_id]
+                    if np.isnan(unit_a[0]) or np.isnan(unit_b[0]):
+                        distance_cat = delta_empty
+                        distance_pos = delta_empty
+                    else:
+                        real_couples_count += 1
+                        distance_pos = positional_dissim(unit_a, unit_b, delta_empty)
+                        distance_cat = cat_matrix[cat_a, cat_b] * delta_empty
+                    dissim[couple_id] = distance_cat
+                    weights_confidence[couple_id] = max(0, 1 - distance_pos)
+                    couple_id += 1
+            weight_base = 1 / (real_couples_count - 1)
+            weight_tot += weights_confidence.sum() * weight_base
+            disorder += (weights_confidence * dissim).sum() * weight_base
+
+        return disorder / weight_tot
+
+    def __call__(self, units_tuples: np.ndarray,
+                 units_positions: List[np.ndarray],
+                 units_categories: List[np.ndarray]) -> np.ndarray:
+        return self.alignments_disorder(units_tuples_ids=units_tuples,
+                                        units_positions=units_positions,
+                                        units_categories=units_categories,
+                                        delta_empty=self.delta_empty,
+                                        cat_matrix=self.cat_matrix)
+
 
 
 class PositionalDissimilarity(AbstractDissimilarity):
@@ -177,11 +240,7 @@ class PositionalDissimilarity(AbstractDissimilarity):
                     if np.isnan(unit_a[0]) or np.isnan(unit_b[0]):
                         disorders[tuple_id] += delta_empty
                     else:
-                        ends_diff = np.abs(unit_a[1] - unit_b[1])
-                        starts_diff = np.abs(unit_a[0] - unit_b[0])
-                        # unit[2] is the duration
-                        distance_pos = (starts_diff + ends_diff) / (unit_a[2] + unit_b[2])
-                        distance_pos = distance_pos * distance_pos * delta_empty
+                        distance_pos = positional_dissim(unit_a, unit_b, delta_empty)
                         disorders[tuple_id] += distance_pos
 
         disorders = disorders / binom(units_tuples_ids.shape[1], 2)
@@ -262,11 +321,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
                     if np.isnan(unit_a[0]) or np.isnan(unit_b[0]):
                         disorders[tuple_id] += delta_empty
                     else:
-                        ends_diff = np.abs(unit_a[1] - unit_b[1])
-                        starts_diff = np.abs(unit_a[0] - unit_b[0])
-                        # unit[2] is the duration
-                        distance_pos = (starts_diff + ends_diff) / (unit_a[2] + unit_b[2])
-                        distance_pos = distance_pos * distance_pos * delta_empty
+                        distance_pos = positional_dissim(unit_a, unit_b, delta_empty)
                         distance_cat = cat_matrix[cat_a, cat_b] * delta_empty
                         disorders[tuple_id] += distance_pos * alpha + distance_cat * beta
 

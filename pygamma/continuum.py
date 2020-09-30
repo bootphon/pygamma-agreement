@@ -32,6 +32,7 @@ Continuum and corpus
 
 """
 import csv
+import logging
 import random
 from functools import lru_cache
 from pathlib import Path
@@ -166,6 +167,9 @@ class Continuum:
         """
         return len(self._annotations) > 0
 
+    def __len__(self):
+        return len(self._annotations)
+
     @property
     def num_units(self) -> int:
         """Number of units"""
@@ -256,7 +260,7 @@ class Continuum:
         for units in self._annotations.values():
             yield from units.values()
 
-    def compute_disorder(self, dissimilarity: AbstractDissimilarity):
+    def compute_disorders(self, dissimilarity: AbstractDissimilarity):
         assert isinstance(dissimilarity, AbstractDissimilarity)
         assert len(self.annotators) >= 2
 
@@ -308,8 +312,8 @@ class Continuum:
         constraints = [cp.matmul(A, x) == 1]
         prob = cp.Problem(obj, constraints)
 
-        # we don't actually care about the optimal disorder value
-        optimal_disorder = prob.solve()
+        # we don't actually care about the optimal loss value
+        optimal_value = prob.solve()
 
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
         chosen_alignments_ids, = np.where(x.value > 0.9)
@@ -320,7 +324,7 @@ class Continuum:
     def get_best_alignment(self, dissimilarity: Optional[AbstractDissimilarity] = None):
         if self._chosen_alignments is None or self._alignments_disorders is None:
             if dissimilarity is not None:
-                self.compute_disorder(dissimilarity)
+                self.compute_disorders(dissimilarity)
             else:
                 raise ValueError("Best alignment disorder hasn't been computed, "
                                  "a the dissimilarity argument is required")
@@ -352,7 +356,7 @@ class Continuum:
         chance_disorders = []
         for _ in range(number_samples):
             sampled_continuum = Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators)
-            sample_disorder = sampled_continuum.compute_disorder(dissimilarity)
+            sample_disorder = sampled_continuum.compute_disorders(dissimilarity)
             chance_disorders.append(sample_disorder)
 
         if confidence_level is not None:
@@ -361,14 +365,14 @@ class Continuum:
             variation_coeff = np.mean(chance_disorders) / np.mean(chance_disorders)
             z_value = Z_TABLE[confidence_level]
             required_samples = np.ceil((variation_coeff * z_value / 0.02) ** 2).astype(np.int32)
-
+            logging.debug(f"Number of required samples for confidence {confidence_level}: {required_samples}")
             if required_samples > number_samples:
                 for _ in range(required_samples - number_samples):
                     sampled_continuum = Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators)
-                    sample_disorder = sampled_continuum.compute_disorder(dissimilarity)
+                    sample_disorder = sampled_continuum.compute_disorders(dissimilarity)
                     chance_disorders.append(sample_disorder)
 
-        best_align_disorder = self.compute_disorder(dissimilarity)
+        best_align_disorder = self.compute_disorders(dissimilarity)
         return 1 - (best_align_disorder / np.mean(chance_disorders))
 
     def compute_gamma_cat(self):

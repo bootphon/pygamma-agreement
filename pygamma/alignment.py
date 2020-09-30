@@ -39,6 +39,8 @@ from typing import TYPE_CHECKING
 
 from pyannote.core import Segment
 
+from .dissimilarity import AbstractDissimilarity
+
 if TYPE_CHECKING:
     from .continuum import Continuum, Unit, Annotator
 
@@ -78,7 +80,8 @@ class UnitaryAlignment(AbstractAlignment):
         combined_dissimilarity
     """
 
-    def __init__(self, n_tuple: Tuple[Tuple['Annotator', Optional['Unit']]]):
+    def __init__(self,
+                 n_tuple: Tuple[Tuple['Annotator', Optional['Unit']]]):
         self.n_tuple = n_tuple
         self._disorder: Optional[float] = None
 
@@ -107,6 +110,7 @@ class Alignment(AbstractAlignment):
 
         # set partition tests for the unitary alignments
         # TODO : this has to be tested
+        # TODO: maybe check for temmporal coherence of each "tier" (seg n < seg n + 1)
         continuum_tuples = set()
         for annotator, units in self.continuum:
             continuum_tuples.update(set((annotator, segment) for segment in units.key()))
@@ -142,5 +146,9 @@ class Alignment(AbstractAlignment):
 
     @property
     def disorder(self):
+        # TODO : add a method to compute disorder for this alignment
         return sum(u_align.disorder for u_align
                    in self.set_unitary_alignments) / self.num_alignments
+
+    def compute_disorder(self, dissim: AbstractDissimilarity):
+        pass # TODO
