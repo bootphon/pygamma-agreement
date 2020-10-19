@@ -84,6 +84,7 @@ class UnitaryAlignment:
     """
 
     def __init__(self, n_tuple: UnitsTuple):
+        assert len(n_tuple) >= 2
         self._n_tuple = n_tuple
         self._disorder: Optional[float] = None
 

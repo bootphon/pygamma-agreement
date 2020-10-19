@@ -31,12 +31,11 @@ Dissimilarity
 ##########
 
 """
-from typing import List, Optional, TYPE_CHECKING, Tuple, Union
+from typing import List, Optional, TYPE_CHECKING, Tuple
 
 import numba as nb
 import numpy as np
 from matplotlib import pyplot as plt
-from sortedcontainers import SortedSet
 
 from pygamma.numba_utils import binom
 
@@ -93,7 +92,8 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                  delta_empty: float = 1):
         super().__init__(delta_empty)
 
-        self.categories = SortedSet(list_categories)
+        self.categories = set(list_categories)
+        self.categories_dict = {cat: i for i, cat in enumerate(list_categories)}
         assert len(list_categories) == len(self.categories)
         self.categories_nb = len(self.categories)
         # TODO: make sure that the categorical dissim matrix matches the categories order
@@ -119,7 +119,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                 if unit.annotation is None:
                     raise ValueError(f"In segment {segment} for annotator {annotator}: annotation cannot be None")
                 try:
-                    cat_array[unit_id] = self.categories.index(unit.annotation)
+                    cat_array[unit_id] = self.categories_dict[unit.annotation]
                 except ValueError:
                     raise ValueError(f"In segment {segment} for annotator {annotator}: "
                                      f"annotation of category {unit.category} is not in set {set(self.categories)} "
@@ -128,7 +128,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
             categories_arrays.append(cat_array)
         return categories_arrays
 
-    def build_args(self, continuum: Union['Continuum']) -> Tuple:
+    def build_args(self, continuum: 'Continuum') -> Tuple:
         return self.build_categories_arrays(continuum),
 
     def plot_categorical_dissimilarity_matrix(self):
@@ -258,10 +258,11 @@ class PositionalDissimilarity(AbstractDissimilarity):
 
         return disorders
 
-    def __call__(self, positional_arrays: np.ndarray,
+    def __call__(self, units_tuples_ids: np.ndarray,
                  units_positions: List[np.ndarray]) -> np.ndarray:
-        return self.alignments_disorders(units_tuples_ids=positional_arrays,
-                                         units_positions=units_positions)
+        return self.alignments_disorders(units_tuples_ids=units_tuples_ids,
+                                         units_positions=units_positions,
+                                         delta_empty=self.delta_empty)
 
 
 class CombinedCategoricalDissimilarity(AbstractDissimilarity):

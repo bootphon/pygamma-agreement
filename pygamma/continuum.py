@@ -205,7 +205,7 @@ class Continuum:
         return sum(unit.segment.duration for unit in self.iterunits()) / self.num_units
 
     def add(self, annotator: Annotator, segment: Segment, annotation: Optional[str] = None):
-        if segment.duration == 0.0:  # TODO: use pyannote segment precision?
+        if segment.duration == 0.0:
             raise ValueError("Tried adding segment of duration 0.0")
 
         if annotator not in self._annotations:
@@ -217,6 +217,7 @@ class Continuum:
         if self._alignments_disorders is not None:
             self._chosen_alignments = None
             self._alignments_disorders = None
+
 
     def add_annotation(self, annotator: Annotator, annotation: Annotation):
         for label in annotation.labels():
@@ -242,7 +243,8 @@ class Continuum:
                          Segment(interval.minTime, interval.maxTime),
                          interval.mark)
 
-    def __getitem__(self, keys: Union[Annotator, Tuple[Annotator, Segment]]):
+    def __getitem__(self, *keys: Union[Annotator, Tuple[Annotator, Segment]]) \
+            -> Union[SortedDict, Unit]:
         """Get annotation object
 
         >>> annotation = continuum[annotator]
