@@ -43,6 +43,7 @@ import numpy as np
 import pandas as pd
 from dataclasses import dataclass
 from pyannote.core import Annotation, Segment, Timeline
+from pyannote.database.util import load_rttm
 from sortedcontainers import SortedDict
 from typing_extensions import Literal
 
@@ -83,10 +84,6 @@ class Continuum:
     """
 
     @classmethod
-    def from_rttm(cls, df: pd.DataFrame):
-        raise NotImplemented()
-
-    @classmethod
     def from_csv(cls, path: Union[str, Path],
                  discard_invalid_rows=True,
                  delimiter: str = ","):
@@ -106,6 +103,14 @@ class Continuum:
                     else:
                         raise e
 
+        return continuum
+
+    @classmethod
+    def from_rttm(cls, path: Union[str, Path]):
+        annotations = load_rttm(str(path))
+        continuum = cls()
+        for uri, annot in annotations.items():
+            continuum.add_annotation(uri, annot)
         return continuum
 
     @classmethod
