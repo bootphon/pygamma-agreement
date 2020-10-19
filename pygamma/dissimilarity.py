@@ -31,7 +31,7 @@ Dissimilarity
 ##########
 
 """
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING, Tuple, Union
 
 import numba as nb
 import numpy as np
@@ -59,6 +59,12 @@ class AbstractDissimilarity:
 
     def __init__(self, delta_empty: float):
         self.delta_empty = np.float32(delta_empty)
+
+    def build_args(self, continuum: 'Continuum') -> Tuple:
+        """Computes a compact, array-shaped representation of each annotators' units
+        needed for fast computation of inter-units disorders
+        computed and set when compute_disorder is called"""
+        raise NotImplemented()
 
     @staticmethod
     def tuples_disorders(*args, **kwargs):
@@ -121,6 +127,9 @@ class CategoricalDissimilarity(AbstractDissimilarity):
             cat_array[-1] = -1
             categories_arrays.append(cat_array)
         return categories_arrays
+
+    def build_args(self, continuum: Union['Continuum']) -> Tuple:
+        return self.build_categories_arrays(continuum),
 
     def plot_categorical_dissimilarity_matrix(self):
         fig, ax = plt.subplots()
@@ -195,7 +204,6 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                                         cat_matrix=self.cat_matrix)
 
 
-
 class PositionalDissimilarity(AbstractDissimilarity):
     """Positional Dissimilarity
 
@@ -218,6 +226,9 @@ class PositionalDissimilarity(AbstractDissimilarity):
             unit_dists_array[-1, :] = np.array([np.NaN for _ in range(3)])
             positions_arrays.append(unit_dists_array)
         return positions_arrays
+
+    def build_args(self, continuum: 'Continuum') -> Tuple:
+        return self.build_positions_arrays(continuum),
 
     @staticmethod
     @nb.njit(nb.float32[:](nb.int32[:, :],
@@ -272,8 +283,8 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
 
     def __init__(self,
                  list_categories: List[str],
-                 alpha: int = 3,
-                 beta: int = 1,
+                 alpha: float = 3,
+                 beta: float = 1,
                  delta_empty: float = 1,
                  categorical_dissimilarity_matrix=None):
         super().__init__(delta_empty)
@@ -285,11 +296,9 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         self.alpha = np.float32(alpha)
         self.beta = np.float32(beta)
 
-    def build_positions_arrays(self, continuum: 'Continuum'):
-        return self.positional_dissim.build_positions_arrays(continuum)
-
-    def build_categories_arrays(self, continuum: 'Continuum'):
-        return self.categorical_dissim.build_categories_arrays(continuum)
+    def build_args(self, continuum: 'Continuum'):
+        return (self.positional_dissim.build_positions_arrays(continuum),
+                self.categorical_dissim.build_categories_arrays(continuum))
 
     @staticmethod
     @nb.njit(nb.float32[:](nb.int32[:, :],

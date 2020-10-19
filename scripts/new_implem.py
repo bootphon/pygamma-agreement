@@ -33,8 +33,9 @@ dissim = CombinedCategoricalDissimilarity(list(continuum.categories),
                                           beta=1)
 print("Computing disorder")
 print(continuum.compute_disorders(dissim))
+timer.lap()
 print("Computing gamma")
-gamma = continuum.compute_gamma(dissim, confidence_level="low")
+gamma = continuum.compute_gamma(dissim, precision_level="low")
 print(f"Gamma is {gamma}")
 timer.lap()
 

@@ -34,15 +34,16 @@ Alignement and disorder
 from abc import ABCMeta, abstractmethod
 from collections import Counter
 from typing import List, Tuple, Optional
-
 from typing import TYPE_CHECKING
 
-from pyannote.core import Segment
+import numpy as np
 
 from .dissimilarity import AbstractDissimilarity
 
 if TYPE_CHECKING:
     from .continuum import Continuum, Unit, Annotator
+
+UnitsTuple = Tuple[Tuple['Annotator', 'Unit']]
 
 
 class SetPartitionError(Exception):
@@ -65,10 +66,12 @@ class AbstractAlignment(metaclass=ABCMeta):
 
         """
 
-        raise NotImplemented()
+    @abstractmethod
+    def compute_disorder(self, dissimilarity: AbstractDissimilarity) -> float:
+        """Compute the disorder for that alignment"""
 
 
-class UnitaryAlignment(AbstractAlignment):
+class UnitaryAlignment:
     """Unitary Alignment
 
     Parameters
@@ -80,13 +83,38 @@ class UnitaryAlignment(AbstractAlignment):
         combined_dissimilarity
     """
 
-    def __init__(self,
-                 n_tuple: Tuple[Tuple['Annotator', Optional['Unit']]]):
-        self.n_tuple = n_tuple
+    def __init__(self, n_tuple: UnitsTuple):
+        self._n_tuple = n_tuple
         self._disorder: Optional[float] = None
 
     @property
+    def n_tuple(self):
+        return self._n_tuple
+
+    @n_tuple.setter
+    def n_tuple(self, n_tuple: UnitsTuple):
+        self._n_tuple = n_tuple
+        self._disorder = None
+
+    @property
     def disorder(self) -> float:
+        if self._disorder is None:
+            raise ValueError("Disorder hasn't been computed. "
+                             "Call `compute_disorder()` first to compute it.")
+        else:
+            return self._disorder
+
+    def compute_disorder(self, dissimilarity: AbstractDissimilarity):
+        # building a fake continuum
+        from .continuum import Continuum
+        continuum = Continuum()
+        for annotator, unit in self._n_tuple:
+            continuum.add(annotator, unit.segment, unit.annotation)
+
+        disorder_args = dissimilarity.build_args(continuum)
+        unit_ids = np.zeros(len(self._n_tuple), dtype=np.int32)
+        unit_ids = unit_ids.reshape((1, len(self._n_tuple)))
+        self._disorder = dissimilarity(unit_ids, *disorder_args)[0]
         return self._disorder
 
 
@@ -107,10 +135,12 @@ class Alignment(AbstractAlignment):
                  set_unitary_alignments: List[UnitaryAlignment]):
         self.set_unitary_alignments = set_unitary_alignments
         self.continuum = continuum
+        self._disorder: Optional[float] = None
 
         # set partition tests for the unitary alignments
         # TODO : this has to be tested
-        # TODO: maybe check for temmporal coherence of each "tier" (seg n < seg n + 1)
+        # TODO: maybe check for temporal coherence of each "tier" (seg n < seg n + 1)
+        # TODO: check that each unitary alignment has the same number of annotators
         continuum_tuples = set()
         for annotator, units in self.continuum:
             continuum_tuples.update(set((annotator, segment) for segment in units.key()))
@@ -124,7 +154,7 @@ class Alignment(AbstractAlignment):
         missing_tuples = set(alignment_tuples) - continuum_tuples
         if missing_tuples:
             repeated_tuples_str = ', '.join(f"{annotator}->{segment}"
-                                           for annotator, segment in missing_tuples)
+                                            for annotator, segment in missing_tuples)
 
             raise SetPartitionError(f'{repeated_tuples_str} '
                                     f'not in the set of unitary alignments')
@@ -133,12 +163,11 @@ class Alignment(AbstractAlignment):
         repeated_tuples = {tup for tup, count in tuples_counts.items() if count > 1}
         if repeated_tuples:
             repeated_tuples_str = ', '.join(f"{annotator}->{segment}"
-                                           for annotator, segment in repeated_tuples)
+                                            for annotator, segment in repeated_tuples)
 
             raise SetPartitionError(f'{repeated_tuples_str} '
                                     f'are found more than once in the set '
                                     f'of unitary alignments')
-
 
     @property
     def num_alignments(self):
@@ -146,9 +175,18 @@ class Alignment(AbstractAlignment):
 
     @property
     def disorder(self):
-        # TODO : add a method to compute disorder for this alignment
-        return sum(u_align.disorder for u_align
-                   in self.set_unitary_alignments) / self.num_alignments
+        if self._disorder is None:
+            self._disorder = (sum(u_align.disorder for u_align
+                                  in self.set_unitary_alignments)
+                              / self.num_alignments)
+        return self._disorder
 
-    def compute_disorder(self, dissim: AbstractDissimilarity):
-        pass # TODO
+    def compute_disorder(self, dissimilarity: AbstractDissimilarity):
+        alignments_sum = 0
+        for unit_align in self.set_unitary_alignments:
+            try:
+                alignments_sum += unit_align.disorder
+            except ValueError:
+                alignments_sum += unit_align.compute_disorder(dissimilarity)
+        self._disorder = alignments_sum / self.num_alignments
+        return self._disorder

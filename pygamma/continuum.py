@@ -36,7 +36,7 @@ import logging
 import random
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, Dict, Tuple, List, Union, Set, Iterable
+from typing import Optional, Dict, Tuple, List, Union, Set, Iterable, TYPE_CHECKING
 
 import cvxpy as cp
 import numpy as np
@@ -46,19 +46,22 @@ from pyannote.core import Annotation, Segment, Timeline
 from sortedcontainers import SortedDict
 from typing_extensions import Literal
 
-from .alignment import UnitaryAlignment, Alignment
-from .dissimilarity import AbstractDissimilarity, PositionalDissimilarity, CombinedCategoricalDissimilarity
+from .dissimilarity import AbstractDissimilarity
 from .numba_utils import chunked_cartesian_product
+
+if TYPE_CHECKING:
+    from .alignment import UnitaryAlignment, Alignment
 
 CHUNK_SIZE = 2 ** 25
 
 # defining Annotator type
 Annotator = str
 
-Z_TABLE = {
-    "high": 2.58,
-    "medium": 1.96,
-    "low": 1.65
+# percentages for the precision
+PRECISION_LEVEL = {
+    "high": 0.01,
+    "medium": 0.02,
+    "low": 0.1
 }
 
 
@@ -147,11 +150,6 @@ class Continuum:
         self.uri = uri
         # Structure {annotator -> { segment -> unit}}
         self._annotations = SortedDict()
-        # a compact, array-shaped representation of each annotators' units
-        # needed for fast computation of inter-units disorders
-        # computed and set when compute_disorder is called
-        self._positions_arrays: List[np.ndarray] = None
-        self._categories_arrays: List[np.ndarray] = None
 
         # these are instanciated when compute_disorder is called
         self._chosen_alignments: np.ndarray = None
@@ -216,9 +214,9 @@ class Continuum:
         self._annotations[annotator][segment] = Unit(segment, annotation)
 
         # units array has to be updated, nullifying
-        if self._positions_arrays is not None:
-            self._positions_arrays = None
-            self._categories_arrays = None
+        if self._alignments_disorders is not None:
+            self._chosen_alignments = None
+            self._alignments_disorders = None
 
     def add_annotation(self, annotator: Annotator, annotation: Annotation):
         for label in annotation.labels():
@@ -228,6 +226,21 @@ class Continuum:
     def add_timeline(self, annotator: Annotator, timeline: Timeline):
         for segment in timeline:
             self.add(annotator, segment)
+
+    def from_textgrid(self,
+                      annotator: Annotator,
+                      tg_path: Union[str, Path],
+                      selected_tiers: Optional[List[str]] = None):
+        from textgrid import TextGrid, IntervalTier
+        tg = TextGrid.fromFile(str(tg_path))
+        for tier_name in tg.getNames():
+            if selected_tiers is not None and tier_name not in selected_tiers:
+                continue
+            tier: IntervalTier = tg.getFirst(tier_name)
+            for interval in tier:
+                self.add(annotator,
+                         Segment(interval.minTime, interval.maxTime),
+                         interval.mark)
 
     def __getitem__(self, keys: Union[Annotator, Tuple[Annotator, Segment]]):
         """Get annotation object
@@ -264,19 +277,9 @@ class Continuum:
         assert isinstance(dissimilarity, AbstractDissimilarity)
         assert len(self.annotators) >= 2
 
-        if isinstance(dissimilarity, PositionalDissimilarity):
-            self._positions_arrays = dissimilarity.build_positions_arrays(self)
-            disorder_args = (self._positions_arrays,)
-        elif isinstance(dissimilarity, CombinedCategoricalDissimilarity):
-            self._positions_arrays = dissimilarity.build_positions_arrays(self)
-            self._categories_arrays = dissimilarity.build_categories_arrays(self)
-            disorder_args = (self._positions_arrays, self._categories_arrays)
-        else:
-            raise TypeError(f"dissimilarity argument is of unexpected type "
-                            f"{type(dissimilarity)}")
+        disorder_args = dissimilarity.build_args(self)
 
         nb_unit_per_annot = [len(arr) + 1 for arr in self._annotations.values()]
-        number_tuples = np.product(nb_unit_per_annot)
         all_disorders = []
         all_valid_tuples = []
         for tuples_batch in chunked_cartesian_product(nb_unit_per_annot, CHUNK_SIZE):
@@ -321,13 +324,15 @@ class Continuum:
         self._alignments_disorders = disorders[chosen_alignments_ids]
         return self._alignments_disorders.sum() / len(self._alignments_disorders)
 
-    def get_best_alignment(self, dissimilarity: Optional[AbstractDissimilarity] = None):
+    def get_best_alignment(self, dissimilarity: Optional['AbstractDissimilarity'] = None):
         if self._chosen_alignments is None or self._alignments_disorders is None:
             if dissimilarity is not None:
                 self.compute_disorders(dissimilarity)
             else:
                 raise ValueError("Best alignment disorder hasn't been computed, "
                                  "a the dissimilarity argument is required")
+
+        from .alignment import UnitaryAlignment, Alignment
 
         set_unitary_alignements = []
         for alignment_id, alignment in enumerate(self._chosen_alignments):
@@ -345,12 +350,12 @@ class Continuum:
         return Alignment(self, set_unitary_alignements)
 
     def compute_gamma(self,
-                      dissimilarity: AbstractDissimilarity,
+                      dissimilarity: 'AbstractDissimilarity',
                       strategy: str = "single",
                       pivot_type: str = "float_pivot",
                       number_samples: int = 30,
                       # TODO: figure out if this should be optional or not
-                      confidence_level: Optional[Literal["low", "medium", "high"]] = None,
+                      precision_level: Optional[Literal["low", "medium", "high"]] = None,
                       ground_truth_annotators: Optional[List[Annotator]] = None) -> float:
         assert strategy in ("single", "multi")
         chance_disorders = []
@@ -359,13 +364,14 @@ class Continuum:
             sample_disorder = sampled_continuum.compute_disorders(dissimilarity)
             chance_disorders.append(sample_disorder)
 
-        if confidence_level is not None:
+        if precision_level is not None:
             # taken from subsection 5.3 of the original paper
-            # precision e = 2%
-            variation_coeff = np.mean(chance_disorders) / np.mean(chance_disorders)
-            z_value = Z_TABLE[confidence_level]
-            required_samples = np.ceil((variation_coeff * z_value / 0.02) ** 2).astype(np.int32)
-            logging.debug(f"Number of required samples for confidence {confidence_level}: {required_samples}")
+            # confidence at 95%, eg, 1.96
+            variation_coeff = np.std(chance_disorders) / np.mean(chance_disorders)
+            precision = PRECISION_LEVEL[precision_level]
+            confidence = 1.96
+            required_samples = np.ceil((variation_coeff * confidence / precision) ** 2).astype(np.int32)
+            logging.debug(f"Number of required samples for confidence {precision_level}: {required_samples}")
             if required_samples > number_samples:
                 for _ in range(required_samples - number_samples):
                     sampled_continuum = Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators)
@@ -376,7 +382,7 @@ class Continuum:
         return 1 - (best_align_disorder / np.mean(chance_disorders))
 
     def compute_gamma_cat(self):
-        pass
+        raise NotImplemented()
 
     def to_csv(self, path: Union[str, Path], delimiter=","):
         if isinstance(path, str):

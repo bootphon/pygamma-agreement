@@ -2,12 +2,11 @@
 
 import tempfile
 import numpy as np
-from pygamma.continuum import Continuum
+from pygamma.continuum import Continuum, Unit
 from pygamma.dissimilarity import (CategoricalDissimilarity,
-                                   SequenceDissimilarity,
                                    PositionalDissimilarity,
-                                   CombinedCategoricalDissimilarity,
-                                   CombinedSequenceDissimilarity)
+                                   CombinedCategoricalDissimilarity)
+from pygamma.alignment import (UnitaryAlignment, Alignment)
 
 from pyannote.core import Annotation, Segment
 
@@ -15,21 +14,33 @@ import pytest
 
 
 def test_categorical_dissimilarity():
-    categories = ['Carol', 'Bob', 'Alice', 'Jeremy']
+
+    categories = ['A', 'B', 'C', 'D']
     cat = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
                     [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]])
 
-    cat_dis = CategoricalDissimilarity(
+    cat_dis = CombinedCategoricalDissimilarity(
         list_categories=categories,
         categorical_dissimilarity_matrix=cat,
-        delta_empty=0.5)
+        delta_empty=0.5,
+        alpha=0.0,
+        beta=1.0)
     fake_seg = Segment(0, 1)
-    # TODO
-    assert cat_dis[((fake_seg, 'Carol'), (fake_seg, 'Carol'))] == 0.
-    assert cat_dis[((fake_seg, 'Carol'), (fake_seg, 'Jeremy'))] == 0.35
-    assert (cat_dis[((fake_seg, 'Carol'), (fake_seg, 'Jeremy'))]
+    unit_alignment = UnitaryAlignment((("Carol", Unit(fake_seg, "A")),
+                                       ("John", Unit(fake_seg, "D"))))
+    assert unit_alignment.compute_disorder(cat_dis) == np.float32(0.35)
+
+    unit_alignment = UnitaryAlignment((("Carol", Unit(fake_seg, "A")),
+                                       ("John", Unit(fake_seg, "A"))))
+    assert unit_alignment.compute_disorder(cat_dis) == np.float32(0.0)
+
+    unit_alignment_a = UnitaryAlignment((("Carol", Unit(fake_seg, "A")),
+                                       ("John", Unit(fake_seg, "B"))))
+    unit_alignment_b = UnitaryAlignment((("Carol", Unit(fake_seg, "B")),
+                                         ("John", Unit(fake_seg, "A"))))
+    assert (unit_alignment_a.compute_disorder(cat_dis)
             ==
-            cat_dis[((fake_seg, 'Jeremy'), (fake_seg, 'Carol'))])
+            unit_alignment_b.compute_disorder(cat_dis))
 
 
 def test_positional_dissimilarity():
