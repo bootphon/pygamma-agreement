@@ -84,9 +84,28 @@ class Continuum:
     """
 
     @classmethod
-    def from_csv(cls, path: Union[str, Path],
+    def from_csv(cls,
+                 path: Union[str, Path],
                  discard_invalid_rows=True,
                  delimiter: str = ","):
+        """
+        Load annotations from a CSV file , with structure
+        annotator, category, segment_start, segment_end
+
+        Parameters
+        ----------
+        path: path or str
+            Path to the CSV file storing annotations
+        discard_invalid_rows: bool
+            Path: if a row contains invalid annotations, discard it)
+        delimiter: str, default ","
+            CSV delimiter
+
+        Returns
+        -------
+        A new continuum object
+
+        """
         if isinstance(path, str):
             path = Path(path)
 
@@ -106,7 +125,20 @@ class Continuum:
         return continuum
 
     @classmethod
-    def from_rttm(cls, path: Union[str, Path]):
+    def from_rttm(cls, path: Union[str, Path]) -> 'Continuum':
+        """
+        Load annotations from a RTTM file. The file name field will be used
+        as an annotation's annotator
+
+        Parameters
+        ----------
+        path: path or str
+            Path to the CSV file storing annotations
+
+        Returns
+        -------
+        A new continuum object
+        """
         annotations = load_rttm(str(path))
         continuum = cls()
         for uri, annot in annotations.items():
@@ -210,6 +242,18 @@ class Continuum:
         return sum(unit.segment.duration for unit in self.iterunits()) / self.num_units
 
     def add(self, annotator: Annotator, segment: Segment, annotation: Optional[str] = None):
+        """
+        Add an annotation to the continuum
+
+        Parameters
+        ----------
+        annotator: str
+            The annotator that produced the added annotation
+        segment: `pyannote.core.Segment`
+            The segment for that annotation
+        annotation: optional str
+            That segment's annotation, if any.
+        """
         if segment.duration == 0.0:
             raise ValueError("Tried adding segment of duration 0.0")
 

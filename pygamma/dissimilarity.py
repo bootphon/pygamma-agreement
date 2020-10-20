@@ -31,7 +31,7 @@ Dissimilarity
 ##########
 
 """
-from typing import List, Optional, TYPE_CHECKING, Tuple
+from typing import List, Optional, TYPE_CHECKING, Tuple, Union
 
 import numba as nb
 import numpy as np
@@ -41,6 +41,7 @@ from pygamma.numba_utils import binom
 
 if TYPE_CHECKING:
     from .continuum import Continuum
+    from .alignment import Alignment
 
 
 @nb.njit(nb.float32(nb.float32[:], nb.float32[:], nb.float32))
@@ -59,11 +60,22 @@ class AbstractDissimilarity:
     def __init__(self, delta_empty: float):
         self.delta_empty = np.float32(delta_empty)
 
-    def build_args(self, continuum: 'Continuum') -> Tuple:
-        """Computes a compact, array-shaped representation of each annotators' units
+    def build_arrays_continuum(self, continuum: 'Continuum') -> List[np.ndarray]:
+        raise NotImplemented()
+
+    def build_arrays_alignment(self, alignment: 'Alignment') -> List[np.ndarray]:
+        raise NotImplemented()
+
+    def build_args(self, resource: Union['Alignment', 'Continuum']) -> Tuple:
+        """Computes a compact, array-shaped representation of units
         needed for fast computation of inter-units disorders
         computed and set when compute_disorder is called"""
-        raise NotImplemented()
+        from .continuum import Continuum
+        from .alignment import Alignment
+        if isinstance(resource, Continuum):
+            return self.build_arrays_continuum(resource),
+        elif isinstance(resource, Alignment):
+            return self.build_arrays_alignment(resource),
 
     @staticmethod
     def tuples_disorders(*args, **kwargs):
@@ -111,7 +123,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                           categorical_dissimilarity_matrix.T)
         self.cat_matrix = self.cat_matrix.astype(np.float32)
 
-    def build_categories_arrays(self, continuum: 'Continuum'):
+    def build_arrays_continuum(self, continuum: 'Continuum'):
         categories_arrays = nb.typed.List()
         for annotator_id, (annotator, units) in enumerate(continuum._annotations.items()):
             cat_array = np.zeros(len(units) + 1).astype(np.int16)
@@ -128,8 +140,29 @@ class CategoricalDissimilarity(AbstractDissimilarity):
             categories_arrays.append(cat_array)
         return categories_arrays
 
-    def build_args(self, continuum: 'Continuum') -> Tuple:
-        return self.build_categories_arrays(continuum),
+    def build_arrays_alignment(self, alignment: 'Alignment'):
+        cat_arrays = nb.typed.List()
+        for _ in range(alignment.num_annotators):
+            unit_dists_array = np.zeros(alignment.num_alignments)
+            cat_arrays.append(unit_dists_array.astype(np.int16))
+        for unit_id, unit_align in enumerate(alignment.unitary_alignments):
+            for annot_id, (annotator, unit) in enumerate(unit_align.n_tuple):
+                if unit is None:
+                    cat_arrays[annot_id][unit_id] = -1
+                    continue
+
+                if unit.annotation is None:
+                    raise ValueError(f"In unit {unit} in unitary alignment "
+                                     f"{unit_align}: annotation cannot be None")
+                try:
+                    cat_arrays[annot_id][unit_id] = self.categories_dict[unit.annotation]
+                except ValueError:
+                    raise ValueError(f"In unit {unit} for annotator {annotator}"
+                                     f"in unitary alignment {unit_align}: "
+                                     f"annotation of category {unit.category} "
+                                     f"is not in set {set(self.categories)} "
+                                     f"of allowed categories")
+        return cat_arrays
 
     def plot_categorical_dissimilarity_matrix(self):
         fig, ax = plt.subplots()
@@ -213,7 +246,7 @@ class PositionalDissimilarity(AbstractDissimilarity):
         empty dissimilarity value
     """
 
-    def build_positions_arrays(self, continuum: 'Continuum'):
+    def build_arrays_continuum(self, continuum: 'Continuum'):
         positions_arrays = nb.typed.List()
         for annotator_id, (annotator, units) in enumerate(continuum._annotations.items()):
             # dim x : segment
@@ -227,8 +260,26 @@ class PositionalDissimilarity(AbstractDissimilarity):
             positions_arrays.append(unit_dists_array)
         return positions_arrays
 
-    def build_args(self, continuum: 'Continuum') -> Tuple:
-        return self.build_positions_arrays(continuum),
+    def build_arrays_alignment(self, alignment: 'Alignment'):
+        positions_arrays = nb.typed.List()
+        null_unit_arr = np.array([np.NaN] * 3, dtype=np.float32)
+
+        for _ in range(alignment.num_annotators):
+            unit_dists_array = np.zeros((alignment.num_alignments, 3),
+                                        dtype=np.float32)
+            positions_arrays.append(unit_dists_array)
+        for unit_id, unit_align in enumerate(alignment.unitary_alignments):
+            # dim x : segment
+            # dim y : (start, end, dur)
+            for annot_it, (_, unit) in enumerate(unit_align.n_tuple):
+                if unit is None:
+                    positions_arrays[annot_it][unit_id] = null_unit_arr
+                    continue
+
+                positions_arrays[annot_it][unit_id][0] = unit.segment.start
+                positions_arrays[annot_it][unit_id][1] = unit.segment.end
+                positions_arrays[annot_it][unit_id][2] = unit.segment.duration
+        return positions_arrays
 
     @staticmethod
     @nb.njit(nb.float32[:](nb.int32[:, :],
@@ -297,9 +348,15 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         self.alpha = np.float32(alpha)
         self.beta = np.float32(beta)
 
-    def build_args(self, continuum: 'Continuum'):
-        return (self.positional_dissim.build_positions_arrays(continuum),
-                self.categorical_dissim.build_categories_arrays(continuum))
+    def build_args(self, resource: Union['Alignment', 'Continuum']) -> Tuple:
+        from .continuum import Continuum
+        from .alignment import Alignment
+        if isinstance(resource, Continuum):
+            return (self.positional_dissim.build_arrays_continuum(resource),
+                    self.categorical_dissim.build_arrays_continuum(resource))
+        elif isinstance(resource, Alignment):
+            return (self.positional_dissim.build_arrays_alignment(resource),
+                    self.categorical_dissim.build_arrays_alignment(resource))
 
     @staticmethod
     @nb.njit(nb.float32[:](nb.int32[:, :],
@@ -334,7 +391,6 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
                         distance_pos = positional_dissim(unit_a, unit_b, delta_empty)
                         distance_cat = cat_matrix[cat_a, cat_b] * delta_empty
                         disorders[tuple_id] += distance_pos * alpha + distance_cat * beta
-
         disorders = disorders / binom(units_tuples_ids.shape[1], 2)
 
         return disorders

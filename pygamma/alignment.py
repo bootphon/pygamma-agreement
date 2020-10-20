@@ -33,7 +33,7 @@ Alignement and disorder
 """
 from abc import ABCMeta, abstractmethod
 from collections import Counter
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Iterable
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -106,16 +106,9 @@ class UnitaryAlignment:
             return self._disorder
 
     def compute_disorder(self, dissimilarity: AbstractDissimilarity):
-        # building a fake continuum
-        from .continuum import Continuum
-        continuum = Continuum()
-        for annotator, unit in self._n_tuple:
-            continuum.add(annotator, unit.segment, unit.annotation)
-
-        disorder_args = dissimilarity.build_args(continuum)
-        unit_ids = np.zeros(len(self._n_tuple), dtype=np.int32)
-        unit_ids = unit_ids.reshape((1, len(self._n_tuple)))
-        self._disorder = dissimilarity(unit_ids, *disorder_args)[0]
+        # building a fake one-element alignment to compute the dissim
+        fake_alignment = Alignment([self])
+        self._disorder = fake_alignment.compute_disorder(dissimilarity)
         return self._disorder
 
 
@@ -124,31 +117,93 @@ class Alignment(AbstractAlignment):
 
     Parameters
     ----------
-    continuum :
-        Continuum where the alignment is from
-    set_unitary_alignments :
+    unitary_alignments :
         set of unitary alignments that make a partition of the set of
         units/segments
+    continuum : optional Continuum
+        Continuum where the alignment is from
+    check_validity: bool
+        Check the validity of that Alignment against the specified continuum
     """
 
     def __init__(self,
-                 continuum: 'Continuum',
-                 set_unitary_alignments: List[UnitaryAlignment]):
-        self.set_unitary_alignments = set_unitary_alignments
+                 unitary_alignments: Iterable[UnitaryAlignment],
+                 continuum: Optional['Continuum'] = None,
+                 check_validity: bool = False
+                 ):
+        self.unitary_alignments = list(unitary_alignments)
         self.continuum = continuum
         self._disorder: Optional[float] = None
 
+        if not check_validity:
+            return
+        else:
+            self.check()
+
+    @property
+    def num_alignments(self):
+        return len(self.unitary_alignments)
+
+    @property
+    def num_annotators(self):
+        return len(self.unitary_alignments[0].n_tuple)
+
+    @property
+    def disorder(self):
+        if self._disorder is None:
+            self._disorder = (sum(u_align.disorder for u_align
+                                  in self.unitary_alignments)
+                              / self.num_alignments)
+        return self._disorder
+
+    def compute_disorder(self, dissimilarity: AbstractDissimilarity):
+        disorder_args = dissimilarity.build_args(self)
+        unit_ids = np.arange(self.num_alignments, dtype=np.int32)
+        unit_ids = np.vstack([unit_ids] * self.num_annotators)
+        unit_ids = unit_ids.swapaxes(0, 1)
+        self._disorder = (dissimilarity(unit_ids, *disorder_args).sum()
+                          / self.num_alignments)
+        return self._disorder
+
+    def check(self, continuum: Optional['Continuum'] = None):
+        """
+        Checks that an alignment is valid in relation to a Continuum. That is,
+        that all annotations from the referenced continuum *can be found*
+        in the alignment and can be found *only once*.
+
+        Parameters:
+        -----------
+        continuum: optional Continuum
+            Continuum to check the alignment against. If none is specified,
+            will try to use the one set at instanciation.
+
+        Raises
+        -------
+        ValueError, SetPartitionError
+        """
+        if continuum is None:
+            if self.continuum is None:
+                raise ValueError("No continuum was set")
+            continuum = self.continuum
+
+        # simple check: verify that all unitary alignments have the same length
+        first_len = len(self.unitary_alignments[0].n_tuple)
+        for unit_align in self.unitary_alignments:
+            if len(unit_align.n_tuple) != first_len:
+                raise ValueError(
+                    f"Unitary alignments {self.unitary_alignments[0]} and"
+                    f"{unit_align} don't have the same amount of units tuples")
+
         # set partition tests for the unitary alignments
-        # TODO : this has to be tested
-        # TODO: maybe check for temporal coherence of each "tier" (seg n < seg n + 1)
-        # TODO: check that each unitary alignment has the same number of annotators
         continuum_tuples = set()
-        for annotator, units in self.continuum:
-            continuum_tuples.update(set((annotator, segment) for segment in units.key()))
+        for annotator, units in continuum:
+            continuum_tuples.update(set((annotator, segment) for segment in units.keys()))
 
         alignment_tuples = list()
-        for unitary_alignment in self.set_unitary_alignments:
+        for unitary_alignment in self.unitary_alignments:
             for (annotator, unit) in unitary_alignment.n_tuple:
+                if unit is None:
+                    continue
                 alignment_tuples.append((annotator, unit.segment))
 
         # let's first look for missing ones, then for repeated assignments
@@ -169,25 +224,3 @@ class Alignment(AbstractAlignment):
             raise SetPartitionError(f'{repeated_tuples_str} '
                                     f'are found more than once in the set '
                                     f'of unitary alignments')
-
-    @property
-    def num_alignments(self):
-        return len(self.set_unitary_alignments)
-
-    @property
-    def disorder(self):
-        if self._disorder is None:
-            self._disorder = (sum(u_align.disorder for u_align
-                                  in self.set_unitary_alignments)
-                              / self.num_alignments)
-        return self._disorder
-
-    def compute_disorder(self, dissimilarity: AbstractDissimilarity):
-        alignments_sum = 0
-        for unit_align in self.set_unitary_alignments:
-            try:
-                alignments_sum += unit_align.disorder
-            except ValueError:
-                alignments_sum += unit_align.compute_disorder(dissimilarity)
-        self._disorder = alignments_sum / self.num_alignments
-        return self._disorder
