@@ -105,6 +105,10 @@ class UnitaryAlignment:
         else:
             return self._disorder
 
+    @disorder.setter
+    def disorder(self, value: float):
+        self._disorder = value
+
     def compute_disorder(self, dissimilarity: AbstractDissimilarity):
         # building a fake one-element alignment to compute the dissim
         fake_alignment = Alignment([self])
@@ -161,6 +165,9 @@ class Alignment(AbstractAlignment):
         unit_ids = np.arange(self.num_alignments, dtype=np.int32)
         unit_ids = np.vstack([unit_ids] * self.num_annotators)
         unit_ids = unit_ids.swapaxes(0, 1)
+        disorders = dissimilarity(unit_ids, *disorder_args)
+        for i, disorder in enumerate(disorders):
+            self.unitary_alignments[i].disorder = disorder
         self._disorder = (dissimilarity(unit_ids, *disorder_args).sum()
                           / self.num_alignments)
         return self._disorder
@@ -207,7 +214,7 @@ class Alignment(AbstractAlignment):
                 alignment_tuples.append((annotator, unit.segment))
 
         # let's first look for missing ones, then for repeated assignments
-        missing_tuples = set(alignment_tuples) - continuum_tuples
+        missing_tuples = continuum_tuples - set(alignment_tuples)
         if missing_tuples:
             repeated_tuples_str = ', '.join(f"{annotator}->{segment}"
                                             for annotator, segment in missing_tuples)

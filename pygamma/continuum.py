@@ -40,7 +40,6 @@ from typing import Optional, Dict, Tuple, List, Union, Set, Iterable, TYPE_CHECK
 
 import cvxpy as cp
 import numpy as np
-import pandas as pd
 from dataclasses import dataclass
 from pyannote.core import Annotation, Segment, Timeline
 from pyannote.database.util import load_rttm
@@ -57,6 +56,7 @@ CHUNK_SIZE = 2 ** 25
 
 # defining Annotator type
 Annotator = str
+PivotType = Literal["float_pivot", "int_pivot"]
 
 # percentages for the precision
 PRECISION_LEVEL = {
@@ -147,7 +147,7 @@ class Continuum:
 
     @classmethod
     def sample_from_continuum(cls, continuum: 'Continuum',
-                              pivot_type: str = "float_pivot",
+                              pivot_type: PivotType = "float_pivot",
                               ground_truth_annotators: Optional[List[Annotator]] = None) -> 'Continuum':
         assert pivot_type in ('float_pivot', 'int_pivot')
         """Generate a new random annotation from a single continuum
@@ -175,7 +175,7 @@ class Continuum:
             units = continuum._annotations[rnd_annotator]
             sampled_annotation = SortedDict()
             for segment, unit in units.items():
-                if pivot - segment.start < 0:
+                if pivot < segment.start:
                     new_segment = Segment(segment.start - pivot, segment.end - pivot)
                 else:
                     new_segment = Segment(segment.start + pivot, segment.end + pivot)
@@ -266,7 +266,6 @@ class Continuum:
         if self._alignments_disorders is not None:
             self._chosen_alignments = None
             self._alignments_disorders = None
-
 
     def add_annotation(self, annotator: Annotator, annotation: Annotation):
         for label in annotation.labels():
@@ -396,41 +395,52 @@ class Continuum:
                 except IndexError:  # it's a "null unit"
                     u_align_tuple.append((annotator, None))
             unitary_alignment = UnitaryAlignment(tuple(u_align_tuple))
-            unitary_alignment._disorder = self._alignments_disorders[alignment_id]
+            unitary_alignment.disorder = self._alignments_disorders[alignment_id]
             set_unitary_alignements.append(unitary_alignment)
-        return Alignment(self, set_unitary_alignements)
+        return Alignment(set_unitary_alignements, continuum=self, check_validity=True)
 
     def compute_gamma(self,
                       dissimilarity: 'AbstractDissimilarity',
-                      strategy: str = "single",
-                      pivot_type: str = "float_pivot",
-                      number_samples: int = 30,
+                      n_samples: int = 30,
                       # TODO: figure out if this should be optional or not
-                      precision_level: Optional[Literal["low", "medium", "high"]] = None,
-                      ground_truth_annotators: Optional[List[Annotator]] = None) -> float:
-        assert strategy in ("single", "multi")
+                      precision_level: Optional[float] = None,
+                      ground_truth_annotators: Optional[List[Annotator]] = None,
+                      sampling_strategy: str = "single",
+                      pivot_type: PivotType = "float_pivot",
+                      ) -> 'GammaResults':
+        assert sampling_strategy in ("single", "multi")
+        if sampling_strategy == "multi":
+            raise NotImplemented("Multi-continuum sampling strategy is not "
+                                 "supported for now")
+
         chance_disorders = []
-        for _ in range(number_samples):
+        for _ in range(n_samples):
             sampled_continuum = Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators)
             sample_disorder = sampled_continuum.compute_disorders(dissimilarity)
             chance_disorders.append(sample_disorder)
 
         if precision_level is not None:
+            assert 0 < precision_level < 1.0
             # taken from subsection 5.3 of the original paper
             # confidence at 95%, eg, 1.96
             variation_coeff = np.std(chance_disorders) / np.mean(chance_disorders)
-            precision = PRECISION_LEVEL[precision_level]
             confidence = 1.96
-            required_samples = np.ceil((variation_coeff * confidence / precision) ** 2).astype(np.int32)
+            required_samples = np.ceil((variation_coeff * confidence / precision_level) ** 2).astype(np.int32)
             logging.debug(f"Number of required samples for confidence {precision_level}: {required_samples}")
-            if required_samples > number_samples:
-                for _ in range(required_samples - number_samples):
+            if required_samples > n_samples:
+                for _ in range(required_samples - n_samples):
                     sampled_continuum = Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators)
                     sample_disorder = sampled_continuum.compute_disorders(dissimilarity)
                     chance_disorders.append(sample_disorder)
+        best_alignment = self.get_best_alignment(dissimilarity)
 
-        best_align_disorder = self.compute_disorders(dissimilarity)
-        return 1 - (best_align_disorder / np.mean(chance_disorders))
+        return GammaResults(
+            best_alignment=best_alignment,
+            pivot_type=pivot_type,
+            n_samples=n_samples,
+            chance_disorders=np.array(chance_disorders),
+            precision_level=precision_level
+        )
 
     def compute_gamma_cat(self):
         raise NotImplemented()
@@ -443,6 +453,48 @@ class Continuum:
             for annotator, units in self._annotations.items():
                 for unit in units.values():
                     writer.writerow([annotator, unit.annotation, unit.segment.start, unit.segment.end])
+
+
+@dataclass
+class GammaResults:
+    best_alignment: 'Alignment'
+    pivot_type: PivotType
+    n_samples: int
+    chance_disorders: np.ndarray
+    precision_level: Optional[float] = None
+
+    @property
+    def alignments_nb(self):
+        return len(self.best_alignment.unitary_alignments)
+
+    @property
+    def observed_agreement(self) -> float:
+        """Returns the disorder of the computed best alignment, i.e, the
+        observed agreement."""
+        return self.best_alignment.disorder
+
+    @property
+    def expected_disagreement(self) -> float:
+        """Returns the expected disagreement for computed random samples, i.e.,
+        the mean of the sampled continuua's disorders"""
+        return self.chance_disorders.mean()
+
+    @property
+    def expected_gamma_boundaries(self):
+        """Returns a tuple of the expected boundaries of the computed gamma,
+         obtained using the expected disagreement and the precision level"""
+        if self.precision_level is None:
+            raise ValueError("No precision level has been set, cannot compute"
+                             "the gamma boundaries")
+        return (1 - self.observed_agreement / (self.expected_disagreement *
+                                               (1 - self.precision_level)),
+                1 - self.observed_agreement / (self.expected_disagreement *
+                                               (1 + self.precision_level)))
+
+    @property
+    def gamma(self):
+        """Returns the gamma value"""
+        return 1 - self.observed_agreement / self.expected_disagreement
 
 
 class Corpus:

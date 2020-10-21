@@ -29,14 +29,16 @@ timer.lap()
 
 dissim = CombinedCategoricalDissimilarity(list(continuum.categories),
                                           delta_empty=1,
-                                          alpha=1,
+                                          alpha=3,
                                           beta=1)
 print("Computing disorder")
 print(continuum.compute_disorders(dissim))
+best_alignment = continuum.get_best_alignment(dissim)
+print(f"Best align length: {len(best_alignment.unitary_alignments)}")
 timer.lap()
 print("Computing gamma")
-gamma = continuum.compute_gamma(dissim, precision_level="low")
-print(f"Gamma is {gamma}")
+gamma = continuum.compute_gamma(dissim, precision_level=0.01)
+print(f"Gamma is {gamma.gamma}")
 timer.lap()
 
 timer.total()
