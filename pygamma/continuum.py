@@ -167,9 +167,9 @@ class Continuum:
         # TODO: why not sample from the whole continuum?
         for idx in range(continuum.num_annotators):
             if pivot_type == 'float_pivot':
-                pivot = np.random.uniform(continuum.avg_length_unit, last_start_time)
+                pivot = random.uniform(continuum.avg_length_unit, last_start_time)
             else:
-                pivot = np.random.randint(continuum.avg_length_unit, last_start_time)
+                pivot = random.randint(continuum.avg_length_unit, last_start_time)
 
             rnd_annotator = random.choice(annotators)
             units = continuum._annotations[rnd_annotator]
@@ -407,11 +407,15 @@ class Continuum:
                       ground_truth_annotators: Optional[List[Annotator]] = None,
                       sampling_strategy: str = "single",
                       pivot_type: PivotType = "float_pivot",
+                      random_seed: Optional[float] = 4577
                       ) -> 'GammaResults':
         assert sampling_strategy in ("single", "multi")
         if sampling_strategy == "multi":
             raise NotImplemented("Multi-continuum sampling strategy is not "
                                  "supported for now")
+
+        if random_seed is not None:
+            random.seed(random_seed)
 
         chance_disorders = []
         for _ in range(n_samples):
