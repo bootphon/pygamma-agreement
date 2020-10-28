@@ -61,9 +61,9 @@ def test_unitary_alignment():
                     [0.3, 0.6, 0., 0.7],
                     [0.7, 0.4, 0.7, 0.]])
     combi_dis = CombinedCategoricalDissimilarity(
-        list_categories=categories,
+        categories=categories,
         delta_empty=0.5,
-        categorical_dissimilarity_matrix=cat,
+        cat_dissimilarity_matrix=cat,
         alpha=1)
     n_tuple = (('liza', Unit(Segment(12, 18), "Carol")),
                ('pierrot', Unit(Segment(12, 18), "Alice")),
@@ -105,9 +105,9 @@ def test_alignment():
                     [0.3, 0.6, 0., 0.7],
                     [0.7, 0.4, 0.7, 0.]])
     combi_dis = CombinedCategoricalDissimilarity(
-        list_categories=categories,
+        categories=categories,
         delta_empty=0.5,
-        categorical_dissimilarity_matrix=cat)
+        cat_dissimilarity_matrix=cat)
     set_unitary_alignments = []
 
     n_tuple = (('liza', Unit(Segment(1, 5), 'Carol')),
@@ -180,9 +180,9 @@ def test_best_alignment():
                     [0.3, 0.6, 0., 0.7],
                     [0.7, 0.4, 0.7, 0.]])
     combi_dis = CombinedCategoricalDissimilarity(
-        list_categories=categories,
+        categories=categories,
         delta_empty=0.5,
-        categorical_dissimilarity_matrix=cat)
+        cat_dissimilarity_matrix=cat)
     set_unitary_alignments = []
 
     n_tuple = (('liza', Unit(Segment(1, 5), 'Carol')),

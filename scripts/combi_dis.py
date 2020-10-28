@@ -27,9 +27,9 @@ cat = np.array([[0, 0.5, 0.3, 0.7],
                 [0.3, 0.6, 0., 0.7],
                 [0.7, 0.4, 0.7, 0.]])
 combi_dis = CombinedCategoricalDissimilarity(
-    list_categories=categories,
+    categories=categories,
     delta_empty=0.5,
-    categorical_dissimilarity_matrix=cat,
+    cat_dissimilarity_matrix=cat,
     alpha=3, beta=1)
 list_dis = []
 for liza_unit in continuum['liza'].values():

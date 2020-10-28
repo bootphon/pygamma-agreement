@@ -169,7 +169,7 @@ class Continuum:
             if pivot_type == 'float_pivot':
                 pivot = random.uniform(continuum.avg_length_unit, last_start_time)
             else:
-                pivot = random.randint(continuum.avg_length_unit, last_start_time)
+                pivot = random.randint(np.floor(continuum.avg_length_unit), np.ceil(last_start_time))
 
             rnd_annotator = random.choice(annotators)
             units = continuum._annotations[rnd_annotator]
@@ -243,7 +243,7 @@ class Continuum:
 
     def add(self, annotator: Annotator, segment: Segment, annotation: Optional[str] = None):
         """
-        Add an annotation to the continuum
+        Add a segment to the continuum
 
         Parameters
         ----------

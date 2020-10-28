@@ -90,26 +90,27 @@ class CategoricalDissimilarity(AbstractDissimilarity):
 
     Parameters
     ----------
-    list_categories :
-        list of categories
-    categorical_dissimilarity_matrix :
-        Dissimilarity matrix to compute
-    delta_empty :
-        empty dissimilarity value
+    categories : list of str
+        list of N categories
+    cat_dissimilarity_matrix : optional, (N,N) numpy array
+        Dissimilarity values between categories. Has to be symetrical
+        with an empty diagonal. Defaults to setting all dissimilarities to 1.
+    delta_empty : optional, float
+        empty dissimilarity value. Defaults to 1.
     """
 
     def __init__(self,
-                 list_categories: List[str],
-                 categorical_dissimilarity_matrix: Optional[np.ndarray] = None,
+                 categories: List[str],
+                 cat_dissimilarity_matrix: Optional[np.ndarray] = None,
                  delta_empty: float = 1):
         super().__init__(delta_empty)
 
-        self.categories = set(list_categories)
-        self.categories_dict = {cat: i for i, cat in enumerate(list_categories)}
-        assert len(list_categories) == len(self.categories)
+        self.categories = set(categories)
+        self.categories_dict = {cat: i for i, cat in enumerate(categories)}
+        assert len(categories) == len(self.categories)
         self.categories_nb = len(self.categories)
         # TODO: make sure that the categorical dissim matrix matches the categories order
-        self.cat_matrix = categorical_dissimilarity_matrix
+        self.cat_matrix = cat_dissimilarity_matrix
         if self.cat_matrix is None:
             # building the default dissimilarity matrix
             self.cat_matrix = (np.ones((self.categories_nb, self.categories_nb))
@@ -120,7 +121,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
             assert np.all(self.cat_matrix <= 1)
             assert np.all(0 <= self.cat_matrix)
             assert np.all(self.cat_matrix ==
-                          categorical_dissimilarity_matrix.T)
+                          cat_dissimilarity_matrix.T)
         self.cat_matrix = self.cat_matrix.astype(np.float32)
 
     def build_arrays_continuum(self, continuum: 'Continuum'):
@@ -316,37 +317,42 @@ class PositionalDissimilarity(AbstractDissimilarity):
                                          delta_empty=self.delta_empty)
 
 
+
+
 class CombinedCategoricalDissimilarity(AbstractDissimilarity):
-    """Combined Dissimilarity
-
-    Parameters
-    ----------
-    list_categories :
-        list of categories
-    categorical_dissimilarity_matrix :
-        Dissimilarity matrix to compute
-    delta_empty :
-        empty dissimilarity value
-    alpha:
-        coefficient weighting the positional dissimilarity value
-    beta:
-        coefficient weighting the categorical dissimilarity value
-    """
-
     def __init__(self,
-                 list_categories: List[str],
+                 categories: List[str],
                  alpha: float = 3,
                  beta: float = 1,
                  delta_empty: float = 1,
-                 categorical_dissimilarity_matrix=None):
+                 cat_dissimilarity_matrix=None):
         super().__init__(delta_empty)
         self.categorical_dissim = CategoricalDissimilarity(
-            list_categories,
-            categorical_dissimilarity_matrix,
+            categories,
+            cat_dissimilarity_matrix,
             delta_empty)
         self.positional_dissim = PositionalDissimilarity(delta_empty)
         self.alpha = np.float32(alpha)
         self.beta = np.float32(beta)
+
+    """Combined Dissimilarity
+
+    Parameters
+    ----------
+    categories : list of str
+        list of N categories
+    cat_dissimilarity_matrix : optional, (N,N) numpy array
+        Dissimilarity values between categories. Has to be symetrical 
+        with an empty diagonal. Defaults to setting all dissimilarities to 1.
+    delta_empty : optional, float
+        empty dissimilarity value. Defaults to 1.
+    alpha: optional float
+        coefficient weighting the positional dissimilarity value.
+        Defaults to 1.
+    beta: optional float
+        coefficient weighting the categorical dissimilarity value.
+        Defaults to 1.
+    """
 
     def build_args(self, resource: Union['Alignment', 'Continuum']) -> Tuple:
         from .continuum import Continuum

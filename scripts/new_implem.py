@@ -24,7 +24,7 @@ timer.start()
 logging.getLogger().setLevel(logging.DEBUG)
 
 print("Loading")
-continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
+continuum = Continuum.from_csv(Path("tests/data/3by100.csv"))
 timer.lap()
 
 dissim = CombinedCategoricalDissimilarity(list(continuum.categories),
@@ -37,7 +37,7 @@ best_alignment = continuum.get_best_alignment(dissim)
 print(f"Best align length: {len(best_alignment.unitary_alignments)}")
 timer.lap()
 print("Computing gamma")
-gamma = continuum.compute_gamma(dissim, precision_level=0.01)
+gamma = continuum.compute_gamma(dissim, precision_level=0.05, pivot_type="int_pivot")
 print(f"Gamma is {gamma.gamma}")
 timer.lap()
 

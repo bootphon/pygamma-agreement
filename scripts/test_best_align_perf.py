@@ -32,9 +32,9 @@ cat = np.array([[0, 0.5, 0.3, 0.7], [0.5, 0., 0.6, 0.4],
 
 combi_dis = CombinedCategoricalDissimilarity(
     'diarization',
-    list_categories=list(categories),
+    categories=list(categories),
     DELTA_EMPTY=0.5,
-    categorical_dissimilarity_matrix=cat)
+    cat_dissimilarity_matrix=cat)
 
 start_t = time.time()
 best_alignement = Alignment.get_best_alignment(continuum, combi_dis)
