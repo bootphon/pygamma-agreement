@@ -26,7 +26,7 @@
 # AUTHORS
 # Rachid RIAD & Hadrien TITEUX
 
-from .continuum import Continuum, Corpus
+from .continuum import Continuum, Corpus, GammaResults
 from .alignment import Alignment, UnitaryAlignment
 from .dissimilarity import (PositionalDissimilarity,
                             CategoricalDissimilarity,

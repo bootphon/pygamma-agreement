@@ -71,7 +71,7 @@ coefficients.
 
     from pygamma_agreement import CombinedCategoricalDissimilarity
 
-    dissim = CombinedCategoricalDissimilarity(["Marvin", "Maureen", "Robin"],
+    dissim = CombinedCategoricalDissimilarity(list(continuum.categories),
                                               alpha=1, beta=2)
 
 

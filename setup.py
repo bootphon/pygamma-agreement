@@ -39,7 +39,7 @@ setup(
     packages=find_packages(),
     install_requires=requirements,
     extras_require={'test': ['pytest']},
-    version='0.0.1',
+    version='0.1.0',
 
     # PyPI
     name='pygamma',
@@ -59,7 +59,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'add-manager = pygamma.cli_apps.add_manager:pygamma_cmd',
+            'pygamma-agreement = pygamma.cli_apps:pygamma_cmd',
         ]
     }
 )
