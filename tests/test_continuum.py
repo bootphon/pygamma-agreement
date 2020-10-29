@@ -1,11 +1,8 @@
 """Test of the module pygamma.continuum"""
 
-import tempfile
-import numpy as np
-from pygamma.continuum import Continuum
 from pyannote.core import Annotation, Segment
 
-import pytest
+from pygamma.continuum import Continuum
 
 
 def test_continuum_init():

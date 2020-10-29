@@ -224,6 +224,3 @@ def test_best_alignment():
     assert best_alignment.disorder == pytest.approx(0.31401409465020574,
                                                     0.001)
     assert best_alignment.disorder < alignment.compute_disorder(combi_dis)
-
-
-# TODO test continuum for best alignment

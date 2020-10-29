@@ -83,7 +83,6 @@ argparser.add_argument("-v", "--verbose",
 
 
 def pygamma_cmd():
-    # TODO: add support for positional only dissim and categorical only
     args = argparser.parse_args()
     logging.getLogger().setLevel(logging.INFO if args.verbose else logging.ERROR)
 

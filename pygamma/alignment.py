@@ -33,15 +33,15 @@ Alignement and disorder
 """
 from abc import ABCMeta, abstractmethod
 from collections import Counter
-from typing import List, Tuple, Optional, Iterable
 from typing import TYPE_CHECKING
+from typing import Tuple, Optional, Iterable
 
 import numpy as np
 
 from .dissimilarity import AbstractDissimilarity
 
 if TYPE_CHECKING:
-    from .continuum import Continuum, Unit, Annotator
+    from .continuum import Continuum
 
 UnitsTuple = Tuple[Tuple['Annotator', 'Unit']]
 

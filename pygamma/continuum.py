@@ -34,9 +34,8 @@ Continuum and corpus
 import csv
 import logging
 import random
-from functools import lru_cache
 from pathlib import Path
-from typing import Optional, Dict, Tuple, List, Union, Set, Iterable, TYPE_CHECKING
+from typing import Optional, Tuple, List, Union, Set, Iterable, TYPE_CHECKING
 
 import cvxpy as cp
 import numpy as np
@@ -404,7 +403,6 @@ class Continuum:
     def compute_gamma(self,
                       dissimilarity: 'AbstractDissimilarity',
                       n_samples: int = 30,
-                      # TODO: figure out if this should be optional or not
                       precision_level: Optional[float] = None,
                       ground_truth_annotators: Optional[List[Annotator]] = None,
                       sampling_strategy: str = "single",
@@ -514,7 +512,7 @@ class GammaResults:
         return self.chance_disorders.mean()
 
     @property
-    def expected_gamma_boundaries(self):
+    def approx_gamma_range(self):
         """Returns a tuple of the expected boundaries of the computed gamma,
          obtained using the expected disagreement and the precision level"""
         if self.precision_level is None:

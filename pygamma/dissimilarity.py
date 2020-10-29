@@ -326,6 +326,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
                  beta: float = 1,
                  delta_empty: float = 1,
                  cat_dissimilarity_matrix=None):
+        # TODO: add check alpha beta > 0
         super().__init__(delta_empty)
         self.categorical_dissim = CategoricalDissimilarity(
             categories,
