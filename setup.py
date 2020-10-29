@@ -31,28 +31,35 @@ from setuptools import setup, find_packages
 with open("requirements.txt") as req_file:
     requirements = req_file.read().split("\n")
 
+with open("README.md") as readme_file:
+    long_description = readme_file.read()
+
 setup(
 
     # package
     packages=find_packages(),
     install_requires=requirements,
     extras_require={'test': ['pytest']},
-    version='0.1.0',
+    version='0.1.1',
 
     # PyPI
     name='pygamma-agreement',
     description=('Inter-annotator agreement measure and alignment'
                  'written in python'),
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     author='Rachid RIAD',
     author_email='rachid.riad@ens.fr',
     url='http://pygamme.readthedocs.io/',
     classifiers=[
-        "Development Status :: 0.1 - Beta",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
-        "Natural Language :: English", "Programming Language :: Python :: 3",
+        "Natural Language :: English",
+        "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Topic :: Scientific/Engineering"
     ],
     entry_points={
