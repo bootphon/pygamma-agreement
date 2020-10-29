@@ -3,7 +3,7 @@ Pygamma-agreement
 
 | Branch  | Build status                                                                                                                     |
 |---------|----------------------------------------------------------------------------------------------------------------------------------|
-| master  | [![Build Status](https://travis-ci.com/Rachine/pygamma-agreement.svg?token=RBFAQCRfvbxdpaEByTFc&branch=master)](https://travis-ci.com/Rachine/PyGammaAgreement/)  |
+| master  | [![Build Status](https://travis-ci.com/Rachine/pygamma-agreement.svg?branch=master?token=RBFAQCRfvbxdpaEByTFc&branch=master)](https://travis-ci.com/Rachine/pygamma-agreement/)  |
 
 
 **pygamma-agreement** is an open-source package to measure Inter/Intra-annotator agreement for sequences of annotations with the γ measure [2]. It is written in Python 3 and based mostly on NumPy, Numba and Pyannote.core. For a full list of available functions, please refer to the `API documentation <https://github.com/Rachine/pygamma-agreement>`_.
