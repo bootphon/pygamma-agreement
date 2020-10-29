@@ -24,6 +24,10 @@
 # SOFTWARE.
 
 # AUTHORS
-# Rachid RIAD
+# Rachid RIAD & Hadrien TITEUX
 
-__import__('pkg_resources').declare_namespace(__name__)
+from .continuum import Continuum, Corpus
+from .alignment import Alignment, UnitaryAlignment
+from .dissimilarity import (PositionalDissimilarity,
+                            CategoricalDissimilarity,
+                            CombinedCategoricalDissimilarity)

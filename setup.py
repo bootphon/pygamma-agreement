@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2014-2019 CNRS
+# Copyright (c) 2020 CoML
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -36,23 +36,18 @@ with open("requirements.txt") as req_file:
 setup(
 
     # package
-    namespace_packages=['pygamma'],
     packages=find_packages(),
     install_requires=requirements,
     extras_require={'test': ['pytest']},
-
-    # # versioneer
-    # version=versioneer.get_version(),
-    # cmdclass=versioneer.get_cmdclass(),
     version='0.0.1',
 
     # PyPI
     name='pygamma',
-    description=('Inter-annotator agreement measure and alginement'
+    description=('Inter-annotator agreement measure and alignment'
                  'written in python'),
     author='Rachid RIAD',
     author_email='rachid.riad@ens.fr',
-    # url='http://pyannote.github.io/',
+    url='http://pygamme.readthedocs.io/',
     classifiers=[
         "Development Status :: 0.1 - Beta",
         "Intended Audience :: Science/Research",
@@ -62,4 +57,9 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Topic :: Scientific/Engineering"
     ],
+    entry_points={
+        'console_scripts': [
+            'add-manager = pygamma.cli_apps.add_manager:pygamma_cmd',
+        ]
+    }
 )
