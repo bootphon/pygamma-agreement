@@ -26,8 +26,6 @@
 # AUTHORS
 # Rachid RIAD
 
-# import versioneer
-
 from setuptools import setup, find_packages
 
 with open("requirements.txt") as req_file:
@@ -42,7 +40,7 @@ setup(
     version='0.1.0',
 
     # PyPI
-    name='pygamma',
+    name='pygamma-agreement',
     description=('Inter-annotator agreement measure and alignment'
                  'written in python'),
     author='Rachid RIAD',
