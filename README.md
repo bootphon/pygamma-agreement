@@ -3,10 +3,10 @@ Pygamma-agreement
 
 | Branch  | Build status                                                                                                                     |
 |---------|----------------------------------------------------------------------------------------------------------------------------------|
-| master  | [![Build Status](https://travis-ci.com/Rachine/PyGammaAgreement.svg?token=RBFAQCRfvbxdpaEByTFc&branch=master)](https://travis-ci.com/Rachine/PyGammaAgreement/)  |
+| master  | [![Build Status](https://travis-ci.com/Rachine/pygamma-agreement.svg?token=RBFAQCRfvbxdpaEByTFc&branch=master)](https://travis-ci.com/Rachine/PyGammaAgreement/)  |
 
 
-**PyGammaAgreement** is an open-source package to measure Inter/Intra-annotator agreement for sequences of annotations with the γ measure [2]. It is written in Python 3 and based mostly on NumPy, Numba and Pyannote.core. For a full list of available functions, please refer to the `API documentation <https://github.com/Rachine/PyGammaAgreement>`_.
+**pygamma-agreement** is an open-source package to measure Inter/Intra-annotator agreement for sequences of annotations with the γ measure [2]. It is written in Python 3 and based mostly on NumPy, Numba and Pyannote.core. For a full list of available functions, please refer to the `API documentation <https://github.com/Rachine/pygamma-agreement>`_.
 
 Installation
 ============
@@ -14,7 +14,7 @@ Installation
 Dependencies
 ------------
 
-The main dependencies of PyGammaAgreement are :
+The main dependencies of pygamma-agreement are :
 
 * `NumPy <https://numpy.org/>`_ (>= 1.10)
 * `SciPy <https://www.scipy.org/>`_ (>= 1.1.0)
@@ -28,12 +28,12 @@ The main dependencies of PyGammaAgreement are :
 * `typing_extensions <https://github.com/python/typing>`_ (>= 3.7.4.3)
 
 
-PyGammaAgreement is a Python 3 package and is currently tested for Python 3.7. PyGammaAgreement does not work with Python 2.7.
+pygamma-agreement is a Python 3 package and is currently tested for Python 3.7. PyGammaAgreement does not work with Python 2.7.
 
 User installation
 -----------------
 
-PyGammaAgreement can be easily installed using pip
+pygamma-agreement can be easily installed using pip
 
 .. code-block:: shell
 
@@ -59,7 +59,7 @@ The package comes with a unit-tests suit. To run it, first install *pytest* on y
 
 #### References
     .. [1] Titeux H., Riad R.
-           *PyGammaAgreement: Gamma γ measure for inter-annotator agreement and alignment in Python.*
+           *pygamma-agreement: Gamma γ measure for inter-annotator agreement and alignment in Python.*
            
 
     .. [2] Mathet Y., Widlöcher A., Métivier, J.P.
