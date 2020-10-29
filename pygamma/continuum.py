@@ -165,11 +165,13 @@ class Continuum:
             annotators = continuum.annotators
 
         # TODO: why not sample from the whole continuum?
+        # TODO : shouldn't the sampled annotators nb be equal to the annotators amount?
         for idx in range(continuum.num_annotators):
             if pivot_type == 'float_pivot':
                 pivot = random.uniform(continuum.avg_length_unit, last_start_time)
             else:
-                pivot = random.randint(np.floor(continuum.avg_length_unit), np.ceil(last_start_time))
+                pivot = random.randint(np.floor(continuum.avg_length_unit),
+                                       np.ceil(last_start_time))
 
             rnd_annotator = random.choice(annotators)
             units = continuum._annotations[rnd_annotator]
@@ -409,6 +411,31 @@ class Continuum:
                       pivot_type: PivotType = "float_pivot",
                       random_seed: Optional[float] = 4577
                       ) -> 'GammaResults':
+        """
+
+        Parameters
+        ----------
+        dissimilarity: AbstractDissimilarity
+            dissimilarity instance. Used to compute the disorder between units.
+        n_samples: optional int
+            number of random continuum sampled from this continuum  used to
+            estimate the gamma measure
+        precision_level: optional float
+            error percentage of the gamma estimation.
+        ground_truth_annotators:
+            if set, the random continuua will only be sampled from these
+            annotators. This should be used when you want to compare a prediction
+            against some ground truth annotation.
+        pivot_type: 'float_pivot' or 'int_pivot'
+            pivot type to be used when sampling continuua
+        random_seed: optional float, int or str
+            random seed used to set up the random state before sampling the
+            random continuua
+
+        Returns
+        -------
+
+        """
         assert sampling_strategy in ("single", "multi")
         if sampling_strategy == "multi":
             raise NotImplemented("Multi-continuum sampling strategy is not "
@@ -461,6 +488,9 @@ class Continuum:
 
 @dataclass
 class GammaResults:
+    """
+    Gamma results object. Stores information about a gamma measure computation.
+    """
     best_alignment: 'Alignment'
     pivot_type: PivotType
     n_samples: int
@@ -499,100 +529,3 @@ class GammaResults:
     def gamma(self):
         """Returns the gamma value"""
         return 1 - self.observed_agreement / self.expected_disagreement
-
-
-class Corpus:
-    """Corpus
-
-    Parameters
-    ----------
-    uri : string, optional
-        name of annotated resource (e.g. audio or video file)
-    modality : string, optional
-        name of annotated modality
-    """
-
-    def __init__(self, uri=None, modality=None):
-
-        self._uri = uri
-        self.modality = modality
-
-        # sorted dictionary
-        # keys: annotators
-        # values: {annotator: annotations} dictionary
-        self._annotators: Dict[Annotator, Annotation] = SortedDict()
-
-        # sorted dictionary
-        # keys: file_name_annotated
-        # values: {file_name_annotated: continuum} dictionary
-        self._continuua: Dict[str, Continuum] = SortedDict()
-
-    def _get_uri(self):
-        return self._uri
-
-    def __len__(self):
-        """Number of annotators
-
-        >>> len(corpus)  # corpus contains 2 annotated files
-        2
-        """
-        return len(self._continuua)
-
-    def __bool__(self):
-        """Emptiness
-
-        >>> if corpus:
-        ...    # corpus is not empty
-        ... else:
-        ...    # corpus is empty
-        """
-        return len(self._continuua) > 0
-
-    @property
-    @lru_cache(maxsize=None)
-    def num_units(self):
-        """Number of units across continua"""
-        num_units = 0
-        for continuum in self._continuua:
-            num_units += self._continuua[continuum].num_units
-        return num_units
-
-    @property
-    @lru_cache(maxsize=None)
-    def avg_num_annotations_per_annotator(self):
-        return self.num_units / len(self)
-
-    def __setitem__(self, file_name_annotated: str,
-                    continuum: Continuum):
-        """Add new or update existing Continuum
-
-        >>> corpus[file_name_annotated] = Continuum
-        If file_name_annotated does not exist, it is added.
-        If file_name_annotated already exists, it is updated.
-
-        Note
-        ----
-        If `Continuum` is empty, it does nothing.
-        """
-
-        # do not add empty annotation
-        if not continuum:
-            return
-
-        self._continuua[file_name_annotated] = continuum
-
-    def __getitem__(self, file_name_annotated: str):
-        """Get continuum object
-
-        >>> continuum = corpus[file_name_annotated]
-        """
-
-        return self._continuua[file_name_annotated]
-
-    def itercontinuua(self):
-        """Iterate over continuum (in chronological order)
-
-        >>> for continuum in corpus.itercontinuua():
-        ...     # do something with the continuum
-        """
-        return iter(self._continuua)

@@ -1,12 +1,14 @@
 Pygamma-agreement
 =============
 
-| Branch  | Build status                                                                                                                     |
-|---------|----------------------------------------------------------------------------------------------------------------------------------|
-| master  | [![Build Status](https://travis-ci.com/Rachine/pygamma-agreement.svg?branch=master?token=RBFAQCRfvbxdpaEByTFc&branch=master)](https://travis-ci.com/Rachine/pygamma-agreement/)  |
+[![Build Status](https://travis-ci.com/Rachine/pygamma-agreement.svg?branch=master?token=RBFAQCRfvbxdpaEByTFc&branch=master)](https://travis-ci.com/Rachine/pygamma-agreement/)
+[![Documentation Status](https://readthedocs.org/projects/pygamma-agreement/badge/?version=latest)](https://pygamma-agreement.readthedocs.io/en/latest/?badge=latest)
 
 
-**pygamma-agreement** is an open-source package to measure Inter/Intra-annotator agreement for sequences of annotations with the γ measure [2]. It is written in Python 3 and based mostly on NumPy, Numba and Pyannote.core. For a full list of available functions, please refer to the `API documentation <https://github.com/Rachine/pygamma-agreement>`_.
+**pygamma-agreement** is an open-source package to measure Inter/Intra-annotator 
+agreement for sequences of annotations with the γ measure [2]. It is written in 
+Python 3 and based mostly on NumPy, Numba and pyannote.core. For a full list of
+ available functions, please refer to the [package documentation](https://pygamma-agreement.readthedocs.io/en/latest/).
 
 Installation
 ============
@@ -20,15 +22,14 @@ The main dependencies of pygamma-agreement are :
 * `SciPy <https://www.scipy.org/>`_ (>= 1.1.0)
 * `sortedcontainers <http://www.grantjenks.com/docs/sortedcontainers/>`_ (>= 2.0)
 * `pyannote.core <http://pyannote.github.io/pyannote-core/>`_ (>= 0.1.2)
-* `pyannote.database <http://pyannote.github.io/pyannote-database/>`_ (>= 0.1.2)
 * `Matplotlib <https://matplotlib.org/>`_ (>= 2.0)
 * `CVXPY <https://www.cvxpy.org/>`_ (>= 1.0.25)
 * `Numba <https://numba.pydata.org/>`_ (== 0.48.0)
 * `TextGrid <https://github.com/kylebgorman/textgrid>`_ (== 1.5)
-* `typing_extensions <https://github.com/python/typing>`_ (>= 3.7.4.3)
 
 
-pygamma-agreement is a Python 3 package and is currently tested for Python 3.7. PyGammaAgreement does not work with Python 2.7.
+pygamma-agreement is a Python 3 package and is currently tested for Python 3.7. 
+PyGammaAgreement does not work with Python 2.7.
 
 User installation
 -----------------
