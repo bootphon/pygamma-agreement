@@ -1,5 +1,5 @@
-Welcome to PyGammaAgreement's documentation!
-============================================
+Welcome to pygamma-agreement's documentation!
+=============================================
 
 `pygamma-agreement` is a Python library used to measure the γ inter-annotator
 agreement, defined by Mathet et Al. in
@@ -24,12 +24,3 @@ The package is available on pip, thus, just run
    quickstart
    cli
    api_reference
-
-Installation
-------------
-
-Pygamma is implemented in pure python, and available through pip:
-
-::
-
-$ pip install pygamma

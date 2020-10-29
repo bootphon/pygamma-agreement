@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath(path))
 
 # -- Project information -----------------------------------------------------
 
-project = 'PyGammaAgreement'
+project = 'pygamma-agreement'
 copyright = '2020, Rachid Riad & Hadrien Titeux'
 author = 'Rachid Riad & Hadrien Titeux'
 

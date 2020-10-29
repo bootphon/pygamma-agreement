@@ -35,15 +35,10 @@ User installation
 
 PyGammaAgreement can be easily installed using pip
 
-.. code-block:: shell
+```shell script
+  pip install pygamma-agreement
+```
 
-  pip install ...
-
-or conda
-
-.. code-block:: shell
-
-  conda install -c conda-forge ...
 
 Quick start
 ============
