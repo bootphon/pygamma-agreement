@@ -1,4 +1,4 @@
-PyGammaAgreement
+Pygamma-agreement
 =============
 
 | Branch  | Build status                                                                                                                     |
