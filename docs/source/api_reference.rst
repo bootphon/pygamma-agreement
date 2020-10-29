@@ -17,16 +17,16 @@ Data structures
     :special-members:
 
 
+.. autoclass:: pygamma.GammaResults
+    :members:
+    :special-members:
+
 .. _dissimilarities:
 
 Dissimilarities
 ---------------
 
 .. autoclass:: pygamma.PositionalDissimilarity
-    :members:
-    :special-members:
-
-.. autoclass:: pygamma.CategoricalDissimilarity
     :members:
     :special-members:
 

@@ -30,14 +30,32 @@
 import argparse
 import csv
 import logging
+from argparse import RawTextHelpFormatter
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
-from pygamma import Continuum
+from pygamma import Continuum, CombinedCategoricalDissimilarity
 
 argparser = argparse.ArgumentParser(
-    description="A command-line tool to compute the gamma-agreement for "
-                "CSV or RTTM files.")
+    formatter_class=RawTextHelpFormatter,
+    description="""
+    A command-line tool to compute the gamma-agreement for 
+    CSV or RTTM files. It can compute the gamma for one or more CSV files.
+    The expected format of input files is a 4-columns CSV, 
+    with the following structure: 
+    
+    annotator_id, annotation, segment_start, segment_end
+    
+    E.G.:
+    
+    annotator_1, Marvin, 11.3, 15.6
+    annotator_1, Maureen, 20, 25.7
+    annotator_2, Marvin, 10, 26.3
+    ...
+    
+    It can also read RTTM files if you set the --format option to "rttm".
+    
+    """)
 argparser.add_argument("input_csv", type=Path, nargs="+",
                        help="Path to an input csv file(s) or directory(es)")
 argparser.add_argument("-d", "--delimiter",
@@ -54,39 +72,52 @@ argparser.add_argument("-a", "--alpha",
 argparser.add_argument("-b", "--beta",
                        default=1, type=float,
                        help="Beta coefficient (categorical dissimilarity ponderation)")
+argparser.add_argument("-p", "--precision_level",
+                       default=0.05, type=float,
+                       help="Precision level used for the gamma computation. "
+                            "This is a percentage, lower means more precision. "
+                            "A value under 0.10 is advised.")
 argparser.add_argument("-v", "--verbose",
                        action="store_true",
                        help="Verbose mode")
 
 
 def pygamma_cmd():
-    # TODO : detail row structure in help
-    # TODO : support for folder-wise gamma computation
     # TODO: add support for positional only dissim and categorical only
     args = argparser.parse_args()
     logging.getLogger().setLevel(logging.INFO if args.verbose else logging.ERROR)
 
+    input_files: List[Path] = []
     results: Dict[Path, float] = {}
-
     for input_csv in args.input_csv:
         input_csv: Path
 
         if input_csv.is_dir():
             logging.info(f"Loading csv files in folder {input_csv}")
-            for csv_path in input_csv.iterdir():
-                continuum = Continuum.from_csv(csv_path)
-                gamma = continuum.compute_gamma()
-                results[csv_path] = gamma
-                print(f"{csv_path} : {gamma}")
+            for file_path in input_csv.iterdir():
+                input_files.append(file_path)
 
         elif input_csv.is_file():
             logging.info(f"Loading CSV file {input_csv}")
-            continuum = Continuum.from_csv(path=input_csv)
-            gamma = continuum.compute_gamma()
-            results[input_csv] = gamma
-            print(gamma)
+            input_files.append(input_csv)
         else:
-            logging.error("Input CSV file or folder couldn't be found")
+            logging.error(f"Input CSV file or folder '{input_csv}' couldn't be found")
+
+    logging.info(f"Found {len(input_files)} csv files.")
+
+    for file_path in input_files:
+        if args.format == "csv":
+            continuum = Continuum.from_csv(file_path, delimiter=args.delimiter)
+        else:
+            continuum = Continuum.from_rttm(file_path)
+
+        dissim = CombinedCategoricalDissimilarity(continuum.categories,
+                                                  alpha=args.alpha,
+                                                  beta=args.beta)
+        gamma = continuum.compute_gamma(dissimilarity=dissim,
+                                        precision_level=args.precision_level)
+        results[file_path] = gamma.gamma
+        print(f"{file_path} : {gamma.gamma}")
 
     if args.output_csv is not None:
         with open(args.output_csv, "w") as output_csv:
