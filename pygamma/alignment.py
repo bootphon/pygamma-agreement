@@ -41,7 +41,7 @@ import numpy as np
 from .dissimilarity import AbstractDissimilarity
 
 if TYPE_CHECKING:
-    from .continuum import Continuum
+    from .continuum import Continuum, Annotator, Unit
 
 UnitsTuple = Tuple[Tuple['Annotator', 'Unit']]
 
@@ -203,8 +203,9 @@ class Alignment(AbstractAlignment):
 
         # set partition tests for the unitary alignments
         continuum_tuples = set()
-        for annotator, units in continuum:
-            continuum_tuples.update(set((annotator, segment) for segment in units.keys()))
+        # TODO: use units instead of segments
+        for annotator, unit in continuum:
+            continuum_tuples.add((annotator, unit.segment))
 
         alignment_tuples = list()
         for unitary_alignment in self.unitary_alignments:

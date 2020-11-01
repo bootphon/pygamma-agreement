@@ -28,6 +28,7 @@ CSV files need to have the following structure:
 Thus, for instance:
 
 .. code-block::
+
     E.G.:
 
     annotator_1, Marvin, 11.3, 15.6

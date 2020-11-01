@@ -317,8 +317,6 @@ class PositionalDissimilarity(AbstractDissimilarity):
                                          delta_empty=self.delta_empty)
 
 
-
-
 class CombinedCategoricalDissimilarity(AbstractDissimilarity):
     def __init__(self,
                  categories: List[str],
@@ -326,8 +324,9 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
                  beta: float = 1,
                  delta_empty: float = 1,
                  cat_dissimilarity_matrix=None):
-        # TODO: add check alpha beta > 0
         super().__init__(delta_empty)
+        assert alpha > 0
+        assert beta > 0
         self.categorical_dissim = CategoricalDissimilarity(
             categories,
             cat_dissimilarity_matrix,

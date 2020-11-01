@@ -34,6 +34,7 @@ Continuum and corpus
 import csv
 import logging
 import random
+from functools import total_ordering
 from pathlib import Path
 from typing import Optional, Tuple, List, Union, Set, Iterable, TYPE_CHECKING
 
@@ -65,10 +66,22 @@ PRECISION_LEVEL = {
 }
 
 
-@dataclass
+@total_ordering
+@dataclass(frozen=True, eq=True)
 class Unit:
     segment: Segment
     annotation: Optional[str] = None
+
+    def __lt__(self, other: 'Unit'):
+        if self.segment == other.segment:
+            if self.annotation is None:
+                return True
+            elif other.annotation is None:
+                return False
+            else:
+                return self.annotation < other.annotation
+        else:
+            return self.segment < other.segment
 
 
 class Continuum:
@@ -102,7 +115,8 @@ class Continuum:
 
         Returns
         -------
-        A new continuum object
+        continuum : Continuum
+            New continuum object loaded from the CSV
 
         """
         if isinstance(path, str):
@@ -131,12 +145,13 @@ class Continuum:
 
         Parameters
         ----------
-        path: path or str
+        path: Path or str
             Path to the CSV file storing annotations
 
         Returns
         -------
-        A new continuum object
+        continuum : Continuum
+            New continuum object loaded from the RTTM file
         """
         annotations = load_rttm(str(path))
         continuum = cls()
@@ -148,13 +163,14 @@ class Continuum:
     def sample_from_continuum(cls, continuum: 'Continuum',
                               pivot_type: PivotType = "float_pivot",
                               ground_truth_annotators: Optional[List[Annotator]] = None) -> 'Continuum':
-        assert pivot_type in ('float_pivot', 'int_pivot')
         """Generate a new random annotation from a single continuum
                 Strategy from figure 12
 
                 >>> gamma_agreement.sample_from_single_continuum()
-                ... <pyannote.core.annotation.Annotation at 0x7f5527a19588>
+                ... <pygamma_agreement.continuum.Continuum at 0x7f5527a19588>
                 """
+        assert pivot_type in ('float_pivot', 'int_pivot')
+
         last_start_time = max(unit.segment.start for unit in continuum.iterunits())
         new_continuum = Continuum()
         if ground_truth_annotators is not None:
@@ -186,12 +202,25 @@ class Continuum:
 
     def __init__(self, uri: Optional[str] = None):
         self.uri = uri
+        # TODO : change to sortedset and make units hashable/comparable
         # Structure {annotator -> { segment -> unit}}
         self._annotations = SortedDict()
 
         # these are instanciated when compute_disorder is called
         self._chosen_alignments: np.ndarray = None
         self._alignments_disorders: np.ndarray = None
+
+    def copy(self) -> 'Continuum':
+        """
+        Makes a copy of the current continuum.
+
+        Returns
+        -------
+        continuum: Continuum
+        """
+        continuum = Continuum(self.uri)
+        continuum._annotations = self._annotations
+        return continuum
 
     def __bool__(self):
         """Truthiness, basically tests for emptiness
@@ -238,7 +267,7 @@ class Continuum:
         return max_num_annotations_per_annotator
 
     @property
-    def avg_length_unit(self):
+    def avg_length_unit(self) -> float:
         """Mean of the annotated segments' durations"""
         return sum(unit.segment.duration for unit in self.iterunits()) / self.num_units
 
@@ -269,18 +298,51 @@ class Continuum:
             self._alignments_disorders = None
 
     def add_annotation(self, annotator: Annotator, annotation: Annotation):
-        for label in annotation.labels():
-            for segment in annotation.label_timeline(label):
-                self.add(annotator, segment, label)
+        """
+        Add a full pyannote annotation to the continuum.
+
+        Parameters
+        ----------
+        annotator: str
+            A string id for the annotator who produced that annotation.
+        annotation: :class:`pyannote.core.Annotation`
+            A pyannote `Annotation` object. If a label is present for a given
+            segment, it will be considered as that label's annotation.
+        """
+        for segment, _, label in annotation.itertracks(yield_label=True):
+            self.add(annotator, segment, label)
 
     def add_timeline(self, annotator: Annotator, timeline: Timeline):
+        """
+        Add a full pyannote timeline to the continuum.
+
+        Parameters
+        ----------
+        annotator: str
+            A string id for the annotator who produced that timeline.
+        timeline: `pyannote.core.Timeline`
+            A pyannote `Annotation` object. No annotation will be attached to
+            segments.
+        """
         for segment in timeline:
             self.add(annotator, segment)
 
-    def from_textgrid(self,
-                      annotator: Annotator,
-                      tg_path: Union[str, Path],
-                      selected_tiers: Optional[List[str]] = None):
+    def add_textgrid(self,
+                     annotator: Annotator,
+                     tg_path: Union[str, Path],
+                     selected_tiers: Optional[List[str]] = None):
+        """
+        Add a textgrid file's content to the Continuum
+
+        Parameters
+        ----------
+        annotator: str
+            A string id for the annotator who produced that TextGrid.
+        tg_path: `Path` or str
+            Path to the textgrid file.
+        selected_tiers: optional list of str
+            If set, will drop tiers that are not contained in this list.
+        """
         from textgrid import TextGrid, IntervalTier
         tg = TextGrid.fromFile(str(tg_path))
         for tier_name in tg.getNames():
@@ -291,6 +353,50 @@ class Continuum:
                 self.add(annotator,
                          Segment(interval.minTime, interval.maxTime),
                          interval.mark)
+
+    def merge(self, continuum: 'Continuum', in_place: bool = False) \
+            -> Optional['Continuum']:
+        """
+        Merge two Continuua together. Units from the same annotators
+        are also merged together.
+
+        Parameters
+        ----------
+        continuum: Continuum
+            other continuum to merge the current one with.
+        in_place: optional bool
+            If set to true, the merge is done in place, and the current
+            continuum (self) is the one being modified.
+
+        Returns
+        -------
+        continuum: optional Continuum
+            Only returned if "in_place" is false
+
+        """
+        current_cont = self if in_place else self.copy()
+        for annotator, unit in continuum:
+            current_cont.add(annotator, unit.segment, unit.annotation)
+        if not in_place:
+            return current_cont
+
+    def __add__(self, other: 'Continuum'):
+        """
+        Same as a "not-in-place" merge.
+
+        Parameters
+        ----------
+        other: Continuum
+
+        Returns
+        -------
+        continuum: Continuum
+
+        See also
+        --------
+        :meth:`pygamma.Continuum.merge`
+        """
+        return self.merge(other, in_place=False)
 
     def __getitem__(self, *keys: Union[Annotator, Tuple[Annotator, Segment]]) \
             -> Union[SortedDict, Unit]:
@@ -305,23 +411,29 @@ class Continuum:
             annotator, segment = keys
             return self._annotations[annotator][segment]
 
-    def __iter__(self) -> Iterable[Tuple[Annotator, SortedDict]]:
-        return iter(self._annotations.items())
+    def __iter__(self) -> Iterable[Tuple[Annotator, Unit]]:
+        for annotator, annotations in self._annotations.items():
+            for unit in annotations.values():
+                yield annotator, unit
 
     @property
     def annotators(self):
         """List all annotators in the Continuum
-        # TODO: doc example
+
+        >>> continuum.annotators:
+        ... ["annotator_a", "annotator_b", "annot_ref"]
         """
         return list(self._annotations.keys())
 
-    def iterunits(self):
-        """Iterate over units (in chronological order)
+    def iterunits(self, annotator: str):
+        # TODO: implem and doc
+        """Iterate over units (in chronological and alphabetical order
+        if annotations are present)
 
-        >>> for annotator in annotation.iterannotators():
-        ...     # do something with the annotator
+        >>> for unit in annotation.iterunits("Max"):
+        ...     # do something with the unit
         """
-        for units in self._annotations.values():
+        for units in self._annotations[annotator]:
             yield from units.values()
 
     def compute_disorders(self, dissimilarity: AbstractDissimilarity):

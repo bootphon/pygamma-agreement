@@ -18,14 +18,14 @@ Dependencies
 
 The main dependencies of pygamma-agreement are :
 
-* `NumPy <https://numpy.org/>`_ (>= 1.10)
-* `SciPy <https://www.scipy.org/>`_ (>= 1.1.0)
-* `sortedcontainers <http://www.grantjenks.com/docs/sortedcontainers/>`_ (>= 2.0)
-* `pyannote.core <http://pyannote.github.io/pyannote-core/>`_ (>= 0.1.2)
-* `Matplotlib <https://matplotlib.org/>`_ (>= 2.0)
-* `CVXPY <https://www.cvxpy.org/>`_ (>= 1.0.25)
-* `Numba <https://numba.pydata.org/>`_ (== 0.48.0)
-* `TextGrid <https://github.com/kylebgorman/textgrid>`_ (== 1.5)
+* [NumPy](https://numpy.org/>) (= 1.10)
+* [SciPy](https://www.scipy.org/>) (= 1.1.0)
+* [sortedcontainers](http://www.grantjenks.com/docs/sortedcontainers/>) (= 2.0)
+* [pyannote.core](http://pyannote.github.io/pyannote-core/>) (= 0.1.2)
+* [Matplotlib](https://matplotlib.org/>) (= 2.0)
+* [CVXPY](https://www.cvxpy.org/>) (= 1.0.25)
+* [Numba](https://numba.pydata.org/) (== 0.48.0)
+* [TextGrid](https://github.com/kylebgorman/textgrid) (== 1.5)
 
 
 pygamma-agreement is a Python 3 package and is currently tested for Python 3.7. 
