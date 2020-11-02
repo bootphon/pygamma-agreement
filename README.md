@@ -10,6 +10,9 @@ agreement for sequences of annotations with the γ measure [2]. It is written in
 Python 3 and based mostly on NumPy, Numba and pyannote.core. For a full list of
  available functions, please refer to the [package documentation](https://pygamma-agreement.readthedocs.io/en/latest/).
 
+![Alignment Example](docs/source/images/best_alignment.png)
+
+
 Installation
 ============
 
@@ -18,11 +21,10 @@ Dependencies
 
 The main dependencies of pygamma-agreement are :
 
-* [NumPy](https://numpy.org/>) (= 1.10)
-* [SciPy](https://www.scipy.org/>) (= 1.1.0)
-* [sortedcontainers](http://www.grantjenks.com/docs/sortedcontainers/>) (= 2.0)
-* [pyannote.core](http://pyannote.github.io/pyannote-core/>) (= 0.1.2)
-* [Matplotlib](https://matplotlib.org/>) (= 2.0)
+* [NumPy](https://numpy.org/>) (>= 1.10)
+* [sortedcontainers](http://www.grantjenks.com/docs/sortedcontainers/>) (>=2.0.4)
+* [pyannote.core](http://pyannote.github.io/pyannote-core/>) (>= 4.1)
+* [Matplotlib](https://matplotlib.org/>) (>= 2.0)
 * [CVXPY](https://www.cvxpy.org/>) (= 1.0.25)
 * [Numba](https://numba.pydata.org/) (== 0.48.0)
 * [TextGrid](https://github.com/kylebgorman/textgrid) (== 1.5)
