@@ -64,7 +64,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'pygamma-agreement = pygamma.cli_apps:pygamma_cmd',
+            'pygamma-agreement = pygamma_agreement.cli_apps:pygamma_cmd',
         ]
     }
 )

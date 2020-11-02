@@ -1,4 +1,4 @@
-"""Test of the module pygamma.alignment"""
+"""Test of the Alignment class pygamma_agreement.alignment"""
 
 import numpy as np
 import pytest

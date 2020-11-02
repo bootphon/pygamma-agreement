@@ -403,7 +403,7 @@ class Continuum:
 
         See also
         --------
-        :meth:`pygamma.Continuum.merge`
+        :meth:`pygamma_agreement.Continuum.merge`
         """
         return self.merge(other, in_place=False)
 

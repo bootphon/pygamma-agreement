@@ -37,7 +37,7 @@ import numba as nb
 import numpy as np
 from matplotlib import pyplot as plt
 
-from pygamma.numba_utils import binom
+from .numba_utils import binom
 
 if TYPE_CHECKING:
     from .continuum import Continuum

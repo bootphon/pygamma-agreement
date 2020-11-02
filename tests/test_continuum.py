@@ -1,4 +1,4 @@
-"""Test of the module pygamma.continuum"""
+"""Test of the Continuum class in pygamma_agreement.continuum"""
 
 from pyannote.core import Annotation, Segment
 

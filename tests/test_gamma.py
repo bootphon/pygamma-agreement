@@ -1,4 +1,4 @@
-"""Test of the module pygamma.alignment"""
+"""Tests for the gamma computations"""
 from pathlib import Path
 
 import pytest

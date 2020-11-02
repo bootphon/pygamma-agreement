@@ -1,4 +1,4 @@
-"""Test of the module pygamma.alignment"""
+"""Test of Units in the pygamma_agreement.continuum module"""
 
 from pyannote.core import Segment
 from sortedcontainers import SortedSet
