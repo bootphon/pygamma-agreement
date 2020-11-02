@@ -33,7 +33,7 @@ Alignement and disorder
 """
 from abc import ABCMeta, abstractmethod
 from collections import Counter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 from typing import Tuple, Optional, Iterable
 
 import numpy as np
@@ -99,6 +99,7 @@ class UnitaryAlignment:
 
     @property
     def disorder(self) -> float:
+        # TODO : doc
         if self._disorder is None:
             raise ValueError("Disorder hasn't been computed. "
                              "Call `compute_disorder()` first to compute it.")
@@ -110,6 +111,7 @@ class UnitaryAlignment:
         self._disorder = value
 
     def compute_disorder(self, dissimilarity: AbstractDissimilarity):
+        # TODO : doc
         # building a fake one-element alignment to compute the dissim
         fake_alignment = Alignment([self])
         self._disorder = fake_alignment.compute_disorder(dissimilarity)
@@ -144,6 +146,23 @@ class Alignment(AbstractAlignment):
         else:
             self.check()
 
+    def __getitem__(self, *keys: Union[int, Tuple[int, 'Annotator']]):
+        # TODO : test and document
+        if len(keys) == 1:
+            idx = keys[0]
+            return self.unitary_alignments[idx]
+        elif len(keys) == 2:
+            idx, annotator = keys
+            annotator_idx = self.annotators.index(annotator)
+            return self.unitary_alignments[idx].n_tuple[annotator_idx]
+        else:
+            raise KeyError("Invalid number of items in key")
+
+    @property
+    def annotators(self):
+        return [annotator for annotator, _
+                in self.unitary_alignments[0].n_tuple]
+
     @property
     def num_alignments(self):
         return len(self.unitary_alignments)
@@ -154,6 +173,7 @@ class Alignment(AbstractAlignment):
 
     @property
     def disorder(self):
+        # TODO : doc
         if self._disorder is None:
             self._disorder = (sum(u_align.disorder for u_align
                                   in self.unitary_alignments)
@@ -161,6 +181,7 @@ class Alignment(AbstractAlignment):
         return self._disorder
 
     def compute_disorder(self, dissimilarity: AbstractDissimilarity):
+        # TODO : doc
         disorder_args = dissimilarity.build_args(self)
         unit_ids = np.arange(self.num_alignments, dtype=np.int32)
         unit_ids = np.vstack([unit_ids] * self.num_annotators)
@@ -232,3 +253,14 @@ class Alignment(AbstractAlignment):
             raise SetPartitionError(f'{repeated_tuples_str} '
                                     f'are found more than once in the set '
                                     f'of unitary alignments')
+
+    def _repr_png_(self):
+        """IPython notebook support
+
+        See also
+        --------
+        :mod:`pygamma_agreement.notebook`
+        """
+
+        from .notebook import repr_alignment
+        return repr_alignment(self)

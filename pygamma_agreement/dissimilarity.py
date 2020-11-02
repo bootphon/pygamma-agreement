@@ -128,15 +128,17 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         categories_arrays = nb.typed.List()
         for annotator_id, (annotator, units) in enumerate(continuum._annotations.items()):
             cat_array = np.zeros(len(units) + 1).astype(np.int16)
-            for unit_id, (segment, unit) in enumerate(units.items()):
+            for unit_id, unit in enumerate(units):
                 if unit.annotation is None:
-                    raise ValueError(f"In segment {segment} for annotator {annotator}: annotation cannot be None")
+                    raise ValueError(f"In segment {unit.segment} for annotator "
+                                     f"{annotator}: annotation cannot be None")
                 try:
                     cat_array[unit_id] = self.categories_dict[unit.annotation]
                 except ValueError:
-                    raise ValueError(f"In segment {segment} for annotator {annotator}: "
-                                     f"annotation of category {unit.category} is not in set {set(self.categories)} "
-                                     f"of allowed categories")
+                    raise ValueError(
+                        f"In segment {unit.segment} for annotator {annotator}: "
+                        f"annotation of category {unit.category} is not in "
+                        f"set {set(self.categories)} of allowed categories")
             cat_array[-1] = -1
             categories_arrays.append(cat_array)
         return categories_arrays
@@ -253,10 +255,10 @@ class PositionalDissimilarity(AbstractDissimilarity):
             # dim x : segment
             # dim y : (start, end, dur)
             unit_dists_array = np.zeros((len(units) + 1, 3)).astype(np.float32)
-            for unit_id, (segment, unit) in enumerate(units.items()):
-                unit_dists_array[unit_id][0] = segment.start
-                unit_dists_array[unit_id][1] = segment.end
-                unit_dists_array[unit_id][2] = segment.duration
+            for unit_id, unit in enumerate(units):
+                unit_dists_array[unit_id][0] = unit.segment.start
+                unit_dists_array[unit_id][1] = unit.segment.end
+                unit_dists_array[unit_id][2] = unit.segment.duration
             unit_dists_array[-1, :] = np.array([np.NaN for _ in range(3)])
             positions_arrays.append(unit_dists_array)
         return positions_arrays
@@ -325,8 +327,8 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
                  delta_empty: float = 1,
                  cat_dissimilarity_matrix=None):
         super().__init__(delta_empty)
-        assert alpha > 0
-        assert beta > 0
+        assert alpha >= 0
+        assert beta >= 0
         self.categorical_dissim = CategoricalDissimilarity(
             categories,
             cat_dissimilarity_matrix,

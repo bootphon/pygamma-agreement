@@ -50,6 +50,14 @@ the `Continuum`, made to store this kind of annotated data.
     continuum.add("Annotator3", Segment(13.1, 17.1), "Robin")
 
 
+If you were to show the `continuum` variable in an jupyter notebook, this is
+what would be displayed:
+
+.. image:: images/continuum.png
+   :alt: showing a continuum in a jupyter notebook
+   :align: center
+
+
 Setting up a dissimilarity
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -84,6 +92,20 @@ We're all set to compute the gamma agreement now!
 
     gamma_results = continuum.compute_gamma(dissim)
     print(f"The gamma for that annotation is f{gamma_results.gamma}")
+
+
+As a side note: the computation of the gamma value requires that we find the
+alignment with lowest possible disorder (this being condition by the dissimilarity
+that was chosen beforehand). We can easily retrieve that alignment, and display
+it (if we're in a jupyter notebook):
+
+.. code-block:: python
+
+    gamma_results.best_alignment
+
+.. image:: images/best_alignment.png
+   :alt: showing a continuum in a jupyter notebook
+   :align: center
 
 Principles
 ==========

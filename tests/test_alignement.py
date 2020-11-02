@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 from pyannote.core import Annotation, Segment
 
-from pygamma.alignment import SetPartitionError
-from pygamma.alignment import UnitaryAlignment, Alignment
-from pygamma.continuum import Continuum, Unit
-from pygamma.dissimilarity import CombinedCategoricalDissimilarity
+from pygamma_agreement.alignment import SetPartitionError
+from pygamma_agreement.alignment import UnitaryAlignment, Alignment
+from pygamma_agreement.continuum import Continuum, Unit
+from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity
 
 
 def test_alignment_checking():

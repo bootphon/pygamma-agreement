@@ -35,7 +35,7 @@ Visualization
 from typing import Iterable, Dict, Optional, Tuple, Hashable, Union
 
 from matplotlib.markers import MarkerStyle
-from pyannote.core import Timeline, Segment, Annotation
+from pyannote.core import Timeline, Segment
 
 try:
     from IPython.core.pylabtools import print_figure
@@ -152,9 +152,28 @@ class Notebook:
         if text is not None:
             self.draw_centered_text(ax, center, y, text)
 
+    def draw_vline(self, ax, x: float, y_lim: Tuple[float, float]):
+        ax.vlines(x, y_lim[0], y_lim[1],
+                  "black", linewidth=1, linestyle='dotted')
+
     def draw_empty_unit(self, ax, x, y, label=None):
         linestyle, linewidth, color = self[label]
         ax.scatter(x, y, color=color, marker=MarkerStyle(marker="X"))
+
+    def draw_legend_from_labels(self, ax):
+        H, L = ax.get_legend_handles_labels()
+
+        # corner case when no segment is visible
+        if not H:
+            return
+
+        # this gets exactly one legend handle and one legend label per label
+        # (avoids repeated legends for repeated tracks with same label)
+        HL = groupby(sorted(zip(H, L), key=lambda h_l: h_l[1]),
+                     key=lambda h_l: h_l[1])
+        H, L = zip(*list((next(h_l)[0], l) for l, h_l in HL))
+        ax.legend(H, L, bbox_to_anchor=(0, 1), loc=3,
+                  ncol=5, borderaxespad=0., frameon=False)
 
     def get_y(self, segments: Iterable[Segment]) -> np.ndarray:
         """
@@ -198,7 +217,6 @@ class Notebook:
 
         # from line numbers to actual y coordinates
         y = 1. - 1. / (len(up_to) + 1) * (1 + np.array(y))
-
         return y
 
     def __call__(self, resource: Union[Alignment, Continuum],
@@ -211,7 +229,7 @@ class Notebook:
         elif isinstance(resource, Continuum):
             self.plot_continuum(resource, time=time)
 
-    def plot_alignment(self, alignment: Alignment, ax=None, time=True):
+    def plot_alignment(self, alignment: Alignment, ax=None, time=True, legend=True):
         self.crop = Segment(0, alignment.num_alignments)
 
         ax = self.setup(ax=ax, time=time)
@@ -227,6 +245,7 @@ class Notebook:
 
         for align_id, unit_alignment in enumerate(alignment.unitary_alignments):
             unit_align_center = (align_id * 2 + 1) / 2
+            self.draw_vline(ax, unit_align_center, (0, 1))
             for annot_id, (annotator, unit) in enumerate(unit_alignment.n_tuple):
                 y = (annot_id + 1) / (alignment.num_annotators + 1)
 
@@ -239,76 +258,23 @@ class Notebook:
                                                center=unit_align_center,
                                                y=y,
                                                annotator=annotator,
-                                               text=unit.annotation)
-
-    def plot_continuum(self, continuum: Continuum, ax=None, time=True):
-        self.crop = Timeline([seg for (_, seg) in continuum]).extent()
-
-        for annot_id, (annotator, segments) in enumerate(continuum):
-            segments_tl = Timeline(segments.keys())
-
-            if not self.crop and segments_tl:
-                self.crop = segments_tl.extent()
-
-            cropped = segments_tl.crop(self.crop, mode='loose')
-            ax = self.setup(ax=ax, time=time, ylim=(0, continuum.num_annotators))
-
-            for segment, y in zip(cropped, self.get_y(cropped)):
-                self.draw_segment(ax, segment, y * (annot_id + 1),
-                                  annotator=annotator)
-
-    def plot_segment(self, segment, ax=None, time=True):
-
-        if not self.crop:
-            self.crop = segment
-
-        ax = self.setup(ax=ax, time=time)
-        self.draw_segment(ax, segment, 0.5)
-
-    def plot_timeline(self, timeline: Timeline, ax=None, time=True):
-
-        if not self.crop and timeline:
-            self.crop = timeline.extent()
-
-        cropped = timeline.crop(self.crop, mode='loose')
-
-        ax = self.setup(ax=ax, time=time)
-
-        for segment, y in zip(cropped, self.get_y(cropped)):
-            self.draw_segment(ax, segment, y)
-
-        # ax.set_aspect(3. / self.crop.duration)
-
-    def plot_annotation(self, annotation: Annotation, ax=None, time=True, legend=True):
-
-        if not self.crop:
-            self.crop = annotation.get_timeline(copy=False).extent()
-
-        cropped = annotation.crop(self.crop, mode='intersection')
-        labels = cropped.labels()
-        segments = [s for s, _ in cropped.itertracks()]
-
-        ax = self.setup(ax=ax, time=time)
-
-        for (segment, track, label), y in zip(
-                cropped.itertracks(yield_label=True),
-                self.get_y(segments)):
-            self.draw_segment(ax, segment, y, annotator=label)
-
+                                               # text=unit.annotation
+                                               )
         if legend:
-            H, L = ax.get_legend_handles_labels()
+            self.draw_legend_from_labels(ax)
 
-            # corner case when no segment is visible
-            if not H:
-                return
+    def plot_continuum(self, continuum: Continuum, ax=None, time=True,
+                       legend=True):
+        self.crop = Timeline([unit.segment for (_, unit) in continuum]).extent()
+        self.setup(ax, ylim=(0, continuum.num_annotators))
 
-            # this gets exactly one legend handle and one legend label per label
-            # (avoids repeated legends for repeated tracks with same label)
-            HL = groupby(sorted(zip(H, L), key=lambda h_l: h_l[1]),
-                         key=lambda h_l: h_l[1])
-            H, L = zip(*list((next(h_l)[0], l) for l, h_l in HL))
-            ax.legend(H, L, bbox_to_anchor=(0, 1), loc=3,
-                      ncol=5, borderaxespad=0., frameon=False)
+        for annot_id, annotator in enumerate(continuum.annotators):
+            units_tl = Timeline([unit.segment for unit in continuum[annotator]])
+            for segment, y in zip(units_tl, self.get_y(units_tl)):
+                self.draw_segment(ax, segment, y +  annot_id,
+                                  annotator=annotator)
+        if legend:
+            self.draw_legend_from_labels(ax)
 
 
 notebook = Notebook()

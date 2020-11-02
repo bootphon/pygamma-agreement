@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from pygamma.continuum import Continuum
-from pygamma.dissimilarity import CombinedCategoricalDissimilarity
+from pygamma_agreement.continuum import Continuum
+from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity
 
 
 def test_gamma_2by1000():

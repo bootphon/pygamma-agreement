@@ -12,12 +12,12 @@ Data structures
     Measure and Alignment (Yann Mathet, Antoine Widlöcher, Jean-Philippe Métivier)
 
 
-.. autoclass:: pygamma.Continuum
+.. autoclass:: pygamma_agreement.Continuum
     :members:
     :special-members:
 
 
-.. autoclass:: pygamma.GammaResults
+.. autoclass:: pygamma_agreement.GammaResults
     :members:
     :special-members:
 
@@ -26,12 +26,12 @@ Data structures
 Dissimilarities
 ---------------
 
-.. autoclass:: pygamma.PositionalDissimilarity
+.. autoclass:: pygamma_agreement.PositionalDissimilarity
     :members:
     :special-members:
 
 
-.. autoclass:: pygamma.CombinedCategoricalDissimilarity
+.. autoclass:: pygamma_agreement.CombinedCategoricalDissimilarity
     :members:
     :special-members:
 
@@ -42,10 +42,10 @@ Dissimilarities
 Alignments
 ----------
 
-.. autoclass:: pygamma.UnitaryAlignment
+.. autoclass:: pygamma_agreement.UnitaryAlignment
     :members:
     :special-members:
 
-.. autoclass:: pygamma.Alignment
+.. autoclass:: pygamma_agreement.Alignment
     :members:
     :special-members:

@@ -2,7 +2,7 @@
 
 from pyannote.core import Annotation, Segment
 
-from pygamma.continuum import Continuum
+from pygamma_agreement.continuum import Continuum
 
 
 def test_continuum_init():

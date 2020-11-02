@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 from pyannote.core import Annotation, Segment
 
-from pygamma.alignment import (UnitaryAlignment)
-from pygamma.continuum import Continuum, Unit
-from pygamma.dissimilarity import (PositionalDissimilarity,
+from pygamma_agreement.alignment import (UnitaryAlignment)
+from pygamma_agreement.continuum import Continuum, Unit
+from pygamma_agreement.dissimilarity import (PositionalDissimilarity,
                                    CombinedCategoricalDissimilarity)
 
 
@@ -58,8 +58,8 @@ def test_positional_dissimilarity():
     pos_dis = PositionalDissimilarity(delta_empty=0.5)
 
     list_dis = []
-    for liza_unit in continuum['liza'].values():
-        for pierrot_unit in continuum['pierrot'].values():
+    for liza_unit in continuum['liza']:
+        for pierrot_unit in continuum['pierrot']:
             unit_alignment = UnitaryAlignment((("liza", liza_unit),
                                                ("pierrot", pierrot_unit)))
             list_dis.append(unit_alignment.compute_disorder(pos_dis))
@@ -140,8 +140,8 @@ def test_combi_categorical_dissimilarity():
         cat_dissimilarity_matrix=cat,
         alpha=3, beta=1)
     list_dis = []
-    for liza_unit in continuum['liza'].values():
-        for pierrot_unit in continuum['pierrot'].values():
+    for liza_unit in continuum['liza']:
+        for pierrot_unit in continuum['pierrot']:
             unit_alignment = UnitaryAlignment((("liza", liza_unit),
                                                ("pierrot", pierrot_unit)))
             list_dis.append(unit_alignment.compute_disorder(combi_dis))

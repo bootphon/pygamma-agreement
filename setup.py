@@ -40,7 +40,7 @@ setup(
     packages=find_packages(),
     install_requires=requirements,
     extras_require={'test': ['pytest']},
-    version='0.1.1',
+    version='0.1.2',
 
     # PyPI
     name='pygamma-agreement',

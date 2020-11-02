@@ -34,16 +34,17 @@ Continuum and corpus
 import csv
 import logging
 import random
+from copy import deepcopy
 from functools import total_ordering
 from pathlib import Path
-from typing import Optional, Tuple, List, Union, Set, Iterable, TYPE_CHECKING
+from typing import Optional, Tuple, List, Union, Set, Iterable, TYPE_CHECKING, Dict
 
 import cvxpy as cp
 import numpy as np
 from dataclasses import dataclass
 from pyannote.core import Annotation, Segment, Timeline
 from pyannote.database.util import load_rttm
-from sortedcontainers import SortedDict
+from sortedcontainers import SortedDict, SortedSet
 from typing_extensions import Literal
 
 from .dissimilarity import AbstractDissimilarity
@@ -57,6 +58,7 @@ CHUNK_SIZE = 2 ** 25
 # defining Annotator type
 Annotator = str
 PivotType = Literal["float_pivot", "int_pivot"]
+PrecisionLevel = Literal["high", "medium", "low"]
 
 # percentages for the precision
 PRECISION_LEVEL = {
@@ -69,6 +71,12 @@ PRECISION_LEVEL = {
 @total_ordering
 @dataclass(frozen=True, eq=True)
 class Unit:
+    """
+    Represents an annotated unit, e.g., a time segment and (optionally)
+    a text annotation. Can be sorted or used in a set. If two units share
+    the same time segment, they're sorted alphabetically using their
+    annotation. The `None` annotation is first in the "alphabet"
+    """
     segment: Segment
     annotation: Optional[str] = None
 
@@ -171,7 +179,7 @@ class Continuum:
                 """
         assert pivot_type in ('float_pivot', 'int_pivot')
 
-        last_start_time = max(unit.segment.start for unit in continuum.iterunits())
+        last_start_time = max(unit.segment.start for _, unit in continuum)
         new_continuum = Continuum()
         if ground_truth_annotators is not None:
             assert set(continuum.annotators).issuperset(set(ground_truth_annotators))
@@ -190,21 +198,22 @@ class Continuum:
 
             rnd_annotator = random.choice(annotators)
             units = continuum._annotations[rnd_annotator]
-            sampled_annotation = SortedDict()
-            for segment, unit in units.items():
-                if pivot < segment.start:
-                    new_segment = Segment(segment.start - pivot, segment.end - pivot)
+            sampled_annotation = SortedSet()
+            for unit in units:
+                if pivot < unit.segment.start:
+                    new_segment = Segment(unit.segment.start - pivot,
+                                          unit.segment.end - pivot)
                 else:
-                    new_segment = Segment(segment.start + pivot, segment.end + pivot)
-                sampled_annotation[new_segment] = Unit(new_segment, unit.annotation)
+                    new_segment = Segment(unit.segment.start + pivot,
+                                          unit.segment.end + pivot)
+                sampled_annotation.add(Unit(new_segment, unit.annotation))
             new_continuum._annotations[f'Sampled_annotation {idx}'] = sampled_annotation
         return new_continuum
 
     def __init__(self, uri: Optional[str] = None):
         self.uri = uri
-        # TODO : change to sortedset and make units hashable/comparable
-        # Structure {annotator -> { segment -> unit}}
-        self._annotations = SortedDict()
+        # Structure {annotator -> SortedSet[Unit]}
+        self._annotations : Dict[Annotator, Set[Unit]] = SortedDict()
 
         # these are instanciated when compute_disorder is called
         self._chosen_alignments: np.ndarray = None
@@ -219,7 +228,7 @@ class Continuum:
         continuum: Continuum
         """
         continuum = Continuum(self.uri)
-        continuum._annotations = self._annotations
+        continuum._annotations = deepcopy(self._annotations)
         return continuum
 
     def __bool__(self):
@@ -242,7 +251,7 @@ class Continuum:
 
     @property
     def categories(self) -> Set[str]:
-        return set(unit.annotation for unit in self.iterunits()
+        return set(unit.annotation for _, unit in self
                    if unit.annotation is not None)
 
     @property
@@ -269,7 +278,7 @@ class Continuum:
     @property
     def avg_length_unit(self) -> float:
         """Mean of the annotated segments' durations"""
-        return sum(unit.segment.duration for unit in self.iterunits()) / self.num_units
+        return sum(unit.segment.duration for _, unit in self) / self.num_units
 
     def add(self, annotator: Annotator, segment: Segment, annotation: Optional[str] = None):
         """
@@ -288,9 +297,9 @@ class Continuum:
             raise ValueError("Tried adding segment of duration 0.0")
 
         if annotator not in self._annotations:
-            self._annotations[annotator] = SortedDict()
+            self._annotations[annotator] = SortedSet()
 
-        self._annotations[annotator][segment] = Unit(segment, annotation)
+        self._annotations[annotator].add(Unit(segment, annotation))
 
         # units array has to be updated, nullifying
         if self._alignments_disorders is not None:
@@ -398,8 +407,8 @@ class Continuum:
         """
         return self.merge(other, in_place=False)
 
-    def __getitem__(self, *keys: Union[Annotator, Tuple[Annotator, Segment]]) \
-            -> Union[SortedDict, Unit]:
+    def __getitem__(self, *keys: Union[Annotator, Tuple[Annotator, int]]) \
+            -> Union[SortedSet, Unit]:
         """Get annotation object
 
         >>> annotation = continuum[annotator]
@@ -407,13 +416,13 @@ class Continuum:
         if len(keys) == 1:
             annotator = keys[0]
             return self._annotations[annotator]
-        elif len(keys) == 2 and isinstance(keys[2], Segment):
-            annotator, segment = keys
-            return self._annotations[annotator][segment]
+        elif len(keys) == 2 and isinstance(keys[1], int):
+            annotator, idx = keys
+            return self._annotations[annotator][idx]
 
     def __iter__(self) -> Iterable[Tuple[Annotator, Unit]]:
         for annotator, annotations in self._annotations.items():
-            for unit in annotations.values():
+            for unit in annotations:
                 yield annotator, unit
 
     @property
@@ -430,11 +439,10 @@ class Continuum:
         """Iterate over units (in chronological and alphabetical order
         if annotations are present)
 
-        >>> for unit in annotation.iterunits("Max"):
+        >>> for unit in continuum.iterunits("Max"):
         ...     # do something with the unit
         """
-        for units in self._annotations[annotator]:
-            yield from units.values()
+        return iter(self._annotations)
 
     def compute_disorders(self, dissimilarity: AbstractDissimilarity):
         assert isinstance(dissimilarity, AbstractDissimilarity)
@@ -503,7 +511,7 @@ class Continuum:
             for annotator_id, unit_id in enumerate(alignment):
                 annotator, units = self._annotations.peekitem(annotator_id)
                 try:
-                    _, unit = units.peekitem(unit_id)
+                    unit = units[unit_id]
                     u_align_tuple.append((annotator, unit))
                 except IndexError:  # it's a "null unit"
                     u_align_tuple.append((annotator, None))
@@ -515,7 +523,7 @@ class Continuum:
     def compute_gamma(self,
                       dissimilarity: 'AbstractDissimilarity',
                       n_samples: int = 30,
-                      precision_level: Optional[float] = None,
+                      precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[List[Annotator]] = None,
                       sampling_strategy: str = "single",
                       pivot_type: PivotType = "float_pivot",
@@ -530,8 +538,10 @@ class Continuum:
         n_samples: optional int
             number of random continuum sampled from this continuum  used to
             estimate the gamma measure
-        precision_level: optional float
-            error percentage of the gamma estimation.
+        precision_level: optional float or "high", "medium", "low"
+            error percentage of the gamma estimation. If a literal
+            precision level is passed (e.g. "medium"), the corresponding numerical
+            value will be used (high: 1%, medium: 2%, low : 5%)
         ground_truth_annotators:
             if set, the random continuua will only be sampled from these
             annotators. This should be used when you want to compare a prediction
@@ -561,9 +571,12 @@ class Continuum:
             chance_disorders.append(sample_disorder)
 
         if precision_level is not None:
+            if isinstance(precision_level, str):
+                precision_level = PRECISION_LEVEL[precision_level]
             assert 0 < precision_level < 1.0
+
             # taken from subsection 5.3 of the original paper
-            # confidence at 95%, eg, 1.96
+            # confidence at 95%, i.e., 1.96
             variation_coeff = np.std(chance_disorders) / np.mean(chance_disorders)
             confidence = 1.96
             required_samples = np.ceil((variation_coeff * confidence / precision_level) ** 2).astype(np.int32)
@@ -573,6 +586,7 @@ class Continuum:
                     sampled_continuum = Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators)
                     sample_disorder = sampled_continuum.compute_disorders(dissimilarity)
                     chance_disorders.append(sample_disorder)
+
         best_alignment = self.get_best_alignment(dissimilarity)
 
         return GammaResults(
@@ -591,9 +605,20 @@ class Continuum:
             path = Path(path)
         with open(path, "w") as csv_file:
             writer = csv.writer(csv_file, delimiter=delimiter)
-            for annotator, units in self._annotations.items():
-                for unit in units.values():
-                    writer.writerow([annotator, unit.annotation, unit.segment.start, unit.segment.end])
+            for annotator, unit in self:
+                writer.writerow([annotator, unit.annotation,
+                                 unit.segment.start, unit.segment.end])
+
+    def _repr_png_(self):
+        """IPython notebook support
+
+        See also
+        --------
+        :mod:`pygamma_agreement.notebook`
+        """
+
+        from .notebook import repr_continuum
+        return repr_continuum(self)
 
 
 @dataclass
