@@ -6,18 +6,14 @@ Pygamma-agreement
 
 
 **pygamma-agreement** is an open-source package to measure Inter/Intra-annotator 
-agreement for sequences of annotations with the γ measure [2]. It is written in 
+agreement for sequences of annotations with the γ measure [^2]. It is written in 
 Python 3 and based mostly on NumPy, Numba and pyannote.core. For a full list of
  available functions, please refer to the [package documentation](https://pygamma-agreement.readthedocs.io/en/latest/).
 
 ![Alignment Example](docs/source/images/best_alignment.png)
 
 
-Installation
-============
-
-Dependencies
-------------
+## Dependencies
 
 The main dependencies of pygamma-agreement are :
 
@@ -25,16 +21,15 @@ The main dependencies of pygamma-agreement are :
 * [sortedcontainers](http://www.grantjenks.com/docs/sortedcontainers/>) (>=2.0.4)
 * [pyannote.core](http://pyannote.github.io/pyannote-core/>) (>= 4.1)
 * [Matplotlib](https://matplotlib.org/>) (>= 2.0)
-* [CVXPY](https://www.cvxpy.org/>) (= 1.0.25)
-* [Numba](https://numba.pydata.org/) (== 0.48.0)
-* [TextGrid](https://github.com/kylebgorman/textgrid) (== 1.5)
+* [CVXPY](https://www.cvxpy.org/>) (== 1.0.25)
+* [Numba](https://numba.pydata.org/) (>= 0.48.0)
+* [TextGrid](https://github.com/kylebgorman/textgrid) (>= 1.5)
 
 
 pygamma-agreement is a Python 3 package and is currently tested for Python 3.7. 
-PyGammaAgreement does not work with Python 2.7.
+pygamma-agreement does not work with Python 2.7.
 
-User installation
------------------
+## Installation
 
 pygamma-agreement can be easily installed using pip
 
@@ -43,11 +38,7 @@ pygamma-agreement can be easily installed using pip
 ```
 
 
-Quick start
-============
-
-
-### Tests
+## Tests
 
 The package comes with a unit-tests suit. To run it, first install *pytest* on your Python environment:
 
@@ -55,12 +46,13 @@ The package comes with a unit-tests suit. To run it, first install *pytest* on y
     pytest test/
 
 
-#### References
-    .. [1] Titeux H., Riad R.
-           *pygamma-agreement: Gamma γ measure for inter-annotator agreement and alignment in Python.*
+## References
+
+[1] Titeux H., Riad R.
+   *pygamma-agreement: Gamma γ measure for inter-annotator agreement and alignment in Python.*
            
 
-    .. [2] Mathet Y., Widlöcher A., Métivier, J.P.
-           *The unified and holistic method gamma γ for inter-annotator agreement measure and alignment.*
-           Computational Linguistics
+[2] Mathet Y., Widlöcher A., Métivier, J.P.
+   *The unified and holistic method gamma γ for inter-annotator agreement measure and alignment.*
+   Computational Linguistics
            
