@@ -213,7 +213,7 @@ class Continuum:
     def __init__(self, uri: Optional[str] = None):
         self.uri = uri
         # Structure {annotator -> SortedSet[Unit]}
-        self._annotations : Dict[Annotator, Set[Unit]] = SortedDict()
+        self._annotations: Dict[Annotator, Set[Unit]] = SortedDict()
 
         # these are instanciated when compute_disorder is called
         self._chosen_alignments: np.ndarray = None
@@ -362,6 +362,30 @@ class Continuum:
                 self.add(annotator,
                          Segment(interval.minTime, interval.maxTime),
                          interval.mark)
+
+    def add_elan(self,
+                 annotator: Annotator,
+                 eaf_path: Union[str, Path],
+                 selected_tiers: Optional[List[str]] = None):
+        """
+        Add an Elan (.eaf) file's content to the Continuum
+
+        Parameters
+        ----------
+        annotator: str
+            A string id for the annotator who produced that ELAN file.
+        tg_path: `Path` or str
+            Path to the textgrid file.
+        selected_tiers: optional list of str
+            If set, will drop tiers that are not contained in this list.
+        """
+        from pympi import Eaf
+        eaf = Eaf(eaf_path)
+        for tier_name in eaf.get_tier_names():
+            if selected_tiers is not None and tier_name not in selected_tiers:
+                continue
+            for start, end, value in eaf.get_annotation_data_for_tier(tier_name):
+                self.add(annotator, Segment(start, end), value)
 
     def merge(self, continuum: 'Continuum', in_place: bool = False) \
             -> Optional['Continuum']:
