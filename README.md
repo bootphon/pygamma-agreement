@@ -49,7 +49,7 @@ The package comes with a unit-tests suit. To run it, first install *pytest* on y
 ## References
 
 [1] Titeux H., Riad R.
-   *pygamma-agreement: Gamma γ measure for inter-annotator agreement and alignment in Python.*
+   *pygamma-agreement: Gamma γ measure for inter/intra-annotator agreement in Python.*
            
 
 [2] Mathet Y., Widlöcher A., Métivier, J.P.
