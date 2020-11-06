@@ -26,8 +26,8 @@ Obviously, our annotators sometimes disagree on who might be talking,
 or when exactly each person's speech turn is starting or ending. Luckily, the Gamma
 inter-annotator agreement enables us to measure that.
 
-We'll first load the annotation into `pygamma-agreement`'s base data structure,
-the `Continuum`, made to store this kind of annotated data.
+We'll first load the annotation into ``pygamma-agreement``'s base data structure,
+the ``Continuum``, made to store this kind of annotated data.
 
 .. code-block:: python
 
@@ -50,7 +50,7 @@ the `Continuum`, made to store this kind of annotated data.
     continuum.add("Annotator3", Segment(13.1, 17.1), "Robin")
 
 
-If you were to show the `continuum` variable in an jupyter notebook, this is
+If you were to show the ``continuum`` variable in an jupyter notebook, this is
 what would be displayed:
 
 .. image:: images/continuum.png
@@ -67,12 +67,12 @@ although they don't quite satisfy some of their theoretical requirements.
 
 In our case, we want that dissimilarity to measure both the disagreement on
 **segment boundaries** (when is someone talking?) and **segment annotations** (who's talking?).
-Thus, we'll be using the `CombinedCategoricalDissimilarity`, which uses both
+Thus, we'll be using the ``CombinedCategoricalDissimilarity``, which uses both
 **temporal** and **categorical** data to measure the disagreement between annotations.
 
 Since we think that eventual categorical mismatches are more important
 than temporal mismatches, we'll assign a greater weight to the former
-using the `alpha` (for temporal mismatches) and `beta` (for categorical mismatches)
+using the ``alpha`` (for temporal mismatches) and ``beta`` (for categorical mismatches)
 coefficients.
 
 .. code-block:: python

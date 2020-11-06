@@ -3,11 +3,11 @@ Command Line Tool
 =================
 
 
-The `pygamma-agreement` CLI enables you to compute the gamma inter-annotator
+The ``pygamma-agreement`` CLI enables you to compute the gamma inter-annotator
 agreement without having to use our library's Python API. For now, and to keep its usage
 as simple as possible, it only supports the Combined Categorical Dissimilarity.
 
-To use the command line tool, make sure you've installed the `pygamma-agreement`
+To use the command line tool, make sure you've installed the ``pygamma-agreement``
 package via pip. You can check that the CLI tool is properly installed in your
 environment by running
 
@@ -39,7 +39,7 @@ Thus, for instance:
 Using the command line tool
 ---------------------------
 
-`pygamma-agreement`'s command line can be used on one or more files, or a folder
+``pygamma-agreement``'s command line can be used on one or more files, or a folder
 containing several files. Thus, all these commands will work:
 
 .. code-block:: bash
@@ -50,7 +50,7 @@ containing several files. Thus, all these commands will work:
     pygamma-agreement data/
 
 The gamma value for each file will be printed out in the console's stdout.
-If you wish to easily save the tool's output in a file, you can use the `-output_csv`
+If you wish to easily save the tool's output in a file, you can use the ``--output_csv``
 option to save it to a 2-column CSV that will contain each file's gamma value.
 
 .. code-block:: bash
