@@ -30,14 +30,20 @@
 import argparse
 import csv
 import logging
-from argparse import RawTextHelpFormatter
+from argparse import RawTextHelpFormatter, ArgumentDefaultsHelpFormatter
 from pathlib import Path
 from typing import Dict, List
 
-from pygamma import Continuum, CombinedCategoricalDissimilarity
+from pygamma_agreement import Continuum, CombinedCategoricalDissimilarity
+
+
+class RawAndDefaultArgumentFormatter(RawTextHelpFormatter,
+                                     ArgumentDefaultsHelpFormatter):
+    pass
+
 
 argparser = argparse.ArgumentParser(
-    formatter_class=RawTextHelpFormatter,
+    formatter_class=RawAndDefaultArgumentFormatter,
     description="""
     A command-line tool to compute the gamma-agreement for 
     CSV or RTTM files. It can compute the gamma for one or more CSV files.
@@ -77,6 +83,10 @@ argparser.add_argument("-p", "--precision_level",
                        help="Precision level used for the gamma computation. "
                             "This is a percentage, lower means more precision. "
                             "A value under 0.10 is advised.")
+argparser.add_argument("-n", "--n_samples",
+                       default=30, type=int,
+                       help="Number of random continuua to be sampled for the "
+                            "gamma computation.")
 argparser.add_argument("-v", "--verbose",
                        action="store_true",
                        help="Verbose mode")
@@ -114,7 +124,8 @@ def pygamma_cmd():
                                                   alpha=args.alpha,
                                                   beta=args.beta)
         gamma = continuum.compute_gamma(dissimilarity=dissim,
-                                        precision_level=args.precision_level)
+                                        precision_level=args.precision_level,
+                                        n_samples=args.n_samples)
         results[file_path] = gamma.gamma
         print(f"{file_path} : {gamma.gamma}")
 
