@@ -61,9 +61,11 @@ class AbstractDissimilarity:
         self.delta_empty = np.float32(delta_empty)
 
     def build_arrays_continuum(self, continuum: 'Continuum') -> List[np.ndarray]:
+        """Builds the compact, array-shaped representation of a continuum"""
         raise NotImplemented()
 
     def build_arrays_alignment(self, alignment: 'Alignment') -> List[np.ndarray]:
+        """Builds the compact, array-shaped representation of an alignment"""
         raise NotImplemented()
 
     def build_args(self, resource: Union['Alignment', 'Continuum']) -> Tuple:

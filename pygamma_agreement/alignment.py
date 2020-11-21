@@ -199,8 +199,8 @@ class Alignment(AbstractAlignment):
         that all annotations from the referenced continuum *can be found*
         in the alignment and can be found *only once*.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         continuum: optional Continuum
             Continuum to check the alignment against. If none is specified,
             will try to use the one set at instanciation.

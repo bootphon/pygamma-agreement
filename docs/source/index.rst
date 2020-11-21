@@ -19,8 +19,9 @@ The package is available on pip, thus, just run
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Content:
 
    quickstart
+   principles
    cli
    api_reference
