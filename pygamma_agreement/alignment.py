@@ -59,7 +59,8 @@ class AbstractAlignment(metaclass=ABCMeta):
     @property
     @abstractmethod
     def disorder(self) -> float:
-        """Compute the disorder for the alignement
+        """Return the disorder for an alignment, if it has already been computed
+        beforehand
 
         >>> aligment.disorder
         ... 0.123
@@ -195,9 +196,10 @@ class Alignment(AbstractAlignment):
 
     def check(self, continuum: Optional['Continuum'] = None):
         """
-        Checks that an alignment is valid in relation to a Continuum. That is,
+        Checks that an alignment is a valid partition of a Continuum. That is,
         that all annotations from the referenced continuum *can be found*
-        in the alignment and can be found *only once*.
+        in the alignment and can be found *only once*. Empty units are not
+        taken into account.
 
         Parameters
         ----------
