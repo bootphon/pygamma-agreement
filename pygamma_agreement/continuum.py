@@ -339,7 +339,8 @@ class Continuum:
     def add_textgrid(self,
                      annotator: Annotator,
                      tg_path: Union[str, Path],
-                     selected_tiers: Optional[List[str]] = None):
+                     selected_tiers: Optional[List[str]] = None,
+                     use_tier_as_annotation: bool = False):
         """
         Add a textgrid file's content to the Continuum
 
@@ -351,6 +352,9 @@ class Continuum:
             Path to the textgrid file.
         selected_tiers: optional list of str
             If set, will drop tiers that are not contained in this list.
+        use_tier_as_annotation: optional bool
+            If True, the annotation for each non-empty interval will be the name
+            of its parent Tier.
         """
         from textgrid import TextGrid, IntervalTier
         tg = TextGrid.fromFile(str(tg_path))
@@ -359,14 +363,23 @@ class Continuum:
                 continue
             tier: IntervalTier = tg.getFirst(tier_name)
             for interval in tier:
-                self.add(annotator,
-                         Segment(interval.minTime, interval.maxTime),
-                         interval.mark)
+                if not interval.mark:
+                    continue
+
+                if use_tier_as_annotation:
+                    self.add(annotator,
+                             Segment(interval.minTime, interval.maxTime),
+                             tier_name)
+                else:
+                    self.add(annotator,
+                             Segment(interval.minTime, interval.maxTime),
+                             interval.mark)
 
     def add_elan(self,
                  annotator: Annotator,
                  eaf_path: Union[str, Path],
-                 selected_tiers: Optional[List[str]] = None):
+                 selected_tiers: Optional[List[str]] = None,
+                 use_tier_as_annotation: bool = False):
         """
         Add an Elan (.eaf) file's content to the Continuum
 
@@ -374,10 +387,13 @@ class Continuum:
         ----------
         annotator: str
             A string id for the annotator who produced that ELAN file.
-        tg_path: `Path` or str
-            Path to the textgrid file.
+        eaf_path: `Path` or str
+            Path to the .eaf (ELAN) file.
         selected_tiers: optional list of str
             If set, will drop tiers that are not contained in this list.
+        use_tier_as_annotation: optional bool
+            If True, the annotation for each non-empty interval will be the name
+            of its parent Tier.
         """
         from pympi import Eaf
         eaf = Eaf(eaf_path)
@@ -385,7 +401,10 @@ class Continuum:
             if selected_tiers is not None and tier_name not in selected_tiers:
                 continue
             for start, end, value in eaf.get_annotation_data_for_tier(tier_name):
-                self.add(annotator, Segment(start, end), value)
+                if use_tier_as_annotation:
+                    self.add(annotator, Segment(start, end), tier_name)
+                else:
+                    self.add(annotator, Segment(start, end), value)
 
     def merge(self, continuum: 'Continuum', in_place: bool = False) \
             -> Optional['Continuum']:

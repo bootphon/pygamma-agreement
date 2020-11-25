@@ -25,3 +25,36 @@ def test_continuum_init():
     assert len(continuum) == 2
     assert continuum.num_units == 9
     assert continuum.avg_num_annotations_per_annotator == 4.5
+
+
+def test_continuum_from_elan():
+    continuum = Continuum()
+    continuum.add_elan("annotator1", "tests/data/MaureenMarvinRobin.eaf")
+
+    assert continuum.num_units == 4
+    assert continuum.categories == {"S"}
+    assert continuum.annotators == ["annotator1"]
+
+    continuum = Continuum()
+    continuum.add_elan("annotator1", "tests/data/MaureenMarvinRobin.eaf",
+                       selected_tiers=["Maureen", "Robin"],
+                       use_tier_as_annotation=True)
+
+    assert continuum.num_units == 3
+    assert continuum.categories == {"Maureen", "Robin"}
+
+def test_continuum_from_textgrid():
+    continuum = Continuum()
+    continuum.add_textgrid("annotator1", "tests/data/MaureenMarvinRobin.TextGrid")
+
+    assert continuum.num_units == 4
+    assert continuum.categories == {"S"}
+    assert continuum.annotators == ["annotator1"]
+
+    continuum = Continuum()
+    continuum.add_textgrid("annotator1", "tests/data/MaureenMarvinRobin.TextGrid",
+                       selected_tiers=["Maureen", "Robin"],
+                       use_tier_as_annotation=True)
+
+    assert continuum.num_units == 3
+    assert continuum.categories == {"Maureen", "Robin"}

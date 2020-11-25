@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ANNOTATION_DOCUMENT AUTHOR="pympi" DATE="2020-11-25T16:42:31+01:00" FORMAT="2.8" VERSION="2.8" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.mpi.nl/tools/elan/EAFv2.8.xsd">
+	<HEADER>
+		<PROPERTY NAME="lastUsedAnnotation">0</PROPERTY>
+		</HEADER>
+	<TIME_ORDER>
+		<TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1006" />
+		<TIME_SLOT TIME_SLOT_ID="ts3" TIME_VALUE="1896" />
+		<TIME_SLOT TIME_SLOT_ID="ts4" TIME_VALUE="3738" />
+		<TIME_SLOT TIME_SLOT_ID="ts5" TIME_VALUE="4926" />
+		<TIME_SLOT TIME_SLOT_ID="ts6" TIME_VALUE="2401" />
+		<TIME_SLOT TIME_SLOT_ID="ts7" TIME_VALUE="3422" />
+		<TIME_SLOT TIME_SLOT_ID="ts8" TIME_VALUE="5294" />
+		<TIME_SLOT TIME_SLOT_ID="ts9" TIME_VALUE="5781" />
+		</TIME_ORDER>
+	<TIER LINGUISTIC_TYPE_REF="default-lt" TIER_ID="default" />
+	<TIER LINGUISTIC_TYPE_REF="default-lt" TIER_ID="Maureen">
+		<ANNOTATION>
+			<ALIGNABLE_ANNOTATION ANNOTATION_ID="a2" TIME_SLOT_REF1="ts2" TIME_SLOT_REF2="ts3">
+				<ANNOTATION_VALUE>S</ANNOTATION_VALUE>
+				</ALIGNABLE_ANNOTATION>
+			</ANNOTATION>
+		<ANNOTATION>
+			<ALIGNABLE_ANNOTATION ANNOTATION_ID="a3" TIME_SLOT_REF1="ts4" TIME_SLOT_REF2="ts5">
+				<ANNOTATION_VALUE>S</ANNOTATION_VALUE>
+				</ALIGNABLE_ANNOTATION>
+			</ANNOTATION>
+		</TIER>
+	<TIER LINGUISTIC_TYPE_REF="default-lt" TIER_ID="Marvin">
+		<ANNOTATION>
+			<ALIGNABLE_ANNOTATION ANNOTATION_ID="a4" TIME_SLOT_REF1="ts6" TIME_SLOT_REF2="ts7">
+				<ANNOTATION_VALUE>S</ANNOTATION_VALUE>
+				</ALIGNABLE_ANNOTATION>
+			</ANNOTATION>
+		</TIER>
+	<TIER LINGUISTIC_TYPE_REF="default-lt" TIER_ID="Robin">
+		<ANNOTATION>
+			<ALIGNABLE_ANNOTATION ANNOTATION_ID="a5" TIME_SLOT_REF1="ts8" TIME_SLOT_REF2="ts9">
+				<ANNOTATION_VALUE>S</ANNOTATION_VALUE>
+				</ALIGNABLE_ANNOTATION>
+			</ANNOTATION>
+		</TIER>
+	<LINGUISTIC_TYPE GRAPHIC_REFERENCES="false" LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" />
+	<CONSTRAINT DESCRIPTION="Time subdivision of parent annotation's time interval, no time gaps allowed within this interval" STEREOTYPE="Time_Subdivision" />
+	<CONSTRAINT DESCRIPTION="Symbolic subdivision of a parent annotation. Annotations refering to the same parent are ordered" STEREOTYPE="Symbolic_Subdivision" />
+	<CONSTRAINT DESCRIPTION="1-1 association with a parent annotation" STEREOTYPE="Symbolic_Association" />
+	<CONSTRAINT DESCRIPTION="Time alignable annotations within the parent annotation's time interval, gaps are allowed" STEREOTYPE="Included_In" />
+	</ANNOTATION_DOCUMENT>
