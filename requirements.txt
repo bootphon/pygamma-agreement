@@ -1,6 +1,5 @@
 sortedcontainers>= 2.0.4
 numpy>= 1.10.4
-matplotlib>= 2.0.0
 pyannote.core>=4.1
 cvxpy== 1.0.25
 tqdm>= 4.46.0

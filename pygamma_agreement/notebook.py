@@ -34,14 +34,18 @@ Visualization
 """
 from typing import Iterable, Dict, Optional, Tuple, Hashable, Union
 
-from matplotlib.markers import MarkerStyle
 from pyannote.core import Timeline, Segment
 
 try:
     from IPython.core.pylabtools import print_figure
 except Exception as e:
     pass
-from matplotlib.cm import get_cmap
+
+try:
+    from matplotlib.markers import MarkerStyle
+    from matplotlib.cm import get_cmap
+except Exception as e:
+    pass
 import numpy as np
 from itertools import cycle, product, groupby
 
@@ -271,7 +275,7 @@ class Notebook:
         for annot_id, annotator in enumerate(continuum.annotators):
             units_tl = Timeline([unit.segment for unit in continuum[annotator]])
             for segment, y in zip(units_tl, self.get_y(units_tl)):
-                self.draw_segment(ax, segment, y +  annot_id,
+                self.draw_segment(ax, segment, y + annot_id,
                                   annotator=annotator)
         if legend:
             self.draw_legend_from_labels(ax)

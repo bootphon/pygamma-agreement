@@ -20,14 +20,17 @@ The main dependencies of pygamma-agreement are :
 * [NumPy](https://numpy.org/>) (>= 1.10)
 * [sortedcontainers](http://www.grantjenks.com/docs/sortedcontainers/>) (>=2.0.4)
 * [pyannote.core](http://pyannote.github.io/pyannote-core/>) (>= 4.1)
-* [Matplotlib](https://matplotlib.org/>) (>= 2.0)
 * [CVXPY](https://www.cvxpy.org/>) (== 1.0.25)
 * [Numba](https://numba.pydata.org/) (>= 0.48.0)
 * [TextGrid](https://github.com/kylebgorman/textgrid) (>= 1.5)
 
+Optionally, to allow `pygamma-agreement` to display visual representations of
+our API's objects in Jupyter Notebooks, [Matplotlib](https://matplotlib.org/>) 
+is needed.
 
 pygamma-agreement is a Python 3 package and is currently tested for Python 3.7. 
 pygamma-agreement does not work with Python 2.7.
+
 
 ## Installation
 
