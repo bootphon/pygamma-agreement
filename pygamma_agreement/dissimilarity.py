@@ -31,7 +31,7 @@ Dissimilarity
 ##########
 
 """
-from typing import List, Optional, TYPE_CHECKING, Tuple, Union
+from typing import List, Optional, TYPE_CHECKING, Tuple, Union, Iterable
 
 import numba as nb
 import numpy as np
@@ -57,13 +57,15 @@ def positional_dissim(unit_a: np.ndarray,
 
 class AbstractDissimilarity:
 
-    def __init__(self, delta_empty: float):
+    def __init__(self, delta_empty: float = 1):
         self.delta_empty = np.float32(delta_empty)
 
     def build_arrays_continuum(self, continuum: 'Continuum') -> List[np.ndarray]:
+        """Builds the compact, array-shaped representation of a continuum"""
         raise NotImplemented()
 
     def build_arrays_alignment(self, alignment: 'Alignment') -> List[np.ndarray]:
+        """Builds the compact, array-shaped representation of an alignment"""
         raise NotImplemented()
 
     def build_args(self, resource: Union['Alignment', 'Continuum']) -> Tuple:
@@ -90,8 +92,8 @@ class CategoricalDissimilarity(AbstractDissimilarity):
 
     Parameters
     ----------
-    categories : list of str
-        list of N categories
+    categories : iterable of str
+        iterable of N categories
     cat_dissimilarity_matrix : optional, (N,N) numpy array
         Dissimilarity values between categories. Has to be symetrical
         with an empty diagonal. Defaults to setting all dissimilarities to 1.
@@ -100,11 +102,12 @@ class CategoricalDissimilarity(AbstractDissimilarity):
     """
 
     def __init__(self,
-                 categories: List[str],
+                 categories: Iterable[str],
                  cat_dissimilarity_matrix: Optional[np.ndarray] = None,
                  delta_empty: float = 1):
         super().__init__(delta_empty)
 
+        categories = list(categories)
         self.categories = set(categories)
         self.categories_dict = {cat: i for i, cat in enumerate(categories)}
         assert len(categories) == len(self.categories)

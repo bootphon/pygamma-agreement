@@ -1,10 +1,9 @@
-========
-Tutorial
-========
+.. _quickstart:
 
-
+==========
 Quickstart
 ==========
+
 
 In this small tutorial, you'll learn how to use the essential features
 of pygamma-agreement.
@@ -107,28 +106,5 @@ it (if we're in a jupyter notebook):
    :alt: showing a continuum in a jupyter notebook
    :align: center
 
-Principles
-==========
-
-Continua (or Continuums)
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-TODO
-
-Alignments
-~~~~~~~~~~
-
-TODO
-
-Dissimilarities
-~~~~~~~~~~~~~~~
-
-TODO
-
-
-The Gamma agreement
-~~~~~~~~~~~~~~~~~~~
-
-TODO
 
 
