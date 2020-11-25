@@ -23,6 +23,7 @@ The main dependencies of pygamma-agreement are :
 * [CVXPY](https://www.cvxpy.org/>) (== 1.0.25)
 * [Numba](https://numba.pydata.org/) (>= 0.48.0)
 * [TextGrid](https://github.com/kylebgorman/textgrid) (>= 1.5)
+* [Pympi-ling](https://github.com/dopefishh/pympi) (>= 1.69)
 
 Optionally, to allow `pygamma-agreement` to display visual representations of
 our API's objects in Jupyter Notebooks, [Matplotlib](https://matplotlib.org/>) 
