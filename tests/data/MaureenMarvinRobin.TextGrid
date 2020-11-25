@@ -1,0 +1,70 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0 
+xmax = 6.058412698412698 
+tiers? <exists> 
+size = 3 
+item []: 
+    item [1]:
+        class = "IntervalTier" 
+        name = "Maureen" 
+        xmin = 0 
+        xmax = 6.058412698412698 
+        intervals: size = 5 
+        intervals [1]:
+            xmin = 0 
+            xmax = 1.00589324318365 
+            text = "" 
+        intervals [2]:
+            xmin = 1.00589324318365 
+            xmax = 1.8955770203000142 
+            text = "S" 
+        intervals [3]:
+            xmin = 1.8955770203000142 
+            xmax = 3.7380834232313234 
+            text = "" 
+        intervals [4]:
+            xmin = 3.7380834232313234 
+            xmax = 4.926241757831887 
+            text = "S" 
+        intervals [5]:
+            xmin = 4.926241757831887 
+            xmax = 6.058412698412698 
+            text = "" 
+    item [2]:
+        class = "IntervalTier" 
+        name = "Marvin" 
+        xmin = 0 
+        xmax = 6.058412698412698 
+        intervals: size = 3 
+        intervals [1]:
+            xmin = 0 
+            xmax = 2.4006878098886597 
+            text = "" 
+        intervals [2]:
+            xmin = 2.4006878098886597 
+            xmax = 3.42238917973842 
+            text = "S" 
+        intervals [3]:
+            xmin = 3.42238917973842 
+            xmax = 6.058412698412698 
+            text = "" 
+    item [3]:
+        class = "IntervalTier" 
+        name = "Robin" 
+        xmin = 0 
+        xmax = 6.058412698412698 
+        intervals: size = 3 
+        intervals [1]:
+            xmin = 0 
+            xmax = 5.293595059350902 
+            text = "" 
+        intervals [2]:
+            xmin = 5.293595059350902 
+            xmax = 5.781486162930843 
+            text = "S" 
+        intervals [3]:
+            xmin = 5.781486162930843 
+            xmax = 6.058412698412698 
+            text = "" 
