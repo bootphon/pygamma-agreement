@@ -1,108 +1,143 @@
----
-title: 'pygamma-agreement : a Python implementation of the Gamma inter-annotator agreement'
-tags:
-  - Python
-  - linguistics
-  - annotation
-  - statistics
-authors:
-  - name: Rachid Riad
-    # orcid: 0000-0002-7753-1219
-    affiliation: "1, 2"
-  - name: Hadrien Titeux
-    orcid: 0000-0002-8511-1644
-    affiliation: 1
-affiliations:
- - name: LSCP/ENS/CNRS/EHESS/INRIA/PSL Research University, Paris, France 
-   index: 1
- - name: NPI/ENS/INSERM/UPEC/PSL Research University, Créteil, France
-   index: 2
-   
-date: 10 November 2020
-bibliography: paper.bib
----
+@inproceedings{seshat,
+  TITLE = {{Seshat: A tool for managing and verifying annotation campaigns of audio data}},
+  AUTHOR = {Titeux, Hadrien and Riad, Rachid and Cao, Xuan-Nga and Hamilakis, Nicolas and Madden, Kris and Cristia, Alejandrina and Bachoud-L{\'e}vi, Anne-Catherine and Dupoux, Emmanuel},
+  URL = {https://hal.archives-ouvertes.fr/hal-02496041},
+  BOOKTITLE = {{LREC 2020 - 12th Language Resources and Evaluation Conference}},
+  ADDRESS = {Marseille, France},
+  YEAR = {2020},
+  MONTH = May,
+  KEYWORDS = {Speech corpora ; Annotations management ; Speech transcription},
+  PDF = {https://hal.archives-ouvertes.fr/hal-02496041/file/Seshat_2020_LREC_2020_Paper_Titeux_et_al__Final.pdf},
+  HAL_ID = {hal-02496041},
+  HAL_VERSION = {v1},
+}
+@article{gamma-paper,
+    title = "The Unified and Holistic Method Gamma ($\gamma$) for Inter-Annotator Agreement Measure and Alignment",
+    author = {Mathet, Yann  and
+      Widl{\"o}cher, Antoine  and
+      M{\'e}tivier, Jean-Philippe},
+    journal = "Computational Linguistics",
+    volume = "41",
+    number = "3",
+    month = sep,
+    year = "2015",
+    url = "https://www.aclweb.org/anthology/J15-3003",
+    doi = "10.1162/COLI_a_00227",
+    pages = "437--479",
+}
+@article{gamma-cat-paper,
+  TITLE = {{The Agreement Measure Gamma-Cat : a Complement to Gamma Focused on Categorization of a Continuum}},
+  AUTHOR = {Mathet, Yann},
+  URL = {https://hal.archives-ouvertes.fr/hal-01712281},
+  JOURNAL = {{Computational Linguistics}},
+  PUBLISHER = {{Massachusetts Institute of Technology Press (MIT Press)}},
+  VOLUME = {43},
+  NUMBER = {3},
+  PAGES = {661-681},
+  YEAR = {2017},
+  MONTH = Sep,
+  DOI = {10.1162/COLI\_a\_00296},
+  HAL_ID = {hal-01712281},
+  HAL_VERSION = {v1},
+}
 
-# Introduction
+@article{chat-childes-book,
+    author = "Ludovica Serratrice",
+    title = "Book Reviews : The CHILDES Project: Tools for Analyzing Talk, 3rd edition.",
+    journal = "First Language",
+    volume = "20",
+    number = "60",
+    pages = "331-337",
+    year = "2000",
+    doi = "10.1177/014272370002006006",
+    URL = "https://talkbank.org/manuals/CHAT.pdf",
+}
+@inproceedings{numba-paper,
+	author = {Lam, Siu Kwan and Pitrou, Antoine and Seibert, Stanley},
+	title = {Numba: A LLVM-Based Python JIT Compiler},
+	year = {2015},
+	isbn = {9781450340052},
+	publisher = {Association for Computing Machinery},
+	address = {New York, NY, USA},
+	url = {https://doi.org/10.1145/2833157.2833162},
+	doi = {10.1145/2833157.2833162},
+	booktitle = {Proceedings of the Second Workshop on the LLVM Compiler Infrastructure in HPC},
+	articleno = {7},
+	numpages = {6},
+	keywords = {compiler, LLVM, Python},
+	location = {Austin, Texas},
+	series = {LLVM '15}
+}
+@article{cvxpy-paper,
+	author = {Diamond, Steven and Boyd, Stephen},
+	title = {CVXPY: A Python-Embedded Modeling Language for Convex Optimization},
+	year = {2016},
+	issue_date = {January 2016},
+	publisher = {JMLR.org},
+	volume = {17},
+	number = {1},
+	issn = {1532-4435},
+	journal = {J. Mach. Learn. Res.},
+	month = jan,
+	pages = {2909–2913},
+	numpages = {5},
+	keywords = {conic programming, Python, convexity verification, domain-specific languages, convex optimization}
+}
+@INPROCEEDINGS{pyannote-paper,
+  author={H. {Bredin} and R. {Yin} and J. M. {Coria} and G. {Gelly} and P. {Korshunov} and M. {Lavechin} and D. {Fustes} and H. {Titeux} and W. {Bouaziz} and M. {Gill}},
+  booktitle={ICASSP 2020 - 2020 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)}, 
+  title={Pyannote.Audio: Neural Building Blocks for Speaker Diarization}, 
+  year={2020},
+  volume={},
+  number={},
+  pages={7124-7128},
+  doi={10.1109/ICASSP40776.2020.9052974}
+}
+@Article{numpy-paper,
+ title         = {Array programming with {NumPy}},
+ author        = {Charles R. Harris and K. Jarrod Millman and St{'{e}}fan J.
+                 van der Walt and Ralf Gommers and Pauli Virtanen and David
+                 Cournapeau and Eric Wieser and Julian Taylor and Sebastian
+                 Berg and Nathaniel J. Smith and Robert Kern and Matti Picus
+                 and Stephan Hoyer and Marten H. van Kerkwijk and Matthew
+                 Brett and Allan Haldane and Jaime Fern{'{a}}ndez del
+                 R{'{\i}}o and Mark Wiebe and Pearu Peterson and Pierre
+                 G{'{e}}rard-Marchant and Kevin Sheppard and Tyler Reddy and
+                 Warren Weckesser and Hameer Abbasi and Christoph Gohlke and
+                 Travis E. Oliphant},
+ year          = {2020},
+ month         = sep,
+ journal       = {Nature},
+ volume        = {585},
+ number        = {7825},
+ pages         = {357--362},
+ doi           = {10.1038/s41586-020-2649-2},
+ publisher     = {Springer Science and Business Media {LLC}},
+ url           = {https://doi.org/10.1038/s41586-020-2649-2}
+}
+@article{kappa-paper,
+    title = "Assessing Agreement on Classification Tasks: The Kappa Statistic",
+    author = "Carletta, Jean",
+    journal = "Computational Linguistics",
+    volume = "22",
+    number = "2",
+    year = "1996",
+    url = "https://www.aclweb.org/anthology/J96-2004",
+    pages = "249--254",
+}
 
-In the last decades, it became easier to collect large audio recordings in naturalistic conditions and large corpora of text from the Internet. This broadens the scope of questions that can be addressed regarding speech and language.
+@article{alpha-paper,
+    title = "Computing Krippendorff's Alpha-Reliability",
+    author = "Krippendorff, Klaus",
+    year = "2011",
+    url = "https://repository.upenn.edu/asc_papers/43/",
+}
 
+@article{inter-rater-handbook,
+    title = "Handbook of Inter-rater Reliability.",
+    author = "Gwet, Kilem Li.",
+    year = "2012",
+    pages = "6-7",
+}
 
-Scientist need to challenge their hypotheses and quantify the observed phenomenons on speech and language; that is why scientists add different layers of annotations. Some type of human intervention is used to reliably describe events contained in the corpus's content (ex: Wikipedia articles, conversations, child babbling, animal vocalizations, or even just environmental sounds). These events can either be tagged at a particular point in time, or over a stretch of time. It is also commonplace to provide a categorical annotation or - in the case of speech -  even precise transcriptions [@chat-childes-book] for these events. 
-Depending on the difficulty of the annotation task and the eventual expertise of the annotators, the annotations they produce can include a certain degree of interpretation.
-A common strategy when building annotated corpora is to have small parts of a corpus annotated by several annotators, to be able quantify their consensus on that reduced subset of the corpus. 
-If that consensus is deemed robust (i.e., agreement is high), we infer that the annotation task is well defined, less prone to interpretation, and that annotations that cover the rest of the corpus are reliable [@inter-rater-handbook].
-An objective measure of the agreement (and subsequent disagreement) between annotators is thus desirable.
-
-# Statement of Need
-
-The Gamma ($\gamma$) Inter-Annotator Agreement Measure was proposed by [@gamma-paper] as a way to solve shortcomings of other pre-existing measures that aimed at quantifying inter-rater agreement. 
-This quantification will have to satisfy some constraints : segmentation, unitizing, categorization, weighted categorization and the support for any number of annotators. They should also provide a chance-corrected value.
-Measures, such as the $\kappa$ [@kappa-paper] or Krippendorff's $\alpha$'s [@alpha-paper],  have existed for some time to deal with these constraints, but never could address all of them at once. A detailed comparison between metrics is available in [@gamma-paper]. Furthermore, the authors of [@gamma-paper] [provided a Java freeware](https://gamma.greyc.fr/) GUI implementation along with their paper. 
-
-Linguist and automated speech researchers today use analysis pipeline that are either Python or shell scripts. 
-To this day, no open-source implementation allows for the $\gamma$-agreement to be computed in a programmatical way, and researchers that are already proficient in Python and willing to automate their work might be hindered by the graphical nature of the original Java implementation.
-Moreover, the original $\gamma$-agreement algorithm has several parameters that are determinant in its computation and cannot be configured as of now.
-For this reason, we thought it would greatly benefit the speech and linguistic scientific community if we could provide them with a fully open-source Python implementation of the original algorithm.
-
-
-# The pygamma-agreement Package
-
-
-The `pygamma-agreement` package provides users with two ways to compute the $\gamma$-agreement for a corpus of annotations. The first one is to use the package's Python API. 
-
-```python
-import pygamma_agreement as pa
-continuum = pa.Continuum.from_csv("data/PaulAlexSuzann.csv")
-dissimilarity = pa.Dissimilarity(categories=list(continuum.categories))
-gamma_results = continuum.compute_gamma(dissimilarity, confidence_level=0.02)
-print(f"Gamma is {gamma_results.gamma}")
-```
-
-The most important primitives from our API (the `Continuum` \autoref{fig:continuum} and `Alignment` \autoref{fig:alignment} classes) can be displayed using the `matplotlib.pyplot` backend if the user is working in a Jupyter notebook. 
-
-![Displaying a Continuum in a jupyter notebook. \label{fig:continuum}](continuum.png)
-
-![Displaying an Alignment in a jupyter notebook. \label{fig:alignment}](best_alignment.png)
-
-The second one is a command-line application that can be invoked directly from the shell, for those who prefer to use shell scripts for corpus processing:
-
-```bash
-pygamma-agreement corpus/*.csv --confidence_level 0.02 --output_csv results.csv
-```
-
-We support a variety of commonly used annotation formats among speech researchers and linguists: RTTM, TextGrid, CSV and `pyannote.core.Annotation` objects.
-
-Computing the gamma-agreement requires both array manipulation and the solving of multiple optimization problem formulated as Mixed-Integer Programming (MIP) problems. We thus used the _de facto_ standard for all of our basic array operations, NumPy [@numpy-paper]. Since some parts of the algorithm are fairly demanding, we made sure that these parts were heavily optimized using `numba` [@numba-paper]. We used `cvxpy`'s [@cvxpy-paper] MIP-solving framework to solve the optimization problem. For time-based annotations, we rely on primitives from `pyannote.core` [@pyannote-paper]. We made sure that it is robustly tested using the widely-adopted `pytest` testing framework. We also back-tested `pygamma-agreement`'s outputs against the original Java implementation's outputs to make sure they matched. We set-up an automated Travis CI to use these tests to ensure our package's quality. Most of our package's code is type-hinted and has descriptive docstrings, both of which  can be leveraged by IDEs to ease the use of our API.
-
-We provide a user [documentation](https://pygamma-agreement.readthedocs.io/en/latest/) as well as an example Jupyter notebook in our package's repository. Additionally, we've used and tested `pygamma-agreement` in conjunction with the development of our own custom-built annotation platform, Seshat [@seshat]. In **Table 1**, we present two use cases for our implementation of the $\gamma$-agreement measure on two corpora. 
-
-
-| Corpus              | Annotation                  | # Classes | Mean of $\gamma$ |
-|---------------------|-----------------------------|-----------|------------------|
-| Clinical Interviews | Turn-Takings                | 3         | 0.64             |
-| Clinical Interviews | Utterances                  | 1         | 0.61             |
-| Child Recordings    | Speech Activity             | 1         | 0.46             |
-| Child Recordings    | Child/Adult-directed speech | 2         | 0.27             |
-
-
-<p style="text-align: center;"><small>**Table 1**: $\gamma$ Inter-rater agreement for clinical interviews (16 samples) and child-centered day-long recordings (20 samples).</small></p>
-
-
-We've uploaded our package to the [Pypi repository](https://pypi.org/project/pygamma-agreement/), thus, `pygamma-agreement` can be installed using pip.
-
-
-# Future Work
-
-We've identified a small number of improvements that our package could benefit from:
-
-* An obvious improvement is to add support for the "$\gamma$-cat" metric, a complement measure [@gamma-cat-paper] for the $\gamma$-agreement.
-* The $\gamma$-agreement's theoretical framework allows for the inclusion of a sequence-based dissimilarity, based on the Levenshtein distance. This would however require a numba re-implementation of the latter.
-* While our implementation is already close to the fastest pure python can be, we've identified some parts of it that could benefit from `numba`'s automatic parallelization features.
-
-
-# Acknowledgements
-
-We are thankful to Yann Mathet for his help on understanding his work on the $\gamma$-agreement. We also thank Anne-Catherine Bachoux-Lévy and Emmanuel Dupoux for their advice, as well as Julien Karadayi for helpful discussions and feedbacks.  This work is funded in part by the Agence Nationale pour la Recherche (ANR-17-EURE-0017Frontcog, ANR-10-IDEX-0001-02 PSL*, ANR-19-P3IA-0001PRAIRIE 3IA Institute) and Grants from Neuratris, from Facebook AI Research (Research Gift), Google (Faculty Research Award),  Microsoft  Research  (Azure  Credits  and  Grant), and Amazon Web Service (AWS Research Credits).
-
-# References
 
