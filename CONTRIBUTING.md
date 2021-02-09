@@ -18,7 +18,7 @@ seeking help through an issue. If possible,
 * Provide a code sample of what you wre trying to do
 * Try pointing out which part of the documentation felt inadequate regarding your original goal
 
-## Code Contributiions to `pygamma-agreement`
+## Code Contributiions to `pygamma-agreement`
 
 If you're willing to take it upon yourself to improve `pygamma-agreement`, via bugfixes, improvements and new features 
 (which we strongly encourage you to do and are very grateful), please follow these steps:

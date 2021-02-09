@@ -50,6 +50,11 @@ The package comes with a unit-tests suit. To run it, first install *pytest* on y
     pytest test/
 
 
+## Submitting and issue or contributing
+
+Please read `CONTRIBUTING.md` before submitting and issue or writing some contribution 
+to this package.
+
 ## References
 
 [1] Titeux H., Riad R.
