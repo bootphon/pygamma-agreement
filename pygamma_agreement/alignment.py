@@ -237,8 +237,8 @@ class Alignment(AbstractAlignment):
         # let's first look for missing ones, then for repeated assignments
         missing_tuples = continuum_tuples - set(alignment_tuples)
         if missing_tuples:
-            repeated_tuples_str = ', '.join(f"{annotator}->{segment}"
-                                            for annotator, segment in missing_tuples)
+            repeated_tuples_str = ', '.join(f"{annotator}->{unit}"
+                                            for annotator, unit in missing_tuples)
 
             raise SetPartitionError(f'{repeated_tuples_str} '
                                     f'not in the set of unitary alignments')
@@ -246,8 +246,8 @@ class Alignment(AbstractAlignment):
         tuples_counts = Counter(alignment_tuples)
         repeated_tuples = {tup for tup, count in tuples_counts.items() if count > 1}
         if repeated_tuples:
-            repeated_tuples_str = ', '.join(f"{annotator}->{segment}"
-                                            for annotator, segment in repeated_tuples)
+            repeated_tuples_str = ', '.join(f"{annotator}->{unit}"
+                                            for annotator, unit in repeated_tuples)
 
             raise SetPartitionError(f'{repeated_tuples_str} '
                                     f'are found more than once in the set '

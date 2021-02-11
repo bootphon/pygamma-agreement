@@ -34,7 +34,7 @@ def test_alignment_checking():
     with pytest.raises(SetPartitionError):
         alignment.check(continuum)
 
-    n_tuple = (('liza', Unit(Segment(6, 8), 'Carol')),
+    n_tuple = (('liza', Unit(Segment(6, 8), 'Bob')),
                ('pierrot', None)
                )
     unitary_alignment = UnitaryAlignment(n_tuple)
