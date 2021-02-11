@@ -108,7 +108,11 @@ class Continuum:
                  delimiter: str = ","):
         """
         Load annotations from a CSV file , with structure
-        annotator, category, segment_start, segment_end
+        annotator, category, segment_start, segment_end.
+
+        .. warning::
+
+            The CSV file shouldn't have any header
 
         Parameters
         ----------
