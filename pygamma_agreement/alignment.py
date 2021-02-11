@@ -41,7 +41,7 @@ import numpy as np
 from .dissimilarity import AbstractDissimilarity
 
 if TYPE_CHECKING:
-    from .continuum import Continuum, Annotator, Unit
+    from .continuum import Continuum, Annotator
 
 UnitsTuple = Tuple[Tuple['Annotator', 'Unit']]
 
@@ -80,8 +80,6 @@ class UnitaryAlignment:
     n_tuple :
         n-tuple where n is the number of annotators of the continuum
         This is a list of (annotator, segment) couples
-    dissimilarity :
-        combined_dissimilarity
     """
 
     def __init__(self, n_tuple: UnitsTuple):
@@ -226,16 +224,15 @@ class Alignment(AbstractAlignment):
 
         # set partition tests for the unitary alignments
         continuum_tuples = set()
-        # TODO: use units instead of segments
         for annotator, unit in continuum:
-            continuum_tuples.add((annotator, unit.segment))
+            continuum_tuples.add((annotator, unit))
 
         alignment_tuples = list()
         for unitary_alignment in self.unitary_alignments:
             for (annotator, unit) in unitary_alignment.n_tuple:
                 if unit is None:
                     continue
-                alignment_tuples.append((annotator, unit.segment))
+                alignment_tuples.append((annotator, unit))
 
         # let's first look for missing ones, then for repeated assignments
         missing_tuples = continuum_tuples - set(alignment_tuples)

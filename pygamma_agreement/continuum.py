@@ -99,8 +99,6 @@ class Continuum:
     ----------
     uri : string, optional
         name of annotated resource (e.g. audio or video file)
-    modality : string, optional
-        name of annotated modality
     """
 
     @classmethod
@@ -174,7 +172,7 @@ class Continuum:
         """Generate a new random annotation from a single continuum
                 Strategy from figure 12
 
-                >>> gamma_agreement.sample_from_single_continuum()
+                >>> continuum.sample_from_continuum()
                 ... <pygamma_agreement.continuum.Continuum at 0x7f5527a19588>
                 """
         assert pivot_type in ('float_pivot', 'int_pivot')
@@ -216,8 +214,8 @@ class Continuum:
         self._annotations: Dict[Annotator, Set[Unit]] = SortedDict()
 
         # these are instanciated when compute_disorder is called
-        self._chosen_alignments: np.ndarray = None
-        self._alignments_disorders: np.ndarray = None
+        self._chosen_alignments: Optional[np.ndarray] = None
+        self._alignments_disorders: Optional[np.ndarray] = None
 
     def copy(self) -> 'Continuum':
         """
