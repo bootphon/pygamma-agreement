@@ -3,7 +3,7 @@ Pygamma-agreement
 
 [![Build Status](https://travis-ci.com/bootphon/pygamma-agreement.svg?branch=master?token=RBFAQCRfvbxdpaEByTFc&branch=master)](https://travis-ci.com/bootphon/pygamma-agreement/)
 [![Documentation Status](https://readthedocs.org/projects/pygamma-agreement/badge/?version=latest)](https://pygamma-agreement.readthedocs.io/en/latest/?badge=latest)
-
+[![status](https://joss.theoj.org/papers/d54271e471b25775e95ebcfc9bcf2493/status.svg)](https://joss.theoj.org/papers/d54271e471b25775e95ebcfc9bcf2493)
 
 **pygamma-agreement** is an open-source package to measure Inter/Intra-annotator 
 agreement for sequences of annotations with the γ measure [^2]. It is written in 
