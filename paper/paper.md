@@ -58,8 +58,8 @@ The `pygamma-agreement` package provides users with two ways to compute the $\ga
 ```python
 import pygamma_agreement as pa
 continuum = pa.Continuum.from_csv("data/PaulAlexSuzann.csv")
-dissimilarity = pa.Dissimilarity(categories=list(continuum.categories))
-gamma_results = continuum.compute_gamma(dissimilarity, confidence_level=0.02)
+dissimilarity = pa.CombinedCategoricalDissimilarity(categories=list(continuum.categories))
+gamma_results = continuum.compute_gamma(dissimilarity, precision_level=0.02)
 print(f"Gamma is {gamma_results.gamma}")
 ```
 
