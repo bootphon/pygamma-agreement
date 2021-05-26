@@ -128,6 +128,11 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         self.cat_matrix = self.cat_matrix.astype(np.float32)
 
     def build_arrays_continuum(self, continuum: 'Continuum'):
+        """
+        Continuum matrix for categorical dissimilarity is :
+            - lines : annotators
+            - columns : categories (id) of units in sorted order
+        """
         categories_arrays = nb.typed.List()
         for annotator_id, (annotator, units) in enumerate(continuum._annotations.items()):
             cat_array = np.zeros(len(units) + 1).astype(np.int16)
@@ -147,6 +152,11 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         return categories_arrays
 
     def build_arrays_alignment(self, alignment: 'Alignment'):
+        """
+            Alignments matrix for categorical dissimilarity is :
+                - lines : annotators
+                - columns : categories (id) of units in sorted order
+        """
         cat_arrays = nb.typed.List()
         for _ in range(alignment.num_annotators):
             unit_dists_array = np.zeros(alignment.num_alignments)
@@ -176,10 +186,13 @@ class CategoricalDissimilarity(AbstractDissimilarity):
             self.cat_matrix,
             extent=[0, self.categories_nb, 0, self.categories_nb])
         ax.figure.colorbar(im, ax=ax)
+        categories_indexedlist = [None for _ in range(self.categories_nb)]
+        for cat, id_cat in self.categories_dict.items():
+            categories_indexedlist[id_cat] = cat
         plt.xticks([el + 0.5 for el in range(self.categories_nb)],
-                   self.categories)
+                   categories_indexedlist)
         plt.yticks([el + 0.5 for el in range(self.categories_nb)],
-                   self.categories[::-1])
+                   reversed(categories_indexedlist))
         plt.setp(
             ax.get_xticklabels(),
             rotation=45,
