@@ -253,8 +253,8 @@ class Continuum:
 
     @property
     def categories(self) -> Iterable[str]:
-        return set(unit.annotation for _, unit in self
-                   if unit.annotation is not None)
+        return sorted(set(unit.annotation for _, unit in self
+                   if unit.annotation is not None))
 
     @property
     def num_annotators(self) -> int:
