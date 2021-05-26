@@ -252,7 +252,7 @@ class Continuum:
         return sum(len(units) for units in self._annotations.values())
 
     @property
-    def categories(self) -> Set[str]:
+    def categories(self) -> Iterable[str]:
         return set(unit.annotation for _, unit in self
                    if unit.annotation is not None)
 
@@ -546,7 +546,7 @@ class Continuum:
                 self.compute_disorders(dissimilarity)
             else:
                 raise ValueError("Best alignment disorder hasn't been computed, "
-                                 "a the dissimilarity argument is required")
+                                 "the dissimilarity argument is required")
 
         from .alignment import UnitaryAlignment, Alignment
 

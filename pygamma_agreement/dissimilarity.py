@@ -31,7 +31,7 @@ Dissimilarity
 ##########
 
 """
-from typing import List, Optional, TYPE_CHECKING, Tuple, Union, Iterable
+from typing import List, Optional, TYPE_CHECKING, Tuple, Union, Iterable, Callable
 
 import numba as nb
 import numpy as np
@@ -94,37 +94,30 @@ class CategoricalDissimilarity(AbstractDissimilarity):
     ----------
     categories : iterable of str
         iterable of N categories
-    cat_dissimilarity_matrix : optional, (N,N) numpy array
-        Dissimilarity values between categories. Has to be symetrical
-        with an empty diagonal. Defaults to setting all dissimilarities to 1.
+    cat_dissimilarity_matrix : optional, f: (str,str) -> float function representing
+        the matrix containing the values between categories. Has to be symetrical (f(x, y) = f(y, x))
+        with an empty diagonal (f(x, x) = 0). Defaults to setting all dissimilarities to 1.
     delta_empty : optional, float
         empty dissimilarity value. Defaults to 1.
     """
 
     def __init__(self,
                  categories: Iterable[str],
-                 cat_dissimilarity_matrix: Optional[np.ndarray] = None,
+                 cat_dissimilarity_matrix: Callable[[str, str], float] = (lambda cat1, cat2: float(cat1 != cat2)),
                  delta_empty: float = 1):
         super().__init__(delta_empty)
 
-        categories = list(categories)
-        self.categories = set(categories)
         self.categories_dict = {cat: i for i, cat in enumerate(categories)}
-        assert len(categories) == len(self.categories)
-        self.categories_nb = len(self.categories)
+        self.categories_nb = len(self.categories_dict)
         # TODO: make sure that the categorical dissim matrix matches the categories order
-        self.cat_matrix = cat_dissimilarity_matrix
-        if self.cat_matrix is None:
-            # building the default dissimilarity matrix
-            self.cat_matrix = (np.ones((self.categories_nb, self.categories_nb))
-                               - np.eye(self.categories_nb))
-        else:
-            # sanity checks on the categorical_dissimilarity_matrix
-            assert isinstance(self.cat_matrix, np.ndarray)
-            assert np.all(self.cat_matrix <= 1)
-            assert np.all(0 <= self.cat_matrix)
-            assert np.all(self.cat_matrix ==
-                          cat_dissimilarity_matrix.T)
+        self.cat_matrix = np.array([
+            [cat_dissimilarity_matrix(cat1, cat2) for cat1 in categories]
+            for cat2 in categories])
+
+        # sanity checks on the categorical_dissimilarity_matrix
+        assert isinstance(self.cat_matrix, np.ndarray)
+        assert np.all(self.cat_matrix <= 1)
+        assert np.all(0 <= self.cat_matrix)
         self.cat_matrix = self.cat_matrix.astype(np.float32)
 
     def build_arrays_continuum(self, continuum: 'Continuum'):
@@ -146,8 +139,8 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                     raise ValueError(
                         f"In segment {unit.segment} for annotator {annotator}: "
                         f"annotation of category {unit.category} is not in "
-                        f"set {set(self.categories)} of allowed categories")
-            cat_array[-1] = -1
+                        f"set {set(self.categories_dict.keys())} of allowed categories")
+            cat_array[-1] = -1 # We add an empty unit at the end of each line so that the carthesian product uses it
             categories_arrays.append(cat_array)
         return categories_arrays
 
@@ -176,7 +169,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                     raise ValueError(f"In unit {unit} for annotator {annotator}"
                                      f"in unitary alignment {unit_align}: "
                                      f"annotation of category {unit.category} "
-                                     f"is not in set {set(self.categories)} "
+                                     f"is not in set {set(self.categories_dict.keys())} "
                                      f"of allowed categories")
         return cat_arrays
 
@@ -341,7 +334,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
                  alpha: float = 3,
                  beta: float = 1,
                  delta_empty: float = 1,
-                 cat_dissimilarity_matrix=None):
+                 cat_dissimilarity_matrix: Callable[[str, str], float] = (lambda cat1, cat2: float(cat1 != cat2))):
         super().__init__(delta_empty)
         assert alpha >= 0
         assert beta >= 0
@@ -359,9 +352,9 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
     ----------
     categories : list of str
         list of N categories
-    cat_dissimilarity_matrix : optional, (N,N) numpy array
-        Dissimilarity values between categories. Has to be symetrical 
-        with an empty diagonal. Defaults to setting all dissimilarities to 1.
+    cat_dissimilarity_matrix : optional, f: (str,str) -> float function representing
+        the matrix containing the values between categories. Has to be symetrical (f(x, y) = f(y, x))
+        with an empty diagonal (f(x, x) = 0). Defaults to setting all dissimilarities to 1.
     delta_empty : optional, float
         empty dissimilarity value. Defaults to 1.
     alpha: optional float
