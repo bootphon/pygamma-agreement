@@ -32,7 +32,7 @@ def test_continuum_from_elan():
     continuum.add_elan("annotator1", "tests/data/MaureenMarvinRobin.eaf")
 
     assert continuum.num_units == 4
-    assert continuum.categories == {"S"}
+    assert set(continuum.categories) == {"S"}
     assert continuum.annotators == ["annotator1"]
 
     continuum = Continuum()
@@ -41,14 +41,14 @@ def test_continuum_from_elan():
                        use_tier_as_annotation=True)
 
     assert continuum.num_units == 3
-    assert continuum.categories == {"Maureen", "Robin"}
+    assert set(continuum.categories) == {"Maureen", "Robin"}
 
 def test_continuum_from_textgrid():
     continuum = Continuum()
     continuum.add_textgrid("annotator1", "tests/data/MaureenMarvinRobin.TextGrid")
 
     assert continuum.num_units == 4
-    assert continuum.categories == {"S"}
+    assert set(continuum.categories) == {"S"}
     assert continuum.annotators == ["annotator1"]
 
     continuum = Continuum()
@@ -57,4 +57,4 @@ def test_continuum_from_textgrid():
                        use_tier_as_annotation=True)
 
     assert continuum.num_units == 3
-    assert continuum.categories == {"Maureen", "Robin"}
+    assert set(continuum.categories) == {"Maureen", "Robin"}
