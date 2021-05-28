@@ -46,6 +46,7 @@ from pyannote.core import Annotation, Segment, Timeline
 from pyannote.database.util import load_rttm
 from sortedcontainers import SortedDict, SortedSet
 from typing_extensions import Literal
+from multiprocessing import Process, Queue
 
 from .dissimilarity import AbstractDissimilarity
 from .numba_utils import chunked_cartesian_product
@@ -489,8 +490,8 @@ class Continuum:
         """
         return iter(self._annotations)
 
+
     def compute_disorders(self, dissimilarity: AbstractDissimilarity):
-        assert isinstance(dissimilarity, AbstractDissimilarity)
         assert len(self.annotators) >= 2
 
         disorder_args = dissimilarity.build_args(self)
@@ -532,7 +533,7 @@ class Continuum:
         prob = cp.Problem(obj, constraints)
 
         # we don't actually care about the optimal loss value
-        optimal_value = prob.solve()
+        prob.solve()
 
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
         chosen_alignments_ids, = np.where(x.value > 0.9)
@@ -609,11 +610,18 @@ class Continuum:
         if random_seed is not None:
             random.seed(random_seed)
 
+        queue_disorders = Queue()
+        for _ in range(n_samples):
+            ComputeDisorderJob(
+                Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
+                dissimilarity,
+                queue_disorders
+            ).start()
+
         chance_disorders = []
         for _ in range(n_samples):
-            sampled_continuum = Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators)
-            sample_disorder = sampled_continuum.compute_disorders(dissimilarity)
-            chance_disorders.append(sample_disorder)
+            chance_disorders.append(queue_disorders.get())
+            print(chance_disorders)
 
         if precision_level is not None:
             if isinstance(precision_level, str):
@@ -628,9 +636,13 @@ class Continuum:
             logging.debug(f"Number of required samples for confidence {precision_level}: {required_samples}")
             if required_samples > n_samples:
                 for _ in range(required_samples - n_samples):
-                    sampled_continuum = Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators)
-                    sample_disorder = sampled_continuum.compute_disorders(dissimilarity)
-                    chance_disorders.append(sample_disorder)
+                    ComputeDisorderJob(
+                        Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
+                        dissimilarity,
+                        queue_disorders
+                    ).start()
+                for _ in range(required_samples - n_samples):
+                    chance_disorders.append(queue_disorders.get())
 
         best_alignment = self.get_best_alignment(dissimilarity)
 
@@ -709,3 +721,21 @@ class GammaResults:
     def gamma(self):
         """Returns the gamma value"""
         return 1 - self.observed_agreement / self.expected_disagreement
+
+
+class ComputeDisorderJob(Process):
+    """
+    Class that utilizes multiprocessing when computing the disorder or a continuum.
+    The goal is to parallelize all the computations for the random samples.
+    """
+    def __init__(self,
+                 continuum: Continuum,
+                 dissimilarity: AbstractDissimilarity,
+                 resqueue: Queue):
+        super().__init__()
+        self.continuum = continuum
+        self.dissimilarity = dissimilarity
+        self.resqueue = resqueue
+
+    def run(self):
+        self.resqueue.put(self.continuum.compute_disorders(self.dissimilarity))
