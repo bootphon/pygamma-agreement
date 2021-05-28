@@ -30,11 +30,13 @@
 import argparse
 import csv
 import logging
+import os
+import time
 from argparse import RawTextHelpFormatter, ArgumentDefaultsHelpFormatter
 from pathlib import Path
 from typing import Dict, List
 
-from pygamma_agreement import Continuum, CombinedCategoricalDissimilarity
+from pygamma_agreement import Continuum, CombinedCategoricalDissimilarity, cat_dissim
 
 
 class RawAndDefaultArgumentFormatter(RawTextHelpFormatter,
@@ -70,7 +72,7 @@ argparser.add_argument("-d", "--delimiter",
 argparser.add_argument("-f", "--format", type=str, choices=["rttm", "csv"],
                        default="csv",
                        help="Path to the output csv report")
-argparser.add_argument("-o", "--output_csv", type=Path,
+argparser.add_argument("-o", "--output-csv", type=Path,
                        help="Path to the output csv report")
 argparser.add_argument("-a", "--alpha",
                        default=2, type=float,
@@ -78,18 +80,22 @@ argparser.add_argument("-a", "--alpha",
 argparser.add_argument("-b", "--beta",
                        default=1, type=float,
                        help="Beta coefficient (categorical dissimilarity ponderation)")
-argparser.add_argument("-p", "--precision_level",
+argparser.add_argument("-p", "--precision-level",
                        default=0.05, type=float,
                        help="Precision level used for the gamma computation. "
                             "This is a percentage, lower means more precision. "
                             "A value under 0.10 is advised.")
-argparser.add_argument("-n", "--n_samples",
+argparser.add_argument("-n", "--n-samples",
                        default=30, type=int,
                        help="Number of random continuua to be sampled for the "
-                            "gamma computation.")
+                            "gamma computation. Warning : additionnal continuua "
+                            "will be sampled if precision level is not satisfied.")
+argparser.add_argument("-c", "--cat-dissim", type=str, choices=cat_dissim.dict,
+                       default="equal",
+                       help="Categorical dissimilarity between annotations.")
 argparser.add_argument("-v", "--verbose",
                        action="store_true",
-                       help="Verbose mode")
+                       help="Logs progress of the algorithm")
 
 
 def pygamma_cmd():
@@ -102,7 +108,7 @@ def pygamma_cmd():
         input_csv: Path
 
         if input_csv.is_dir():
-            logging.info(f"Loading csv files in folder {input_csv}")
+            logging.info(f"Loadinmodeg csv files in folder {input_csv}")
             for file_path in input_csv.iterdir():
                 input_files.append(file_path)
 
@@ -115,17 +121,27 @@ def pygamma_cmd():
     logging.info(f"Found {len(input_files)} csv files.")
 
     for file_path in input_files:
+        start = time.time()
         if args.format == "csv":
             continuum = Continuum.from_csv(file_path, delimiter=args.delimiter)
         else:
             continuum = Continuum.from_rttm(file_path)
+        logging.info(f"Finished loading continuum from {os.path.basename(file_path)} in {(time.time() - start) * 1000} ms")
+        start = time.time()
 
         dissim = CombinedCategoricalDissimilarity(continuum.categories,
                                                   alpha=args.alpha,
-                                                  beta=args.beta)
+                                                  beta=args.beta,
+                                                  cat_dissimilarity_matrix=cat_dissim.dict[args.cat_dissim])
+        logging.info(f"Finished loading dissimilarity object in {(time.time() - start) * 1000} ms")
+        start = time.time()
+
         gamma = continuum.compute_gamma(dissimilarity=dissim,
                                         precision_level=args.precision_level,
                                         n_samples=args.n_samples)
+        logging.info(f"Finished computing best alignment & gamma in {(time.time() - start) * 1000} ms")
+        # start = time.time()
+
         results[file_path] = gamma.gamma
         print(f"{file_path} : {gamma.gamma}")
 

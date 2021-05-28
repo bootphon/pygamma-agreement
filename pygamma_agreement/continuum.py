@@ -46,7 +46,7 @@ from pyannote.core import Annotation, Segment, Timeline
 from pyannote.database.util import load_rttm
 from sortedcontainers import SortedDict, SortedSet
 from typing_extensions import Literal
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Pool
 
 from .dissimilarity import AbstractDissimilarity
 from .numba_utils import chunked_cartesian_product
@@ -54,7 +54,7 @@ from .numba_utils import chunked_cartesian_product
 if TYPE_CHECKING:
     from .alignment import UnitaryAlignment, Alignment
 
-CHUNK_SIZE = 2 ** 25
+CHUNK_SIZE = 2 ** 23
 
 # defining Annotator type
 Annotator = str
@@ -573,7 +573,8 @@ class Continuum:
                       ground_truth_annotators: Optional[List[Annotator]] = None,
                       sampling_strategy: str = "single",
                       pivot_type: PivotType = "float_pivot",
-                      random_seed: Optional[float] = 4577
+                      random_seed: Optional[float] = 4577,
+                      verbose=False
                       ) -> 'GammaResults':
         """
 
@@ -610,18 +611,20 @@ class Continuum:
         if random_seed is not None:
             random.seed(random_seed)
 
-        queue_disorders = Queue()
-        for _ in range(n_samples):
-            ComputeDisorderJob(
-                Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
-                dissimilarity,
-                queue_disorders
-            ).start()
-
+        # Multiprocessed computation of sample disorder
+        p = Pool()
+        result_pool = [
+            p.apply(compute_disorder_job,
+                          (Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
+                           dissimilarity,)
+                          )
+            for _ in range(n_samples)]
         chance_disorders = []
-        for _ in range(n_samples):
-            chance_disorders.append(queue_disorders.get())
-            print(chance_disorders)
+        logging.info(f"Starting computation for a batch of {n_samples} random samples...")
+        for i, result in enumerate(result_pool):
+            chance_disorders.append(result)
+        logging.info("done.")
+
 
         if precision_level is not None:
             if isinstance(precision_level, str):
@@ -635,15 +638,20 @@ class Continuum:
             required_samples = np.ceil((variation_coeff * confidence / precision_level) ** 2).astype(np.int32)
             logging.debug(f"Number of required samples for confidence {precision_level}: {required_samples}")
             if required_samples > n_samples:
-                for _ in range(required_samples - n_samples):
-                    ComputeDisorderJob(
-                        Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
-                        dissimilarity,
-                        queue_disorders
-                    ).start()
-                for _ in range(required_samples - n_samples):
-                    chance_disorders.append(queue_disorders.get())
+                result_pool = [
+                    p.apply_async(compute_disorder_job,
+                                  (Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
+                                   dissimilarity,)
+                                  )
+                    for _ in range(required_samples - n_samples)
+                ]
+                logging.info(f"Computing second batch of {required_samples - n_samples}"
+                             f"samples because variation was too high.")
+                for i, result in enumerate(result_pool):
+                    chance_disorders.append(result.get())
+                logging.info("done.")
 
+        p.close()
         best_alignment = self.get_best_alignment(dissimilarity)
 
         return GammaResults(
@@ -722,20 +730,6 @@ class GammaResults:
         """Returns the gamma value"""
         return 1 - self.observed_agreement / self.expected_disagreement
 
-
-class ComputeDisorderJob(Process):
-    """
-    Class that utilizes multiprocessing when computing the disorder or a continuum.
-    The goal is to parallelize all the computations for the random samples.
-    """
-    def __init__(self,
-                 continuum: Continuum,
-                 dissimilarity: AbstractDissimilarity,
-                 resqueue: Queue):
-        super().__init__()
-        self.continuum = continuum
-        self.dissimilarity = dissimilarity
-        self.resqueue = resqueue
-
-    def run(self):
-        self.resqueue.put(self.continuum.compute_disorders(self.dissimilarity))
+def compute_disorder_job(continuum: Continuum,
+                 dissimilarity: AbstractDissimilarity):
+    return continuum.compute_disorders(dissimilarity)

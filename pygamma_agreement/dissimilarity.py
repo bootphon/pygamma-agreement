@@ -108,7 +108,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
     """
 
     def __init__(self,
-                 categories: Iterable[str],
+                 categories: List[str],
                  cat_dissimilarity_matrix: Union[Callable[[str, str], float], np.ndarray] = (
                          lambda cat1, cat2: float(cat1 != cat2)),
                  delta_empty: float = 1):
@@ -120,10 +120,15 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         if isinstance(cat_dissimilarity_matrix, np.ndarray):
             self.cat_matrix = cat_dissimilarity_matrix
         else:
-            self.cat_matrix = np.array([
-                [cat_dissimilarity_matrix(cat1, cat2) for cat1 in categories] for cat2 in categories
-            ])
-
+            self.cat_matrix = np.zeros((len(categories), len(categories)))
+            max_val = 1.0
+            for id1, cat1 in enumerate(categories):
+                for id2, cat2 in enumerate(categories):
+                    elem = cat_dissimilarity_matrix(cat1, cat2)
+                    if elem > max_val:
+                        max_val = elem
+                    self.cat_matrix[id1, id2] = elem
+            self.cat_matrix /= elem
         # sanity checks on the categorical_dissimilarity_matrix
         assert isinstance(self.cat_matrix, np.ndarray)
         assert np.all(self.cat_matrix <= 1)
