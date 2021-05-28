@@ -80,7 +80,10 @@ class AbstractDissimilarity:
             return self.build_arrays_alignment(resource),
 
     @staticmethod
-    def tuples_disorders(*args, **kwargs):
+    def alignments_disorders(*args, **kwargs):
+        """
+        Fast computation of alignments disorder using numba.
+        """
         raise NotImplemented()
 
     def __call__(self, *args) -> np.ndarray:
@@ -97,22 +100,29 @@ class CategoricalDissimilarity(AbstractDissimilarity):
     cat_dissimilarity_matrix : optional, f: (str,str) -> float function representing
         the matrix containing the values between categories. Has to be symetrical (f(x, y) = f(y, x))
         with an empty diagonal (f(x, x) = 0). Defaults to setting all dissimilarities to 1.
+        OR
+        N,N matrix (np.array) containing dissimilarity values between categories (works best with ordinal
+        categories, since categories are indexed in alphabetical order).
     delta_empty : optional, float
         empty dissimilarity value. Defaults to 1.
     """
 
     def __init__(self,
                  categories: Iterable[str],
-                 cat_dissimilarity_matrix: Callable[[str, str], float] = (lambda cat1, cat2: float(cat1 != cat2)),
+                 cat_dissimilarity_matrix: Union[Callable[[str, str], float], np.ndarray] = (
+                         lambda cat1, cat2: float(cat1 != cat2)),
                  delta_empty: float = 1):
         super().__init__(delta_empty)
 
         self.categories_dict = {cat: i for i, cat in enumerate(categories)}
         self.categories_nb = len(self.categories_dict)
-        # TODO: make sure that the categorical dissim matrix matches the categories order
-        self.cat_matrix = np.array([
-            [cat_dissimilarity_matrix(cat1, cat2) for cat1 in categories]
-            for cat2 in categories])
+
+        if isinstance(cat_dissimilarity_matrix, np.ndarray):
+            self.cat_matrix = cat_dissimilarity_matrix
+        else:
+            self.cat_matrix = np.array([
+                [cat_dissimilarity_matrix(cat1, cat2) for cat1 in categories] for cat2 in categories
+            ])
 
         # sanity checks on the categorical_dissimilarity_matrix
         assert isinstance(self.cat_matrix, np.ndarray)
@@ -140,7 +150,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                         f"In segment {unit.segment} for annotator {annotator}: "
                         f"annotation of category {unit.category} is not in "
                         f"set {set(self.categories_dict.keys())} of allowed categories")
-            cat_array[-1] = -1 # We add an empty unit at the end of each line so that the carthesian product uses it
+            cat_array[-1] = -1  # We add an empty unit at the end of each line so that the carthesian product uses it
             categories_arrays.append(cat_array)
         return categories_arrays
 
@@ -195,25 +205,31 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         plt.show()
 
     @staticmethod
-    @nb.njit(nb.float32(nb.int32[:, :],
-                        nb.types.ListType(nb.float32[:, ::1]),
-                        nb.types.ListType(nb.int16[::1]),
-                        nb.float32,
-                        nb.float32[:, :]))
+    @nb.njit(nb.float32[:](nb.int32[:, :],
+                           nb.types.ListType(nb.int16[::1]),
+                           nb.float32,
+                           nb.float32[:, :]))
     def alignments_disorder(units_tuples_ids: np.ndarray,
-                            units_positions: List[np.ndarray],
                             units_categories: List[np.ndarray],
                             delta_empty: np.float32,
                             cat_matrix: np.ndarray):
-        disorder, weight_tot = 0.0, 0.0
+        """
+        Computes the categorical disorder of a unitary alignment (4.6.1)
+
+        Parameters
+        ----------
+        units_tuples_ids :
+            array of the units tuple in the alignment [(ua1, empty, uc1), (ua2, ub2, empty)...]
+        units_categories :
+            array given by CategoricalDissimilarity.build_array_alignment()
+        delta_empty : float
+            empty dissimilarity value.
+        cat_matrix :
+            Matrix of the dissimilarity categories (CategoricalDissimilarity.cat_matrix)
+        """
+        disorders = np.zeros(len(units_tuples_ids), dtype=np.float32)
         annotator_id = np.arange(units_tuples_ids.shape[1]).astype(np.int16)
-        couples_count = binom(units_tuples_ids.shape[1], 2)
         for tuple_id in np.arange(len(units_tuples_ids)):
-            real_couples_count = 0
-            couple_id = 0
-            # weight and categorical dissim vectors for all categories
-            weights_confidence = np.zeros(couples_count, dtype=np.float32)
-            dissim = np.zeros(couples_count, dtype=np.float32)
             # for each tuple (corresponding to a unitary alignment), compute disorder
             for annot_a in annotator_id:
                 for annot_b in annotator_id[annot_a + 1:]:
@@ -221,23 +237,15 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                     # declarations) but should be fairly sped up automatically
                     # by the LLVM optimization pass
                     unit_a_id, unit_b_id = units_tuples_ids[tuple_id, annot_a], units_tuples_ids[tuple_id, annot_b]
-                    unit_a, unit_b = units_positions[annot_a][unit_a_id], units_positions[annot_b][unit_b_id]
-                    cat_a, cat_b = units_categories[annot_a][unit_a_id], units_categories[annot_b][unit_b_id]
-                    if np.isnan(unit_a[0]) or np.isnan(unit_b[0]):
-                        distance_cat = delta_empty
-                        distance_pos = delta_empty
+                    unit_a, unit_b = units_categories[annot_a][unit_a_id], units_categories[annot_b][unit_b_id]
+                    if unit_a == -1 or unit_b == -1:
+                        disorders[tuple_id] += delta_empty
                     else:
-                        real_couples_count += 1
-                        distance_pos = positional_dissim(unit_a, unit_b, delta_empty)
-                        distance_cat = cat_matrix[cat_a, cat_b] * delta_empty
-                    dissim[couple_id] = distance_cat
-                    weights_confidence[couple_id] = max(0, 1 - distance_pos)
-                    couple_id += 1
-            weight_base = 1 / (real_couples_count - 1)
-            weight_tot += weights_confidence.sum() * weight_base
-            disorder += (weights_confidence * dissim).sum() * weight_base
+                        distance_pos = cat_matrix[unit_a, unit_b] * delta_empty
+                        disorders[tuple_id] += distance_pos
 
-        return disorder / weight_tot
+        disorders = disorders / binom(units_tuples_ids.shape[1], 2)
+        return disorders
 
     def __call__(self, units_tuples: np.ndarray,
                  units_positions: List[np.ndarray],
@@ -334,7 +342,8 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
                  alpha: float = 3,
                  beta: float = 1,
                  delta_empty: float = 1,
-                 cat_dissimilarity_matrix: Callable[[str, str], float] = (lambda cat1, cat2: float(cat1 != cat2))):
+                 cat_dissimilarity_matrix: Union[Callable[[str, str], float], np.ndarray] = (
+                         lambda cat1, cat2: float(cat1 != cat2))):
         super().__init__(delta_empty)
         assert alpha >= 0
         assert beta >= 0
@@ -355,6 +364,9 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
     cat_dissimilarity_matrix : optional, f: (str,str) -> float function representing
         the matrix containing the values between categories. Has to be symetrical (f(x, y) = f(y, x))
         with an empty diagonal (f(x, x) = 0). Defaults to setting all dissimilarities to 1.
+        OR
+        N,N matrix (np.array) containing dissimilarity values between categories (works best with ordinal
+        categories, since categories are indexed in alphabetical order).
     delta_empty : optional, float
         empty dissimilarity value. Defaults to 1.
     alpha: optional float
@@ -402,14 +414,13 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
                     unit_a_id, unit_b_id = units_tuples_ids[tuple_id, annot_a], units_tuples_ids[tuple_id, annot_b]
                     unit_a, unit_b = units_positions[annot_a][unit_a_id], units_positions[annot_b][unit_b_id]
                     cat_a, cat_b = units_categories[annot_a][unit_a_id], units_categories[annot_b][unit_b_id]
-                    if np.isnan(unit_a[0]) or np.isnan(unit_b[0]):
+                    if cat_a == -1 or cat_b == -1:
                         disorders[tuple_id] += delta_empty
                     else:
-                        distance_pos = positional_dissim(unit_a, unit_b, delta_empty)
-                        distance_cat = cat_matrix[cat_a, cat_b] * delta_empty
-                        disorders[tuple_id] += distance_pos * alpha + distance_cat * beta
-        disorders = disorders / binom(units_tuples_ids.shape[1], 2)
-
+                        disorders[tuple_id] += \
+                            positional_dissim(unit_a, unit_b, delta_empty) * alpha \
+                            + cat_matrix[cat_a, cat_b] * delta_empty * beta
+        disorders /= binom(units_tuples_ids.shape[1], 2)
         return disorders
 
     def __call__(self, units_tuples: np.ndarray,
