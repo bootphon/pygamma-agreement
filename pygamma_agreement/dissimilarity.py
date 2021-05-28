@@ -128,7 +128,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                     if elem > max_val:
                         max_val = elem
                     self.cat_matrix[id1, id2] = elem
-            self.cat_matrix /= elem
+            self.cat_matrix /= max_val
         # sanity checks on the categorical_dissimilarity_matrix
         assert isinstance(self.cat_matrix, np.ndarray)
         assert np.all(self.cat_matrix <= 1)
