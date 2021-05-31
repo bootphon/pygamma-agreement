@@ -31,4 +31,6 @@ from .alignment import Alignment, UnitaryAlignment
 from .dissimilarity import (PositionalDissimilarity,
                             CategoricalDissimilarity,
                             CombinedCategoricalDissimilarity)
+#TODO enlever les imports de test
 from .notebook import plot_alignment, plot_continuum
+from .numba_utils import *

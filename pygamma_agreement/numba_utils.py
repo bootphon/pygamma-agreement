@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Callable
 
 import numba as nb
 import numpy as np
@@ -75,5 +75,3 @@ def chunked_cartesian_product(sizes: List[int], chunk_size: int):
 
 def cartesian_product(sizes: List[int]):
     return next(chunked_cartesian_product(sizes, np.prod(sizes)))
-
-
