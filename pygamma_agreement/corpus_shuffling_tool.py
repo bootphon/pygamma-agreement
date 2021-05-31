@@ -8,39 +8,47 @@ from typing import Union, Iterable, List, Callable
 import numpy as np
 from pyannote.core import Segment
 
-class ContinuumGenerator:
-    SHUFFLE = 0
-    TOTAL = 0
-    """
-    Class for generating random continuua, using exponential distribution.
-    
-    """
+class CorpusShufflingTool:
+    @staticmethod
+    def random_continuum(self,
+                         duration: float,
+                         avg_gap: float,
+                         avg_duration: float,
+                         categories: Union[int, Iterable[str]]):
+        """
+        Generates a random continuum, using a list/number of categories,
+        an average duration of units and an average gap between start of units
+        """
+        continuum = Continuum()
+        last_t = 0.0
+        while last_t < self.duration:
+            # Exponential distribution value for next unit
+            last_t += np.random.exponential(avg_gap)
+            # random category (equiprobable)
+            category = np.random.choice(categories)
+            continuum.add("reference",
+                          # Exponential distribution value for duration of unit
+                          Segment(last_t, last_t + np.random.exponential(avg_duration)),
+                          category)
+        return continuum
+
+
+
     def __init__(self,
-                 annotators: Union[int, Iterable[str]],
-                 duration: float,
-                 avg_gap: float,
-                 avg_duration: float,
-                 categories: Union[int, Iterable[str]],
-                 seed: int = 4772,):
-        if isinstance(annotators, int):
+                 new_annotators: Union[int, Iterable[str]],
+                 magnitude: float,
+                 seed: int = 4772):
+        if isinstance(new_annotators, int):
             self.seed: int = seed
 
             self.annotators: List[str]
-            if isinstance(annotators, int):
-                self.annotators = [f"annotator_{annotator}" for annotator in range(annotators)]
+            if isinstance(new_annotators, int):
+                self.annotators = [f"annotator_{annotator}" for annotator in range(new_annotators)]
             else:
-                self.annotators = sorted(set(annotators))
+                self.annotators = sorted(set(new_annotators))
 
             self.nb_annotators: int = len(self.annotators)
-            self.avg_duration: float = avg_duration
-            self.avg_gap: float = avg_gap
-            self.duration: float = duration
-
-            self.categories: Iterable[str]
-            if isinstance(categories, int):
-                self.categories = [str(i) for i in range(categories)]
-            else:
-                self.categories = sorted(set(categories))
+            self.magnitude: float = magnitude
 
     def random_continuum_total(self):
         """
