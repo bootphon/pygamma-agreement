@@ -32,5 +32,6 @@ from .dissimilarity import (PositionalDissimilarity,
                             CategoricalDissimilarity,
                             CombinedCategoricalDissimilarity)
 #TODO enlever les imports de test
-from .notebook import plot_alignment, plot_continuum
+from .notebook import alignment_png, continuum_png
 from .numba_utils import *
+from .corpus_shuffling_tool import ContinuumGenerator
