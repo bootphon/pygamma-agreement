@@ -46,7 +46,7 @@ from pyannote.core import Annotation, Segment, Timeline
 from pyannote.database.util import load_rttm
 from sortedcontainers import SortedDict, SortedSet
 from typing_extensions import Literal
-from multiprocessing import Process, Queue, Pool
+from multiprocessing import Pool
 
 from .dissimilarity import AbstractDissimilarity
 from .numba_utils import chunked_cartesian_product
@@ -253,9 +253,9 @@ class Continuum:
         return sum(len(units) for units in self._annotations.values())
 
     @property
-    def categories(self) -> Iterable[str]:
+    def categories(self) -> List[str]:
         return sorted(set(unit.annotation for _, unit in self
-                   if unit.annotation is not None))
+                      if unit.annotation is not None))
 
     @property
     def num_annotators(self) -> int:
@@ -475,7 +475,7 @@ class Continuum:
     def annotators(self):
         """List all annotators in the Continuum
 
-        >>> continuum.annotators:
+        >>> self.annotators:
         ... ["annotator_a", "annotator_b", "annot_ref"]
         """
         return list(self._annotations.keys())
@@ -485,7 +485,7 @@ class Continuum:
         """Iterate over units (in chronological and alphabetical order
         if annotations are present)
 
-        >>> for unit in continuum.iterunits("Max"):
+        >>> for unit in self.iterunits("Max"):
         ...     # do something with the unit
         """
         return iter(self._annotations)
@@ -574,10 +574,8 @@ class Continuum:
                       sampling_strategy: str = "single",
                       pivot_type: PivotType = "float_pivot",
                       random_seed: Optional[float] = 4577,
-                      verbose=False
                       ) -> 'GammaResults':
         """
-
         Parameters
         ----------
         dissimilarity: AbstractDissimilarity
@@ -593,6 +591,8 @@ class Continuum:
             if set, the random continuua will only be sampled from these
             annotators. This should be used when you want to compare a prediction
             against some ground truth annotation.
+        sampling_strategy:
+            "single" or "multi"
         pivot_type: 'float_pivot' or 'int_pivot'
             pivot type to be used when sampling continuua
         random_seed: optional float, int or str
@@ -614,7 +614,7 @@ class Continuum:
         # Multiprocessed computation of sample disorder
         p = Pool()
         result_pool = [
-            p.apply(compute_disorder_job,
+            p.apply_async(compute_disorder_job,
                           (Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
                            dissimilarity,)
                           )
@@ -622,9 +622,8 @@ class Continuum:
         chance_disorders = []
         logging.info(f"Starting computation for a batch of {n_samples} random samples...")
         for i, result in enumerate(result_pool):
-            chance_disorders.append(result)
+            chance_disorders.append(result.get())
         logging.info("done.")
-
 
         if precision_level is not None:
             if isinstance(precision_level, str):
@@ -645,8 +644,8 @@ class Continuum:
                                   )
                     for _ in range(required_samples - n_samples)
                 ]
-                logging.info(f"Computing second batch of {required_samples - n_samples}"
-                             f"samples because variation was too high.")
+                logging.info(f"Computing second batch of {required_samples - n_samples} "
+                             f"because variation was too high.")
                 for i, result in enumerate(result_pool):
                     chance_disorders.append(result.get())
                 logging.info("done.")
@@ -730,6 +729,10 @@ class GammaResults:
         """Returns the gamma value"""
         return 1 - self.observed_agreement / self.expected_disagreement
 
-def compute_disorder_job(continuum: Continuum,
-                 dissimilarity: AbstractDissimilarity):
+
+def compute_disorder_job(continuum: Continuum, dissimilarity: AbstractDissimilarity):
+    """
+    Function used to launch a multiprocessed job for computing dissimilarity
+    between continuua
+    """
     return continuum.compute_disorders(dissimilarity)

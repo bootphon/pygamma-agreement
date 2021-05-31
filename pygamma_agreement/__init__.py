@@ -31,3 +31,4 @@ from .alignment import Alignment, UnitaryAlignment
 from .dissimilarity import (PositionalDissimilarity,
                             CategoricalDissimilarity,
                             CombinedCategoricalDissimilarity)
+from .notebook import plot_alignment, plot_continuum

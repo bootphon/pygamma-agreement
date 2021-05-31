@@ -306,6 +306,8 @@ class PositionalDissimilarity(AbstractDissimilarity):
                 positions_arrays[annot_it][unit_id][2] = unit.segment.duration
         return positions_arrays
 
+
+
     @staticmethod
     @nb.njit(nb.float32[:](nb.int32[:, :],
                            nb.types.ListType(nb.float32[:, ::1]),

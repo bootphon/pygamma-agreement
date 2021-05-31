@@ -3,22 +3,26 @@
 (str, str) -> float default functions to use in a categorical dissimilarity between units.
 may give results > 1 but will be normalized.
 """
-# TODO ajouter aux dépendances
 from Levenshtein import distance as lev
 
-dict = {}
+arguments = {}
+
 
 def cat_levenshtein(cat1: str, cat2: str):
     return lev(cat1, cat2)
-dict["levenshtein"] = cat_levenshtein
+
 
 def cat_default(cat1: str, cat2: str):
     return cat1 != cat2
-dict["default"] = cat_default
 
-ord_val_max = 1
+
 def cat_ord(cat1: str, cat2: str):
-    # TODO : entre 0 et 1
-    assert cat1.isnumeric() and cat2.isnumeric()
+    if not (cat1.isnumeric() and cat2.isnumeric()):
+        raise ValueError("Error : tried to compute ordinal categorical dissimilarity"
+                         f"but categories are non-numeric (category {cat1} or {cat2})")
     return abs(int(cat1) - int(cat1))
-dict["ordinal"] = cat_ord
+
+
+arguments["default"] = cat_default
+arguments["levenshtein"] = cat_levenshtein
+arguments["ordinal"] = cat_ord

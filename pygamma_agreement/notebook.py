@@ -32,12 +32,13 @@
 Visualization
 #############
 """
-from typing import Iterable, Dict, Optional, Tuple, Hashable, Union
+from typing import Iterable, Dict, Optional, Tuple, Hashable, Union, Iterator
 
 from pyannote.core import Timeline, Segment
 
 try:
     from IPython.core.pylabtools import print_figure
+    from IPython.core.display import display_png
 except Exception as e:
     pass
 
@@ -62,7 +63,7 @@ class Notebook:
         self._crop: Optional[Segment] = None
         self._width: Optional[int] = None
         self._style: Dict[Optional[Label], LabelStyle] = {}
-        self._style_generator: Iterable[LabelStyle] = None
+        self._style_generator: Iterator[LabelStyle] = iter([])
         self.reset()
 
     def reset(self):
@@ -308,3 +309,13 @@ def repr_continuum(continuum: Continuum):
     plt.close(fig)
     plt.rcParams['figure.figsize'] = figsize
     return data
+
+
+def plot_alignment(alignment: Alignment, file: str):
+    with open(file, "wb+") as f:
+        f.write(repr_alignment(alignment))
+
+
+def plot_continuum(continuum: Continuum, file: str):
+    with open(file, "wb+") as f:
+        f.write(repr_continuum(continuum))

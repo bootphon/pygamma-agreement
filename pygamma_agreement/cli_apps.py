@@ -90,8 +90,8 @@ argparser.add_argument("-n", "--n-samples",
                        help="Number of random continuua to be sampled for the "
                             "gamma computation. Warning : additionnal continuua "
                             "will be sampled if precision level is not satisfied.")
-argparser.add_argument("-c", "--cat-dissim", type=str, choices=cat_dissim.dict,
-                       default="equal",
+argparser.add_argument("-c", "--cat-dissim", type=str, choices=cat_dissim.arguments,
+                       default="default",
                        help="Categorical dissimilarity between annotations.")
 argparser.add_argument("-v", "--verbose",
                        action="store_true",
@@ -132,7 +132,7 @@ def pygamma_cmd():
         dissim = CombinedCategoricalDissimilarity(continuum.categories,
                                                   alpha=args.alpha,
                                                   beta=args.beta,
-                                                  cat_dissimilarity_matrix=cat_dissim.dict[args.cat_dissim])
+                                                  cat_dissimilarity_matrix=cat_dissim.arguments[args.cat_dissim])
         logging.info(f"Finished loading dissimilarity object in {(time.time() - start) * 1000} ms")
         start = time.time()
 

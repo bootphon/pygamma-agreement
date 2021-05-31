@@ -98,7 +98,11 @@ class UnitaryAlignment:
 
     @property
     def disorder(self) -> float:
-        # TODO : doc
+        """
+        Disorder of the alignment.
+        Raises ValueError if self.compute_disorder(dissimilarity) hasn't been called
+        before.
+        """
         if self._disorder is None:
             raise ValueError("Disorder hasn't been computed. "
                              "Call `compute_disorder()` first to compute it.")
