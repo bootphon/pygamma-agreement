@@ -34,4 +34,4 @@ from .dissimilarity import (PositionalDissimilarity,
 #TODO enlever les imports de test
 from .notebook import alignment_png, continuum_png
 from .numba_utils import *
-from .corpus_shuffling_tool import ContinuumGenerator
+from .cst import *
