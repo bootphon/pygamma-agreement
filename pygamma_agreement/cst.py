@@ -69,7 +69,7 @@ class CorpusShufflingTool:
 
         shift_max = self.magnitude * self.SHIFT_FACTOR
         bounds_inf, bounds_sup = (next(iter(units)).segment.start, next(reversed(units)).segment.end)
-        avg_dur_false_pos = 0.5
+        avg_dur_false_pos = np.average([unit.segment.end - unit.segment.start for unit in units])
         for new_annotator in new_annotators:
             assert new_annotator not in reference_annotators
             continuum.add_annotator(new_annotator)
