@@ -4,11 +4,11 @@ import numpy.random
 import logging
 
 from .continuum import Continuum, Unit
-from .cat_dissim import cat_default
 from typing import Union, Iterable, List, Callable, Set, Tuple
 from sortedcontainers import SortedDict, SortedSet
 import numpy as np
 from pyannote.core import Segment
+
 
 class CorpusShufflingTool:
     """
@@ -16,9 +16,10 @@ class CorpusShufflingTool:
     (https://www.aclweb.org/anthology/J15-3003.pdf#page=30).
     Beware that the reference continuum is a copy of the given continuum.
     """
-    SHIFT_FACTOR = 10
+    SHIFT_FACTOR = 0.5  # must be < 1 or there might be problems of empty ranges
     SPLIT_FACTOR = 5
     FALSE_POS_FACTOR = 5
+
     def __init__(self,
                  magnitude: float,
                  reference_continuum: Continuum,
@@ -32,56 +33,24 @@ class CorpusShufflingTool:
         reference_continuum:
             this continuum will be copied, and will serve as reference for the tweaks made by the corpus shuffling tool.
         categories:
-            this is used to add additionnal categories in the continuum, if the eventuality that the reference continuum
-            does not contain a unit of each possible annotation categories.
-        new_annotators:
-            number/set of annotators (they must not be present in the reference) who will generate a tweaked annotation
-            set.
+            this is used to consider additionnal categories when shuffling the corpus, in the eventuality that the
+            reference continuum does not contain any unit of a possible category.
         """
         self._seed: int = seed
-        self._magnitude: float = magnitude
+        self.magnitude: float = magnitude
         self._reference_continuum: Continuum = reference_continuum
         self._categories = self._reference_continuum.categories.union(categories)
 
-    def set_reference_annotator(self, reference_annotator: str):
-        self._reference_annotator = reference_annotator
-
-    @staticmethod
-    def random_reference(self,
-                         reference_annotator: str,
-                         duration: float,
-                         avg_gap: float,
-                         avg_unit_duration: float,
-                         categories: Union[int, Iterable[str]],
-                         seed: int = 4772):
-        # TODO: option pour désactiver l'overlap
-        """
-        Generates a random reference annotation set using some sort of poisson
-        distributed points on the timeline. avg_gap is the gap between STARTS of
-        segments to ensure free overlap is possible.
-        """
-        if isinstance(categories, int):
-            categories = (f"cat_{i}" for i in range(categories))
-        categories = SortedSet(categories)
-
-        continuum = Continuum()
-        np.random.seed(seed)
-        last_t = 0.0
-        while last_t < duration:
-            # Exponential distribution value for next unit
-            last_t += np.random.exponential(avg_gap)
-            unit_dur = np.random.exponential(avg_unit_duration)
-            # random category (equiprobable)
-            category = np.random.choice(categories)
-            continuum.add(reference_annotator, Segment(last_t, last_t + unit_dur), annotation=category)
-
-    def corpus_shuffle(self, new_annotators: Union[int, Iterable[str]], reference_annotator: str = None):
+    def corpus_shuffle(self,
+                       new_annotators: Union[int, Iterable[str]],
+                       reference_annotator: str = None,
+                       include_reference=False):
         """
         Generates a shuffled corpus with the provided (or generated) reference annotation set,
         using the method described in 6.3 of @gamma-paper, https://www.aclweb.org/anthology/J15-3003.pdf#page=30
         """
-        continuum = self._reference_continuum.copy()
-        reference_annotators = continuum.annotators
+        continuum = Continuum()
+        reference_annotators = self._reference_continuum.annotators
 
         if reference_annotator is None:
             reference_annotator = next(iter(reference_annotators))
@@ -91,12 +60,14 @@ class CorpusShufflingTool:
         else:
             assert (reference_annotator in reference_annotators)
 
-        units = continuum[reference_annotator]
+        units = self._reference_continuum[reference_annotator]
+        if include_reference:
+            continuum[reference_annotator] = units
 
         if isinstance(new_annotators, int):
             new_annotators = (f"annotator_cst_{i}" for i in range(new_annotators))
 
-        shift_max = self._magnitude * self.SHIFT_FACTOR
+        shift_max = self.magnitude * self.SHIFT_FACTOR
         bounds_inf, bounds_sup = (next(iter(units)).segment.start, next(reversed(units)).segment.end)
         avg_dur_false_pos = 0.5
         for new_annotator in new_annotators:
@@ -104,37 +75,66 @@ class CorpusShufflingTool:
             continuum.add_annotator(new_annotator)
             for unit in units:
                 # false negatives
-                if np.random.uniform() < self._magnitude:
+                if np.random.uniform() < self.magnitude:
                     continue
                 # category TODO
                 category = unit.annotation
                 # positions
+                len_unit = unit.segment.end - unit.segment.start
                 continuum.add(new_annotator,
-                              Segment(unit.segment.start + np.random.uniform(-shift_max, shift_max),
-                                      unit.segment.end + np.random.uniform(-shift_max, shift_max)),
+                              Segment(unit.segment.start + np.random.uniform(-shift_max*len_unit/2,
+                                                                             shift_max*len_unit/2),
+                                      unit.segment.end + np.random.uniform(-shift_max*len_unit/2,
+                                                                           shift_max*len_unit/2)),
                               category)
             # false positives
-            for _ in range(int(self._magnitude * self.FALSE_POS_FACTOR)):
+            for _ in range(int(self.magnitude * self.FALSE_POS_FACTOR)):
                 # a random unit is generated from a (all random) central point, duration, and category
                 category = np.random.choice(self._categories)
                 center = np.random.uniform(bounds_inf, bounds_sup)
                 duration = np.random.exponential(avg_dur_false_pos)
-                continuum.add(reference_annotator,
+                continuum.add(new_annotator,
                               Segment(center - duration/2, center + duration/2),
                               annotation=category)
             # splits
             new_units = continuum[new_annotator]
-            for _ in range(int(self._magnitude * self.SPLIT_FACTOR)):
-                to_split = new_units[numpy.random.randint(0, len(new_units))]
-                cut = numpy.random.uniform(to_split.segment.start, to_split.segment.end)
-                new_units.add(Unit(Segment(cut, to_split.segment.end)))
-                to_split.segment.end = cut
+            if len(new_units) > 0:
+                for _ in range(int(self.magnitude * self.SPLIT_FACTOR)):
+                    to_split = new_units.pop(numpy.random.randint(0, len(new_units)))
+                    cut = numpy.random.uniform(to_split.segment.start, to_split.segment.end)
+                    new_units.add(Unit(Segment(cut, to_split.segment.end), to_split.annotation))
+                    new_units.add(Unit(Segment(to_split.segment.start, cut), to_split.annotation))
+                    del to_split
         return continuum
 
 
+def random_reference(reference_annotator: str,
+                     duration: float,
+                     nb_unit: int,
+                     avg_unit_duration: float,
+                     categories: Union[int, Iterable[str]],
+                     seed: int = 4772):
+    # TODO: option pour désactiver l'overlap
+    """
+    Generates a random reference annotation set using some sort of poisson
+    distributed points on the timeline. avg_gap is the gap between STARTS of
+    segments to ensure free overlap is possible.
+    """
+    if isinstance(categories, int):
+        categories = (f"cat_{i}" for i in range(categories))
+    categories = SortedSet(categories)
 
-
-
+    continuum = Continuum()
+    np.random.seed(seed)
+    last_t = 0.0
+    for _ in range(nb_unit):
+        # Exponential distribution value for next unit
+        center = np.random.uniform(0, duration)
+        unit_dur = np.random.exponential(avg_unit_duration)
+        # random category (equiprobable)
+        category = np.random.choice(categories)
+        continuum.add(reference_annotator, Segment(center - unit_dur/2, center + unit_dur/2), annotation=category)
+    return continuum
 
 
 
