@@ -147,7 +147,7 @@ class Notebook:
             return
 
     def draw_centered_text(self, ax, x: float, y: float, text: str):
-        ax.text(x, y, text,
+        ax.text(x, y-0.07, text,
                 horizontalalignment='center',
                 fontsize=10, color='black',
                 )
@@ -274,7 +274,7 @@ class Notebook:
         if legend:
             self.draw_legend_from_labels(ax)
 
-    def plot_continuum(self, continuum: Continuum, ax=None, time=True,
+    def plot_continuum(self, continuum: Continuum, ax=None,  # time=True,
                        legend=True, labelled=False):
         self.crop = Timeline([unit.segment for (_, unit) in continuum]).extent()
         self.setup(ax, ylim=(0, continuum.num_annotators))
