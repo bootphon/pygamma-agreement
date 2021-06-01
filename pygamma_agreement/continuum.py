@@ -216,7 +216,7 @@ class Continuum:
     def __init__(self, uri: Optional[str] = None):
         self.uri = uri
         # Structure {annotator -> SortedSet[Unit]}
-        self._annotations: Dict[Annotator, Set[Unit]] = SortedDict()
+        self._annotations: Dict[Annotator, SortedSet[Unit]] = SortedDict()
 
         # these are instanciated when compute_disorder is called
         self._chosen_alignments: Optional[np.ndarray] = None
@@ -253,9 +253,9 @@ class Continuum:
         return sum(len(units) for units in self._annotations.values())
 
     @property
-    def categories(self) -> List[str]:
-        return sorted(set(unit.annotation for _, unit in self
-                      if unit.annotation is not None))
+    def categories(self) -> SortedSet[str]:
+        return SortedSet(unit.annotation for _, unit in self
+                         if unit.annotation is not None)
 
     @property
     def num_annotators(self) -> int:
@@ -282,6 +282,13 @@ class Continuum:
     def avg_length_unit(self) -> float:
         """Mean of the annotated segments' durations"""
         return sum(unit.segment.duration for _, unit in self) / self.num_units
+
+    def add_annotator(self,  annotator: Annotator):
+        """
+        Adds the annotator to the set. Does nothing if already present.
+        """
+        if annotator not in self._annotations:
+            self._annotations[annotator] = SortedSet()
 
     def add(self, annotator: Annotator, segment: Segment, annotation: Optional[str] = None):
         """
@@ -453,6 +460,9 @@ class Continuum:
         """
         return self.merge(other, in_place=False)
 
+    def __setitem__(self, key, value):
+        self._annotations[key] = value
+
     def __getitem__(self, *keys: Union[Annotator, Tuple[Annotator, int]]) \
             -> Union[SortedSet, Unit]:
         """Get annotation object
@@ -465,6 +475,8 @@ class Continuum:
         elif len(keys) == 2 and isinstance(keys[1], int):
             annotator, idx = keys
             return self._annotations[annotator][idx]
+        else:
+            raise KeyError
 
     def __iter__(self) -> Iterable[Tuple[Annotator, Unit]]:
         for annotator, annotations in self._annotations.items():
@@ -478,7 +490,7 @@ class Continuum:
         >>> self.annotators:
         ... ["annotator_a", "annotator_b", "annot_ref"]
         """
-        return list(self._annotations.keys())
+        return SortedSet(self._annotations.keys())
 
     def iterunits(self, annotator: str):
         # TODO: implem and doc
