@@ -664,6 +664,7 @@ class Continuum:
 
         p.close()
         best_alignment = self.get_best_alignment(dissimilarity)
+        best_alignment.continuum = self
 
         return GammaResults(
             best_alignment=best_alignment,
