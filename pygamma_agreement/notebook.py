@@ -234,7 +234,7 @@ class Notebook:
             self.plot_alignment(resource, time=time)
 
         elif isinstance(resource, Continuum):
-            self.plot_continuum(resource, time=time)
+            self.plot_continuum(resource)
 
     def plot_alignment(self, alignment: Alignment, ax=None, time=True, legend=True, labelled=False):
         self.crop = Segment(0, alignment.num_alignments)
@@ -331,3 +331,11 @@ def alignment_png(alignment: Alignment, file: str, labelled=False):
 def continuum_png(continuum: Continuum, file: str, labelled=False):
     with open(file, "wb+") as f:
         f.write(repr_continuum(continuum, labelled=labelled))
+
+
+def show_continuum(continuum: Continuum, labelled=False):
+    import matplotlib.pyplot as plt
+    plt.rcParams['figure.figsize'] = (notebook.width, 2)
+    fig, ax = plt.subplots()
+    notebook.plot_continuum(continuum, ax=ax, labelled=labelled)
+    fig.show()
