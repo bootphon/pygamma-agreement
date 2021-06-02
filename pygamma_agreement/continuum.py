@@ -92,7 +92,6 @@ class Unit:
         else:
             return self.segment < other.segment
 
-
 class Continuum:
     """Continuum
 
@@ -256,6 +255,19 @@ class Continuum:
     def categories(self) -> SortedSet[str]:
         return SortedSet(unit.annotation for _, unit in self
                          if unit.annotation is not None)
+    @property
+    def category_weights(self) -> SortedDict[str]:
+        weights = SortedDict()
+        nb_units = 0
+        for _, unit in self:
+            nb_units += 1
+            if unit.annotation not in weights:
+                weights = 1
+            else:
+                weights[unit.annotation] += 1
+        for annotation in weights.keys():
+            weights[annotation] /= nb_units
+        return weights
 
     @property
     def num_annotators(self) -> int:
@@ -633,7 +645,7 @@ class Continuum:
             for _ in range(n_samples)]
         chance_disorders = []
         logging.info(f"Starting computation for a batch of {n_samples} random samples...")
-        for i, result in enumerate(result_pool):
+        for result in result_pool:
             chance_disorders.append(result.get())
         logging.info("done.")
 
