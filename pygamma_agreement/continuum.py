@@ -644,6 +644,7 @@ class Continuum:
         # Multiprocessed computation of sample disorder
         p = Pool()
         result_pool = [
+            # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
             p.apply_async(compute_disorder_job,
                           (Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
                            dissimilarity,)
@@ -659,7 +660,7 @@ class Continuum:
             if isinstance(precision_level, str):
                 precision_level = PRECISION_LEVEL[precision_level]
             assert 0 < precision_level < 1.0
-
+            # If the variation of the disorders of the samples si too high, others are generated.
             # taken from subsection 5.3 of the original paper
             # confidence at 95%, i.e., 1.96
             variation_coeff = np.std(chance_disorders) / np.mean(chance_disorders)
@@ -681,6 +682,7 @@ class Continuum:
                 logging.info("done.")
 
         p.close()
+        # Step 2: find the best alignment of the continuum from there, gamma is rapidly calculed (cf GammaResults class)
         best_alignment = self.get_best_alignment(dissimilarity)
         best_alignment.continuum = self
 

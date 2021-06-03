@@ -31,7 +31,7 @@ Dissimilarity
 ##########
 
 """
-from typing import List, Optional, TYPE_CHECKING, Tuple, Union, Iterable, Callable
+from typing import List, TYPE_CHECKING, Tuple, Union, Callable
 
 import numba as nb
 import numpy as np
@@ -61,17 +61,24 @@ class AbstractDissimilarity:
         self.delta_empty = np.float32(delta_empty)
 
     def build_arrays_continuum(self, continuum: 'Continuum') -> List[np.ndarray]:
-        """Builds the compact, array-shaped representation of a continuum"""
+        """
+        Builds the compact, array-shaped representation of a continuum adapted to the
+        """
         raise NotImplemented()
 
     def build_arrays_alignment(self, alignment: 'Alignment') -> List[np.ndarray]:
-        """Builds the compact, array-shaped representation of an alignment"""
+        """
+        Builds the compact, array-shaped representation of an alignment, adapted for
+        this type of dissimilarity.
+        """
         raise NotImplemented()
 
     def build_args(self, resource: Union['Alignment', 'Continuum']) -> Tuple:
-        """Computes a compact, array-shaped representation of units
+        """
+        Computes a compact, array-shaped representation of units
         needed for fast computation of inter-units disorders
-        computed and set when compute_disorder is called"""
+        computed and set when compute_disorder is called
+        """
         from .continuum import Continuum
         from .alignment import Alignment
         if isinstance(resource, Continuum):
@@ -82,7 +89,7 @@ class AbstractDissimilarity:
     @staticmethod
     def alignments_disorders(*args, **kwargs):
         """
-        Fast computation of alignments disorder using numba.
+        Creates the args (numpy arrays representations, values & other)
         """
         raise NotImplemented()
 
@@ -137,7 +144,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
 
     def build_arrays_continuum(self, continuum: 'Continuum'):
         """
-        Continuum matrix for categorical dissimilarity is :
+        Returns the continuum's matrix representation for categorical dissimilarity is :
             - lines : annotators
             - columns : categories (id) of units in sorted order
         """
@@ -161,9 +168,9 @@ class CategoricalDissimilarity(AbstractDissimilarity):
 
     def build_arrays_alignment(self, alignment: 'Alignment'):
         """
-            Alignments matrix for categorical dissimilarity is :
-                - lines : annotators
-                - columns : categories (id) of units in sorted order
+        Returns the alignment's matrix for categorical dissimilarity is :
+            - lines : annotators
+            - columns : categories (id) of units in sorted order
         """
         cat_arrays = nb.typed.List()
         for _ in range(alignment.num_annotators):
@@ -255,7 +262,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
     def __call__(self, units_tuples: np.ndarray,
                  units_positions: List[np.ndarray],
                  units_categories: List[np.ndarray]) -> np.ndarray:
-        return self.alignments_disorder(units_tuples_ids=units_tuples,
+        return self.alignments_disorder(units_tuples_ids=unAlignmentsits_tuples,
                                         units_positions=units_positions,
                                         units_categories=units_categories,
                                         delta_empty=self.delta_empty,
@@ -270,6 +277,8 @@ class PositionalDissimilarity(AbstractDissimilarity):
     delta_empty : float
         empty dissimilarity value
     """
+    def __init__(self, delta_empty: float = 1):
+        super().__init__(delta_empty=delta_empty)
 
     def build_arrays_continuum(self, continuum: 'Continuum'):
         positions_arrays = nb.typed.List()
@@ -409,6 +418,12 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
                              cat_matrix: np.ndarray,
                              alpha: float,
                              beta: float):
+        """
+        Computes the disorder of each unitary alignment provided.
+        Parameters
+        ----------
+        units_tuples_ids:
+        """
         disorders = np.zeros(len(units_tuples_ids), dtype=np.float32)
         annotator_id = np.arange(units_tuples_ids.shape[1]).astype(np.int16)
         for tuple_id in np.arange(len(units_tuples_ids)):

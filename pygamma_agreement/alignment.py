@@ -114,8 +114,9 @@ class UnitaryAlignment:
         self._disorder = value
 
     def compute_disorder(self, dissimilarity: AbstractDissimilarity):
-        # TODO : doc
-        # building a fake one-element alignment to compute the dissim
+        """
+        Building a fake one-element alignment to compute the disorder
+        """
         fake_alignment = Alignment([self])
         self._disorder = fake_alignment.compute_disorder(dissimilarity)
         return self._disorder
