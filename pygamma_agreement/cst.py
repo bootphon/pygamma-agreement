@@ -1,12 +1,39 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+# The MIT License (MIT)
+
+# Copyright (c) 2020 CoML
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# AUTHORS
+# Rachid RIAD & Hadrien TITEUX
 import math
-import random
 
 import numpy.random
 import logging
 
 from .continuum import Continuum, Unit
-from typing import Union, Iterable, List, Callable, Set, Tuple
-from sortedcontainers import SortedDict, SortedSet
+from .dissimilarity import AbstractDissimilarity
+from typing import Union, Iterable, Callable, List, Tuple
+from sortedcontainers import SortedSet
 import numpy as np
 from pyannote.core import Segment
 
@@ -118,11 +145,19 @@ class CorpusShufflingTool:
                               annotation=category)
 
     def category_shuffle(self, continuum: Continuum,
-                         overlapping_fun: Callable[[str, str], int] = None,
-                         prevalence=False):
+                         overlapping_fun: Callable[[str, str], float] = None,
+                         prevalence: bool = False):
         """
         Shuffles the category using the process described in section 3.3.5 of
         https://hal.archives-ouvertes.fr/hal-00769639/.
+
+        Parameters
+        ----------
+        overlapping_fun:
+            gives the "categorical distance" between two annotations, which is taken into account when provided.
+            (the lower the distance between categories, the higher the chance one will be changed into the other).
+        prevalence:
+            specify whether or not to consider the proportion of presence of each category in the reference.
         """
         category_weights = self._reference_continuum.category_weights
         # matrix "A"
@@ -176,16 +211,14 @@ class CorpusShufflingTool:
                 units.add(Unit(Segment(to_split.segment.start, cut), to_split.annotation))
                 del to_split
 
-
-
     def corpus_shuffle(self,
                        annotators: Union[int, Iterable[str]],
-                       shift=False,
-                       false_positive=False,
-                       false_negative=False,
-                       category=False,
-                       splits=False,
-                       add_reference=False) -> Continuum:
+                       shift: bool = False,
+                       false_positive: bool = False,
+                       false_negative: bool = False,
+                       category: bool = False,
+                       splits: bool = False,
+                       add_reference: bool = False) -> Continuum:
         """
         Generates a shuffled corpus with the provided (or generated) reference annotation set,
         using the method described in 6.3 of @gamma-paper, https://www.aclweb.org/anthology/J15-3003.pdf#page=30,
@@ -248,6 +281,40 @@ def random_reference(reference_annotator: str,
                           annotation=category)
             last_end = point
     return continuum
+
+
+def benchmark_gamma_cst(reference: Continuum,
+                        dissimilarity: AbstractDissimilarity,
+                        nb_magnitudes: int,
+                        nb_gammas_per_magnitude: int,
+                        seed=4772,
+                        nb_annotators: int = 3,
+                        shift: bool = False, false_positive: bool = False, false_negative: bool = False,
+                        category: bool = False, splits: bool = False) -> Tuple[List[float], List[float]]:
+    """
+    Plots & shows a curve of the average gamma for the magnitude of the CST (the goal being of
+    reproducing the comparison curves for the gamma in @gamma-paper.
+
+    returns: ([Magnitudes],[Gammas])
+    """
+    cst = CorpusShufflingTool(1.0, reference, seed=seed)
+
+    magnitudes = [i / nb_magnitudes for i in range(nb_magnitudes + 1)]
+    gammas = []
+    for m in magnitudes:
+        gammas_m = []
+        for _ in range(nb_gammas_per_magnitude):
+            cst.magnitude = m
+            logging.info(f"generating shuffled corpus with magnitude {m}...")
+            cont_cst = cst.corpus_shuffle(nb_annotators,
+                                          shift=shift, false_negative=false_negative,
+                                          false_positive=false_positive, category=category, splits=splits)
+            logging.info("plotting gamma...")
+            gammas_m.append(cont_cst.compute_gamma(dissimilarity).gamma)
+            logging.info(f"gamma is {gammas_m[-1]}")
+        gammas.append(np.average(gammas_m))
+
+    return magnitudes, gammas
 
 
 
