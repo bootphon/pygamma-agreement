@@ -7,7 +7,6 @@ import logging
 from .continuum import Continuum, Unit
 from typing import Union, Iterable, List, Callable, Set, Tuple
 from sortedcontainers import SortedDict, SortedSet
-from multiprocessing import pool
 import numpy as np
 from pyannote.core import Segment
 
@@ -40,25 +39,28 @@ class CorpusShufflingTool:
         """
         self._seed: int = seed
         self.magnitude: float = magnitude
-        assert len(reference_continuum.annotators) == 1
+        reference_annotators = reference_continuum.annotators
+        if len(reference_annotators) > 1:
+            logging.warning("Warning : a reference continuum with multiple annotators was given to the CST, so "
+                            "its first annotator in alphabetical order will be used as reference.")
+        self._reference_annotator: str = reference_annotators[0]
         self._reference_continuum: Continuum = reference_continuum
-        self._categories = self._reference_continuum.categories.union(categories)
+        self._categories: SortedSet[str] = self._reference_continuum.categories
+        if categories is not None:
+            for category in categories:
+                self._categories.add(category)
 
     def corpus_from_reference(self, new_annotators: Union[int, Iterable[str]]):
         continuum = Continuum()
-        annotator_set = iter(self._reference_continuum.annotators)
         if isinstance(new_annotators, int):
             new_annotators = SortedSet(f"annotator_{i}" for i in range(new_annotators))
         else:
             new_annotators = SortedSet(new_annotators)
-        for unit in self._reference_continuum[next(annotator_set)]:
+        for unit in self._reference_continuum[self._reference_annotator]:
             for new_annotator in new_annotators:
                 continuum.add(new_annotator,
                               Segment(unit.segment.start, unit.segment.end),
                               unit.annotation)
-        if next(annotator_set, None) is not None:
-            logging.warning("Warning : a reference continuum with multiple annotators was given to the CST, so"
-                            "its first annotator in alphabetical order was picked.")
         return continuum
 
     def shift_shuffle(self, continuum: Continuum):
@@ -71,7 +73,6 @@ class CorpusShufflingTool:
         for annotator in continuum.annotators:
             for unit in continuum[annotator]:
                 continuum[annotator].remove(unit)
-                len_unit = unit.segment.end - unit.segment.start
                 start_seg, end_seg = 0.0, 0.0
                 while start_seg >= end_seg:
                     start_seg = unit.segment.start + np.random.uniform(-shift_max, shift_max)
@@ -101,9 +102,9 @@ class CorpusShufflingTool:
         The length of the segment is random (normal distribution) based on the average and standard deviation
         of those of the reference.
         """
-        ref_units = self._reference_continuum[next(iter(self._reference_continuum.annotators))]
-        avg_dur = np.average(unit.segment.end - unit.segment.start for unit in ref_units)
-        var_dur = np.std(unit.segment.end - unit.segment.start for unit in ref_units)
+        ref_units = self._reference_continuum[self._reference_annotator]
+        avg_dur = np.average([unit.segment.end - unit.segment.start for unit in ref_units])
+        var_dur = np.std([unit.segment.end - unit.segment.start for unit in ref_units])
         category_weights = self._reference_continuum.category_weights
         bounds_inf, bounds_sup = (next(iter(ref_units)).segment.start, next(reversed(ref_units)).segment.end)
         for annotator in continuum.annotators:
@@ -111,13 +112,53 @@ class CorpusShufflingTool:
                 # a random unit is generated from a (all random) central point, duration, and category
                 category = np.random.choice(category_weights.keys(), p=category_weights.values())
                 center = np.random.uniform(bounds_inf, bounds_sup)
-                duration = np.random.normal(avg_dur, var_dur)
+                duration = abs(np.random.normal(avg_dur, var_dur))
                 continuum.add(annotator,
                               Segment(center - duration / 2, center + duration / 2),
                               annotation=category)
-    def category_shuffle(self, continuum: Continuum):
-        #todo
-        pass
+
+    def category_shuffle(self, continuum: Continuum,
+                         overlapping_fun: Callable[[str, str], int] = None,
+                         prevalence=False):
+        """
+        Shuffles the category using the process described in section 3.3.5 of
+        https://hal.archives-ouvertes.fr/hal-00769639/.
+        """
+        category_weights = self._reference_continuum.category_weights
+        # matrix "A"
+        nb_categories = len(category_weights)
+        prob_matrix = np.eye(nb_categories)
+        # matrix "B or C"
+        if prevalence:
+            sec_matrix = np.ones(nb_categories)/nb_categories
+        else:
+            sec_matrix = np.array([list(category_weights.values())] * nb_categories)
+
+        categories = list(category_weights.keys())
+        if overlapping_fun is None:
+            # this formula was deduced from the graphs.
+            prob_matrix = prob_matrix * (1 - self.magnitude**2) + sec_matrix * self.magnitude**2
+        else:
+            overlapping_matrix = np.zeros((len(categories), len(categories)))
+            max_val = 1.0
+            for id1, cat1 in enumerate(categories):
+                for id2, cat2 in enumerate(categories):
+                    elem = overlapping_fun(cat1, cat2)
+                    if elem > max_val:
+                        max_val = elem
+                    overlapping_matrix[id1, id2] = elem
+            overlapping_matrix /= max_val
+            # this formula was also deduced from the graphs.
+            prob_matrix = prob_matrix * (1 - self.magnitude)\
+                + sec_matrix * self.magnitude**3\
+                + overlapping_matrix * (self.magnitude - self.magnitude**3)
+
+        for annotator in continuum.annotators:
+            for unit in continuum[annotator]:
+                continuum[annotator].remove(unit)
+                new_category = np.random.choice(categories, p=prob_matrix[category_weights.index(unit.annotation)])
+                continuum.add(annotator, unit.segment, new_category)
+                del unit
 
     def splits_shuffle(self, continuum: Continuum):
         """
@@ -144,7 +185,7 @@ class CorpusShufflingTool:
                        false_negative=False,
                        category=False,
                        splits=False,
-                       include_reference=False) -> Continuum:
+                       add_reference=False) -> Continuum:
         """
         Generates a shuffled corpus with the provided (or generated) reference annotation set,
         using the method described in 6.3 of @gamma-paper, https://www.aclweb.org/anthology/J15-3003.pdf#page=30,
@@ -161,14 +202,14 @@ class CorpusShufflingTool:
             self.category_shuffle(continuum)
         if splits:
             self.splits_shuffle(continuum)
-        if include_reference:
-            ref_annotator = next(iter(self._reference_continuum.annotators))
-            assert ref_annotator not in continuum.annotators, "Reference annotator can't be included as " \
-                                                              "an annotator with the same name is in the " \
-                                                              "generated corpus."
+        if add_reference:
+            assert self._reference_annotator not in continuum.annotators, "Reference annotator can't be included as " \
+                                                                          "an annotator with the same name is in the " \
+                                                                          "generated corpus."
             for unit in self._reference_continuum[next(iter(self._reference_continuum.annotators))]:
-                continuum.add(ref_annotator, unit.segment, unit.annotation)
+                continuum.add(self._reference_annotator, unit.segment, unit.annotation)
         return continuum
+
 
 def random_reference(reference_annotator: str,
                      duration: float,
