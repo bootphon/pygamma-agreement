@@ -262,7 +262,7 @@ class Continuum:
         for _, unit in self:
             nb_units += 1
             if unit.annotation not in weights:
-                weights = 1
+                weights[unit.annotation] = 1
             else:
                 weights[unit.annotation] += 1
         for annotation in weights.keys():
@@ -516,11 +516,17 @@ class Continuum:
 
 
     def compute_disorders(self, dissimilarity: AbstractDissimilarity):
-        assert len(self.annotators) >= 2
+        assert len(self.annotators) >= 2, "Disorder cannot be computed with less than two annotators."
+
 
         disorder_args = dissimilarity.build_args(self)
 
-        nb_unit_per_annot = [len(arr) + 1 for arr in self._annotations.values()]
+        nb_unit_per_annot = []
+        for annotator, arr in self._annotations.items():
+            assert len(arr) > 0, f"Disorder cannot be computed because annotator {annotator} has no annotations."
+            nb_unit_per_annot.append(len(arr) + 1)
+
+
         all_disorders = []
         all_valid_tuples = []
         for tuples_batch in chunked_cartesian_product(nb_unit_per_annot, CHUNK_SIZE):
