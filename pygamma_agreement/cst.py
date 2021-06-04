@@ -30,9 +30,9 @@ import math
 import numpy.random
 import logging
 
-from .continuum import Continuum, Unit
+from .continuum import *
 from .dissimilarity import AbstractDissimilarity
-from typing import Union, Iterable, Callable, List, Tuple
+from typing import Union, Iterable, Callable, List, Tuple, Optional
 from sortedcontainers import SortedSet
 import numpy as np
 from pyannote.core import Segment
@@ -42,7 +42,6 @@ class CorpusShufflingTool:
     """
     Corpus shuffling tool as detailed in section 6.3 of @gamma-paper
     (https://www.aclweb.org/anthology/J15-3003.pdf#page=30).
-    Beware that the reference continuum is a copy of the given continuum.
     """
     SHIFT_FACTOR = 2
     SPLIT_FACTOR = 1
@@ -51,7 +50,7 @@ class CorpusShufflingTool:
     def __init__(self,
                  magnitude: float,
                  reference_continuum: Continuum,
-                 seed: int = 4772,
+                 seed: Optional[float] = 4772,
                  categories: Iterable[str] = None):
         """
         Parameters
@@ -64,7 +63,7 @@ class CorpusShufflingTool:
             this is used to consider additionnal categories when shuffling the corpus, in the eventuality that the
             reference continuum does not contain any unit of a possible category.
         """
-        self._seed: int = seed
+        self._seed: Optional[int] = seed
         self.magnitude: float = magnitude
         reference_annotators = reference_continuum.annotators
         if len(reference_annotators) > 1:
@@ -76,6 +75,10 @@ class CorpusShufflingTool:
         if categories is not None:
             for category in categories:
                 self._categories.add(category)
+
+    def __setseed(self):
+        if self._seed is not None:
+            np.random.seed(self._seed)
 
     def corpus_from_reference(self, new_annotators: Union[int, Iterable[str]]):
         continuum = Continuum()
@@ -95,8 +98,9 @@ class CorpusShufflingTool:
         Tweaks the continuum by shifting the ends of each segment, with uniformly distributed values
         of bounds proportionnal to the magnitude of the CST and the length of the segment.
         """
+        self.__setseed()
         shift_max = self.magnitude * self.SHIFT_FACTOR * \
-            self._reference_continuum.avg_length_unit
+                    self._reference_continuum.avg_length_unit
         for annotator in continuum.annotators:
             for unit in continuum[annotator]:
                 continuum[annotator].remove(unit)
@@ -112,6 +116,7 @@ class CorpusShufflingTool:
         Every unit (for each annotator) have a probability equal to the magnitude of being removed.
         If this probability is one, a single random unit (for each annotator) will be left alone.
         """
+        self.__setseed()
         for annotator in continuum.annotators:
             security = np.random.choice(continuum[annotator])
             # security : if an annotator doesnt have any annotations gamma cant be computed.
@@ -129,6 +134,7 @@ class CorpusShufflingTool:
         The length of the segment is random (normal distribution) based on the average and standard deviation
         of those of the reference.
         """
+        self.__setseed()
         ref_units = self._reference_continuum[self._reference_annotator]
         avg_dur = np.average([unit.segment.end - unit.segment.start for unit in ref_units])
         var_dur = np.std([unit.segment.end - unit.segment.start for unit in ref_units])
@@ -148,9 +154,8 @@ class CorpusShufflingTool:
                          overlapping_fun: Callable[[str, str], float] = None,
                          prevalence: bool = False):
         """
-        Shuffles the category using the process described in section 3.3.5 of
-        https://hal.archives-ouvertes.fr/hal-00769639/.
-
+        Shuffles the categories in the annotations using the process described in
+        section 3.3.5 of https://hal.archives-ouvertes.fr/hal-00769639/.
         Parameters
         ----------
         overlapping_fun:
@@ -159,39 +164,42 @@ class CorpusShufflingTool:
         prevalence:
             specify whether or not to consider the proportion of presence of each category in the reference.
         """
+        self.__setseed()
         category_weights = self._reference_continuum.category_weights
         # matrix "A"
         nb_categories = len(category_weights)
         prob_matrix = np.eye(nb_categories)
         # matrix "B or C"
         if prevalence:
-            sec_matrix = np.ones(nb_categories)/nb_categories
+            sec_matrix = np.ones(nb_categories) / nb_categories
         else:
             sec_matrix = np.array([list(category_weights.values())] * nb_categories)
 
         categories = list(category_weights.keys())
         if overlapping_fun is None:
             # this formula was deduced from the graphs.
-            prob_matrix = prob_matrix * (1 - self.magnitude**2) + sec_matrix * self.magnitude**2
+            prob_matrix = prob_matrix * (1 - self.magnitude ** 2) + sec_matrix * self.magnitude ** 2
         else:
             overlapping_matrix = np.zeros((len(categories), len(categories)))
-            max_val = 1.0
             for id1, cat1 in enumerate(categories):
+                sum_line = 0
                 for id2, cat2 in enumerate(categories):
                     elem = overlapping_fun(cat1, cat2)
-                    if elem > max_val:
-                        max_val = elem
+                    sum_line += elem
                     overlapping_matrix[id1, id2] = elem
-            overlapping_matrix /= max_val
+                overlapping_matrix[id1] /= sum_line
             # this formula was also deduced from the graphs.
-            prob_matrix = prob_matrix * (1 - self.magnitude)\
-                + sec_matrix * self.magnitude**3\
-                + overlapping_matrix * (self.magnitude - self.magnitude**3)
+            prob_matrix = prob_matrix * (1 - self.magnitude) \
+                + sec_matrix * self.magnitude ** 3 \
+                + overlapping_matrix * (self.magnitude - self.magnitude ** 3)
 
         for annotator in continuum.annotators:
             for unit in continuum[annotator]:
                 continuum[annotator].remove(unit)
-                new_category = np.random.choice(categories, p=prob_matrix[category_weights.index(unit.annotation)])
+                try:
+                    new_category = np.random.choice(categories, p=prob_matrix[category_weights.index(unit.annotation)])
+                except ValueError as e:
+                    raise e
                 continuum.add(annotator, unit.segment, new_category)
                 del unit
 
@@ -202,6 +210,7 @@ class CorpusShufflingTool:
         and the number of units in the reference.
         A splitted segment can be re-splitted.
         """
+        self.__setseed()
         for annotator in continuum.annotators:
             units = continuum[annotator]
             for _ in range(int(self.magnitude * self.SPLIT_FACTOR * len(units))):
@@ -212,13 +221,10 @@ class CorpusShufflingTool:
                 del to_split
 
     def corpus_shuffle(self,
-                       annotators: Union[int, Iterable[str]],
-                       shift: bool = False,
-                       false_positive: bool = False,
-                       false_negative: bool = False,
-                       category: bool = False,
-                       splits: bool = False,
-                       add_reference: bool = False) -> Continuum:
+                       annotators: Union[int, Iterable[Annotator]],
+                       shift: bool = False, false_pos: bool = False, false_neg: bool = False, split: bool = False,
+                       cat_shuffle: bool = False, include_ref: bool = False
+                       ) -> Continuum:
         """
         Generates a shuffled corpus with the provided (or generated) reference annotation set,
         using the method described in 6.3 of @gamma-paper, https://www.aclweb.org/anthology/J15-3003.pdf#page=30,
@@ -227,15 +233,15 @@ class CorpusShufflingTool:
         continuum = self.corpus_from_reference(annotators)
         if shift:
             self.shift_shuffle(continuum)
-        if false_positive:
+        if false_pos:
             self.false_pos_shuffle(continuum)
-        if false_negative:
+        if false_neg:
             self.false_neg_shuffle(continuum)
-        if category:
+        if cat_shuffle:
             self.category_shuffle(continuum)
-        if splits:
+        if split:
             self.splits_shuffle(continuum)
-        if add_reference:
+        if include_ref:
             assert self._reference_annotator not in continuum.annotators, "Reference annotator can't be included as " \
                                                                           "an annotator with the same name is in the " \
                                                                           "generated corpus."
@@ -250,15 +256,33 @@ def random_reference(reference_annotator: str,
                      avg_unit_duration: float,
                      std_unit_duration: float,
                      categories: Union[int, Iterable[str]],
-                     seed: int = 4772,
+                     seed: Optional[int] = 4772,
                      overlapping: bool = True):
     """
-    Generates a random reference annotation set using some sort of poisson
-    distributed points on the timeline. avg_gap is the gap between STARTS of
-    segments to ensure free overlap is possible.
+    Generates a random continuum with only one annotator.
+    Parameters
+    ----------
+    reference_annotator:
+        Name of the sole annotator
+    duration:
+        Duration of the timeline
+    nb_unit:
+        Number of total annotations
+    avg_unit_duration:
+        Average duration of the annotations
+    std_unit_duration:
+        Standard deviation of the duration of the annotations
+    categories:
+        number of categories to use. Can also be a iterable over their names (duplicates will be ignored)
+    seed:
+        The random seed used for the generation
+    overlapping:
+        States whether or not segments can overlap.
     """
+    if seed is not None:
+        np.random.seed(seed)
     if isinstance(categories, int):
-        categories = (f"cat_{i}" for i in range(categories))
+        categories = (str(i) for i in range(categories))
     categories = SortedSet(categories)
 
     continuum = Continuum()
@@ -273,7 +297,7 @@ def random_reference(reference_annotator: str,
         category = np.random.choice(categories)
         if overlapping:
             continuum.add(reference_annotator,
-                          Segment(point - unit_dur/2, point + unit_dur/2),
+                          Segment(point - unit_dur / 2, point + unit_dur / 2),
                           annotation=category)
         else:
             continuum.add(reference_annotator,
@@ -287,10 +311,10 @@ def benchmark_gamma_cst(reference: Continuum,
                         dissimilarity: AbstractDissimilarity,
                         nb_magnitudes: int,
                         nb_gammas_per_magnitude: int,
-                        seed=4772,
+                        seed: Optional[int] = 4772,
                         nb_annotators: int = 3,
-                        shift: bool = False, false_positive: bool = False, false_negative: bool = False,
-                        category: bool = False, splits: bool = False) -> Tuple[List[float], List[float]]:
+                        shift: bool = False, false_pos: bool = False, false_negative: bool = False,
+                        cat_shuffle: bool = False, split: bool = False) -> Tuple[List[float], List[float]]:
     """
     Plots & shows a curve of the average gamma for the magnitude of the CST (the goal being of
     reproducing the comparison curves for the gamma in @gamma-paper.
@@ -307,19 +331,11 @@ def benchmark_gamma_cst(reference: Continuum,
             cst.magnitude = m
             logging.info(f"generating shuffled corpus with magnitude {m}...")
             cont_cst = cst.corpus_shuffle(nb_annotators,
-                                          shift=shift, false_negative=false_negative,
-                                          false_positive=false_positive, category=category, splits=splits)
+                                          shift=shift, false_neg=false_negative,
+                                          false_pos=false_pos, cat_shuffle=cat_shuffle, split=split)
             logging.info("plotting gamma...")
             gammas_m.append(cont_cst.compute_gamma(dissimilarity).gamma)
             logging.info(f"gamma is {gammas_m[-1]}")
         gammas.append(np.average(gammas_m))
 
     return magnitudes, gammas
-
-
-
-
-
-
-
-

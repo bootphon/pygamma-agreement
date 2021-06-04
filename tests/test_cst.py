@@ -112,7 +112,6 @@ def test_cst_cat():
     cst_lots_of_cat = CorpusShufflingTool(0.9, continuum_martino)
     shuffled_cat = cst_lots_of_cat.corpus_from_reference(["martino", "Martingale", "Martine"])
     cst_lots_of_cat.category_shuffle(shuffled_cat, overlapping_fun=cat_ord, prevalence=True)
-    continuum_png(shuffled_cat, "test_shuffle_cat.png", labelled=True)
     dissim = CombinedCategoricalDissimilarity(list(continuum_martino.categories),
                                               delta_empty=1,
                                               alpha=3,

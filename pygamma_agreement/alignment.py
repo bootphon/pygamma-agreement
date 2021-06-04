@@ -34,14 +34,13 @@ Alignement and disorder
 from abc import ABCMeta, abstractmethod
 from collections import Counter
 from typing import TYPE_CHECKING, Union
-from typing import Tuple, Optional, Iterable
+from typing import Tuple, Optional, Iterable, Iterator
 
 import numpy as np
 
 from .dissimilarity import AbstractDissimilarity
 
-if TYPE_CHECKING:
-    from .continuum import Continuum, Annotator
+from .continuum import Continuum, Annotator, Unit
 
 UnitsTuple = Tuple[Tuple['Annotator', 'Unit']]
 
@@ -84,7 +83,7 @@ class UnitaryAlignment:
 
     def __init__(self, n_tuple: UnitsTuple):
         assert len(n_tuple) >= 2
-        self._n_tuple = n_tuple
+        self._n_tuple: UnitsTuple = n_tuple
         self._disorder: Optional[float] = None
 
     @property
@@ -108,6 +107,11 @@ class UnitaryAlignment:
                              "Call `compute_disorder()` first to compute it.")
         else:
             return self._disorder
+
+    @property
+    def nb_units(self):
+        """The number of non-empty units in the unitary alignment."""
+        return sum(1 for _ in filter((lambda _, unit: unit is not None), self._n_tuple))
 
     @disorder.setter
     def disorder(self, value: float):
@@ -162,13 +166,16 @@ class Alignment(AbstractAlignment):
         else:
             raise KeyError("Invalid number of items in key")
 
+    def __iter__(self) -> Iterator[UnitaryAlignment]:
+        return iter(self.unitary_alignments)
+
     @property
     def annotators(self):
         return [annotator for annotator, _
                 in self.unitary_alignments[0].n_tuple]
 
     @property
-    def num_alignments(self):
+    def num_unitary_alignments(self):
         return len(self.unitary_alignments)
 
     @property
@@ -181,23 +188,23 @@ class Alignment(AbstractAlignment):
         if self._disorder is None:
             self._disorder = (sum(u_align.disorder for u_align
                                   in self.unitary_alignments)
-                              / self.num_alignments)
+                              / self.num_unitary_alignments)
         return self._disorder
 
     def compute_disorder(self, dissimilarity: AbstractDissimilarity):
         # TODO : doc
         disorder_args = dissimilarity.build_args(self)
-        unit_ids = np.arange(self.num_alignments, dtype=np.int32)
+        unit_ids = np.arange(self.num_unitary_alignments, dtype=np.int32)
         unit_ids = np.vstack([unit_ids] * self.num_annotators)
         unit_ids = unit_ids.swapaxes(0, 1)
         disorders = dissimilarity(unit_ids, *disorder_args)
         for i, disorder in enumerate(disorders):
             self.unitary_alignments[i].disorder = disorder
         self._disorder = (dissimilarity(unit_ids, *disorder_args).sum()
-                          / self.num_alignments)
+                          / self.num_unitary_alignments)
         return self._disorder
 
-    def check(self, continuum: Optional['Continuum'] = None):
+    def check(self, continuum: Optional[Continuum] = None):
         """
         Checks that an alignment is a valid partition of a Continuum. That is,
         that all annotations from the referenced continuum *can be found*

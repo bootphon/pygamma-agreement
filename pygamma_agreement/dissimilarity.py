@@ -38,6 +38,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from .numba_utils import binom
+from .cat_dissim import cat_default
 
 if TYPE_CHECKING:
     from .continuum import Continuum
@@ -62,14 +63,13 @@ class AbstractDissimilarity:
 
     def build_arrays_continuum(self, continuum: 'Continuum') -> List[np.ndarray]:
         """
-        Builds the compact, array-shaped representation of a continuum adapted to the
+        Builds the compact, array-shaped representation of a continuum.
         """
         raise NotImplemented()
 
     def build_arrays_alignment(self, alignment: 'Alignment') -> List[np.ndarray]:
         """
-        Builds the compact, array-shaped representation of an alignment, adapted for
-        this type of dissimilarity.
+        Builds the compact, array-shaped representation of an alignment.
         """
         raise NotImplemented()
 
@@ -144,9 +144,9 @@ class CategoricalDissimilarity(AbstractDissimilarity):
 
     def build_arrays_continuum(self, continuum: 'Continuum'):
         """
-        Returns the continuum's matrix representation for categorical dissimilarity is :
-            - lines : annotators
-            - columns : categories (id) of units in sorted order
+        The continuum's matrix representation for categorical dissimilarity is :
+        M(i, j) = id of the category of unit j of annotator i.
+        Annotators' order is alphabetical, and units' order is implemented by Unit.__lt__().
         """
         categories_arrays = nb.typed.List()
         for annotator_id, (annotator, units) in enumerate(continuum._annotations.items()):
@@ -168,13 +168,14 @@ class CategoricalDissimilarity(AbstractDissimilarity):
 
     def build_arrays_alignment(self, alignment: 'Alignment'):
         """
-        Returns the alignment's matrix for categorical dissimilarity is :
-            - lines : annotators
-            - columns : categories (id) of units in sorted order
+        The continuum's matrix representation for categorical dissimilarity is :
+        M(i, j) = id of the category of the unit from annotator i in unitary alignment j.
+        Annotators' order is alphabetical.
+        id -1 corresponds to the empty unit.
         """
         cat_arrays = nb.typed.List()
         for _ in range(alignment.num_annotators):
-            unit_dists_array = np.zeros(alignment.num_alignments)
+            unit_dists_array = np.zeros(alignment.num_unitary_alignments)
             cat_arrays.append(unit_dists_array.astype(np.int16))
         for unit_id, unit_align in enumerate(alignment.unitary_alignments):
             for annot_id, (annotator, unit) in enumerate(unit_align.n_tuple):
@@ -231,7 +232,8 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         Parameters
         ----------
         units_tuples_ids :
-            array of the units tuple in the alignment [(ua1, empty, uc1), (ua2, ub2, empty)...]
+            array of the units tuple in the alignment [(ua1, empty, uc1), (ua2, ub2, empty)...] where ub5 for instance
+            is the unit 5 of annotator b
         units_categories :
             array given by CategoricalDissimilarity.build_array_alignment()
         delta_empty : float
@@ -262,7 +264,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
     def __call__(self, units_tuples: np.ndarray,
                  units_positions: List[np.ndarray],
                  units_categories: List[np.ndarray]) -> np.ndarray:
-        return self.alignments_disorder(units_tuples_ids=unAlignmentsits_tuples,
+        return self.alignments_disorder(units_tuples_ids=units_tuples,
                                         units_positions=units_positions,
                                         units_categories=units_categories,
                                         delta_empty=self.delta_empty,
@@ -299,7 +301,7 @@ class PositionalDissimilarity(AbstractDissimilarity):
         null_unit_arr = np.array([np.NaN] * 3, dtype=np.float32)
 
         for _ in range(alignment.num_annotators):
-            unit_dists_array = np.zeros((alignment.num_alignments, 3),
+            unit_dists_array = np.zeros((alignment.num_unitary_alignments, 3),
                                         dtype=np.float32)
             positions_arrays.append(unit_dists_array)
         for unit_id, unit_align in enumerate(alignment.unitary_alignments):
@@ -353,13 +355,33 @@ class PositionalDissimilarity(AbstractDissimilarity):
 
 
 class CombinedCategoricalDissimilarity(AbstractDissimilarity):
+    """Combined Dissimilarity
+
+        Parameters
+        ----------
+        categories : list of str
+            list of N categories
+        cat_dissimilarity_matrix : optional, f: (str,str) -> float function representing
+            the matrix containing the values between categories. Has to be symetrical (f(x, y) = f(y, x))
+            with an empty diagonal (f(x, x) = 0). Defaults to setting all dissimilarities to 1.
+            OR
+            N,N matrix (np.array) containing dissimilarity values between categories (works best with ordinal
+            categories, since categories are indexed in alphabetical order).
+        delta_empty : optional, float
+            empty dissimilarity value. Defaults to 1.
+        alpha: optional float
+            coefficient weighting the positional dissimilarity value.
+            Defaults to 1.
+        beta: optional float
+            coefficient weighting the categorical dissimilarity value.
+            Defaults to 1.
+    """
     def __init__(self,
                  categories: List[str],
                  alpha: float = 3,
                  beta: float = 1,
                  delta_empty: float = 1,
-                 cat_dissimilarity_matrix: Union[Callable[[str, str], float], np.ndarray] = (
-                         lambda cat1, cat2: float(cat1 != cat2))):
+                 cat_dissimilarity_matrix: Union[Callable[[str, str], float], np.ndarray] = cat_default):
         super().__init__(delta_empty)
         assert alpha >= 0
         assert beta >= 0
@@ -370,28 +392,6 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         self.positional_dissim = PositionalDissimilarity(delta_empty)
         self.alpha = np.float32(alpha)
         self.beta = np.float32(beta)
-
-    """Combined Dissimilarity
-
-    Parameters
-    ----------
-    categories : list of str
-        list of N categories
-    cat_dissimilarity_matrix : optional, f: (str,str) -> float function representing
-        the matrix containing the values between categories. Has to be symetrical (f(x, y) = f(y, x))
-        with an empty diagonal (f(x, x) = 0). Defaults to setting all dissimilarities to 1.
-        OR
-        N,N matrix (np.array) containing dissimilarity values between categories (works best with ordinal
-        categories, since categories are indexed in alphabetical order).
-    delta_empty : optional, float
-        empty dissimilarity value. Defaults to 1.
-    alpha: optional float
-        coefficient weighting the positional dissimilarity value.
-        Defaults to 1.
-    beta: optional float
-        coefficient weighting the categorical dissimilarity value.
-        Defaults to 1.
-    """
 
     def build_args(self, resource: Union['Alignment', 'Continuum']) -> Tuple:
         from .continuum import Continuum

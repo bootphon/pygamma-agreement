@@ -35,3 +35,4 @@ from .dissimilarity import (PositionalDissimilarity,
 from .notebook import alignment_png, continuum_png
 from .numba_utils import *
 from .cst import *
+from .cat_dissim import *

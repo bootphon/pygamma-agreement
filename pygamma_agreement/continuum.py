@@ -48,7 +48,7 @@ from sortedcontainers import SortedDict, SortedSet
 from typing_extensions import Literal
 from multiprocessing import Pool
 
-from .dissimilarity import AbstractDissimilarity
+from .dissimilarity import AbstractDissimilarity, CombinedCategoricalDissimilarity
 from .numba_utils import chunked_cartesian_product
 
 if TYPE_CHECKING:
@@ -432,7 +432,7 @@ class Continuum:
             -> Optional['Continuum']:
         """
         Merge two Continuua together. Units from the same annotators
-        are also merged together.
+        are also merged together.(with the usual order of units).
 
         Parameters
         ----------
@@ -645,7 +645,7 @@ class Continuum:
         p = Pool()
         result_pool = [
             # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
-            p.apply_async(compute_disorder_job,
+            p.apply_async(_compute_disorder_job,
                           (Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
                            dissimilarity,)
                           )
@@ -669,7 +669,7 @@ class Continuum:
             logging.debug(f"Number of required samples for confidence {precision_level}: {required_samples}")
             if required_samples > n_samples:
                 result_pool = [
-                    p.apply_async(compute_disorder_job,
+                    p.apply_async(_compute_disorder_job,
                                   (Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
                                    dissimilarity,)
                                   )
@@ -763,7 +763,28 @@ class GammaResults:
         return 1 - self.observed_agreement / self.expected_disagreement
 
 
-def compute_disorder_job(continuum: Continuum, dissimilarity: AbstractDissimilarity):
+    def compute_gamma_k(self, category: Optional[str], dissimilarity: CombinedCategoricalDissimilarity):
+        """
+        Returns the gamma-cat metric (detailed in https://hal.archives-ouvertes.fr/hal-01712281)
+        which is uses as a basis the best alignment found when calculating the Gamma.
+        TODO
+        """
+        raise NotImplemented()
+        total_disorder = 0
+        total_weight = 0
+        for unitary_alignment in self.best_alignment:
+            nv = unitary_alignment.nb_units
+            assert nv >= 2, "Error: a unitary alignment with less than two units somehow got into the best alignement"
+            weight_base = 1 / (nv - 1)
+            for i, (_, unit1) in enumerate(unitary_alignment.n_tuple):
+                for _, unit2 in unitary_alignment.n_tuple[i+1:]:
+                    weight_confidence = max(0, 1 - dissimilarity.positional_dissim )
+
+
+
+
+
+def _compute_disorder_job(continuum: Continuum, dissimilarity: AbstractDissimilarity):
     """
     Function used to launch a multiprocessed job for computing dissimilarity
     between continuua
