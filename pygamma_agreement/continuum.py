@@ -33,6 +33,7 @@ Continuum and corpus
 """
 import csv
 import logging
+import os
 import random
 from copy import deepcopy
 from functools import total_ordering
@@ -54,7 +55,7 @@ from .numba_utils import chunked_cartesian_product
 if TYPE_CHECKING:
     from .alignment import UnitaryAlignment, Alignment
 
-CHUNK_SIZE = 2 ** 23
+CHUNK_SIZE = 2 ** 25 // os.cpu_count()
 
 # defining Annotator type
 Annotator = str
@@ -514,10 +515,8 @@ class Continuum:
         """
         return iter(self._annotations)
 
-
     def compute_disorders(self, dissimilarity: AbstractDissimilarity):
         assert len(self.annotators) >= 2, "Disorder cannot be computed with less than two annotators."
-
 
         disorder_args = dissimilarity.build_args(self)
 
@@ -525,7 +524,6 @@ class Continuum:
         for annotator, arr in self._annotations.items():
             assert len(arr) > 0, f"Disorder cannot be computed because annotator {annotator} has no annotations."
             nb_unit_per_annot.append(len(arr) + 1)
-
 
         all_disorders = []
         all_valid_tuples = []
@@ -645,15 +643,17 @@ class Continuum:
         p = Pool()
         result_pool = [
             # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
-            p.apply_async(_compute_disorder_job,
+            p.apply_async(_compute_best_alignment_job,
                           (Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
                            dissimilarity,)
                           )
             for _ in range(n_samples)]
-        chance_disorders = []
+        chance_best_alignments: List[Alignment] = []
+        chance_disorders: List[float] = []
         logging.info(f"Starting computation for a batch of {n_samples} random samples...")
         for result in result_pool:
-            chance_disorders.append(result.get())
+            chance_best_alignments.append(result.get())
+            chance_disorders.append(chance_best_alignments[-1].disorder)
         logging.info("done.")
 
         if precision_level is not None:
@@ -669,7 +669,7 @@ class Continuum:
             logging.debug(f"Number of required samples for confidence {precision_level}: {required_samples}")
             if required_samples > n_samples:
                 result_pool = [
-                    p.apply_async(_compute_disorder_job,
+                    p.apply_async(_compute_best_alignment_job,
                                   (Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
                                    dissimilarity,)
                                   )
@@ -678,7 +678,7 @@ class Continuum:
                 logging.info(f"Computing second batch of {required_samples - n_samples} "
                              f"because variation was too high.")
                 for i, result in enumerate(result_pool):
-                    chance_disorders.append(result.get())
+                    chance_best_alignments.append(result.get())
                 logging.info("done.")
 
         p.close()
@@ -690,8 +690,9 @@ class Continuum:
             best_alignment=best_alignment,
             pivot_type=pivot_type,
             n_samples=n_samples,
-            chance_disorders=np.array(chance_disorders),
-            precision_level=precision_level
+            chance_alignments=chance_best_alignments,
+            precision_level=precision_level,
+            dissimilarity=dissimilarity
         )
 
     def compute_gamma_cat(self):
@@ -721,12 +722,14 @@ class Continuum:
 @dataclass
 class GammaResults:
     """
-    Gamma results object. Stores information about a gamma measure computation.
+    Gamma results object. Stores the informations about a gamma measure computation,
+    used for getting the values of measures from the gamma family (gamma, gamma-cat and gamma-k).
     """
     best_alignment: 'Alignment'
     pivot_type: PivotType
     n_samples: int
-    chance_disorders: np.ndarray
+    chance_alignments: List['Alignment']
+    dissimilarity: AbstractDissimilarity
     precision_level: Optional[float] = None
 
     @property
@@ -734,16 +737,38 @@ class GammaResults:
         return len(self.best_alignment.unitary_alignments)
 
     @property
-    def observed_agreement(self) -> float:
+    def observed_disorder(self) -> float:
         """Returns the disorder of the computed best alignment, i.e, the
         observed agreement."""
         return self.best_alignment.disorder
 
     @property
-    def expected_disagreement(self) -> float:
+    def observed_cat_disorder(self) -> float:
+        return self.best_alignment.gamma_k_disorder(self.dissimilarity, None)
+
+    def observed_k_disorder(self, category: str) -> float:
+        return self.best_alignment.gamma_k_disorder(self.dissimilarity, category)
+
+    @property
+    def expected_disorder(self) -> float:
         """Returns the expected disagreement for computed random samples, i.e.,
         the mean of the sampled continuua's disorders"""
-        return self.chance_disorders.mean()
+        return np.mean([align.disorder for align in self.chance_alignments])
+
+    @property
+    def expected_cat_disorder(self) -> float:
+        """
+        Returns the expected disagreement (as defined for gamma-cat) using the same random samples
+        as for gamma (the mean of the sampled continuua's gamma-cat disorders)
+        """
+        return np.mean([align.gamma_k_disorder(self.dissimilarity, None) for align in self.chance_alignments])
+
+    def expected_k_disorder(self, category: str) -> float:
+        """
+        Returns the expected disagreement (as defined for gamma-k) using the same random samples
+        as for gamma (the mean of the sampled continuua's gamma-k disorders)
+        """
+        return np.mean([align.gamma_k_disorder(self.dissimilarity, category) for align in self.chance_alignments])
 
     @property
     def approx_gamma_range(self):
@@ -752,41 +777,32 @@ class GammaResults:
         if self.precision_level is None:
             raise ValueError("No precision level has been set, cannot compute"
                              "the gamma boundaries")
-        return (1 - self.observed_agreement / (self.expected_disagreement *
-                                               (1 - self.precision_level)),
-                1 - self.observed_agreement / (self.expected_disagreement *
-                                               (1 + self.precision_level)))
+        return (1 - self.observed_disorder / (self.expected_disorder *
+                (1 - self.precision_level)),
+                1 - self.observed_disorder / (self.expected_disorder *
+                (1 + self.precision_level)))
 
     @property
-    def gamma(self):
+    def gamma(self) -> float:
         """Returns the gamma value"""
-        return 1 - self.observed_agreement / self.expected_disagreement
+        return 1 - self.observed_disorder / self.expected_disorder
+
+    @property
+    def gamma_cat(self) -> float:
+        """Returns the gamma-cat value"""
+        return 1 - self.observed_cat_disorder / self.expected_cat_disorder
+
+    def gamma_k(self, category: str) -> float:
+        """Returns the gamma-k value"""
+        k_disorder = self.observed_k_disorder(category)
+        if k_disorder == 0:
+            return 1  # No annotator have annotated with the category -> agreement is 1.
+        return 1 - k_disorder / self.expected_k_disorder(category)
 
 
-    def compute_gamma_k(self, category: Optional[str], dissimilarity: CombinedCategoricalDissimilarity):
-        """
-        Returns the gamma-cat metric (detailed in https://hal.archives-ouvertes.fr/hal-01712281)
-        which is uses as a basis the best alignment found when calculating the Gamma.
-        TODO
-        """
-        raise NotImplemented()
-        total_disorder = 0
-        total_weight = 0
-        for unitary_alignment in self.best_alignment:
-            nv = unitary_alignment.nb_units
-            assert nv >= 2, "Error: a unitary alignment with less than two units somehow got into the best alignement"
-            weight_base = 1 / (nv - 1)
-            for i, (_, unit1) in enumerate(unitary_alignment.n_tuple):
-                for _, unit2 in unitary_alignment.n_tuple[i+1:]:
-                    weight_confidence = max(0, 1 - dissimilarity.positional_dissim )
-
-
-
-
-
-def _compute_disorder_job(continuum: Continuum, dissimilarity: AbstractDissimilarity):
+def _compute_best_alignment_job(continuum: Continuum, dissimilarity: AbstractDissimilarity):
     """
-    Function used to launch a multiprocessed job for computing dissimilarity
-    between continuua
+    Function used to launch a multiprocessed job for calculating the best aligment of a continuum
+    using the given dissimilarity.
     """
-    return continuum.compute_disorders(dissimilarity)
+    return continuum.get_best_alignment(dissimilarity)
