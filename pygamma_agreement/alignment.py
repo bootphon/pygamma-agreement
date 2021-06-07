@@ -38,7 +38,7 @@ from typing import Tuple, Optional, Iterable, Iterator
 
 import numpy as np
 
-from .dissimilarity import AbstractDissimilarity
+from .dissimilarity import AbstractDissimilarity, CombinedCategoricalDissimilarity
 
 from .continuum import Continuum, Annotator, Unit
 
@@ -111,7 +111,7 @@ class UnitaryAlignment:
     @property
     def nb_units(self):
         """The number of non-empty units in the unitary alignment."""
-        return sum(1 for _ in filter((lambda _, unit: unit is not None), self._n_tuple))
+        return sum(1 for _ in filter((lambda annot_unit: annot_unit[1] is not None), self._n_tuple))
 
     @disorder.setter
     def disorder(self, value: float):
@@ -203,6 +203,45 @@ class Alignment(AbstractAlignment):
         self._disorder = (dissimilarity(unit_ids, *disorder_args).sum()
                           / self.num_unitary_alignments)
         return self._disorder
+
+    def gamma_k_disorder(self, dissimilarity: 'CombinedCategoricalDissimilarity', category: Optional[str]) -> float:
+        """
+        Returns the gamma-k or gamma-cat metric disorder (detailed in https://hal.archives-ouvertes.fr/hal-01712281)
+        Of the alignment.
+
+        Parameters
+        ----------
+        dissimilarity:
+        the dissimilarity measure to be used in the algorithm. Raises ValueError if it is not a combined categorical
+        dissimilarity, as gamma-cat requires both positional and categorical dissimilarity.
+        category:
+        The category to be used as reference for gamma-k. Set it as None for computing the gamma-cat disorder.
+        """
+        if not isinstance(dissimilarity, CombinedCategoricalDissimilarity):
+            raise TypeError("Cannot compute gamma-k or gamma-cat with a best alignment computed with a "
+                            "non-combined dissimilarity.")
+        if category is not None and category not in self.continuum.categories:
+            return 0  # If the category if not in the continuum, we consider that the annotators agree about that.
+        total_disorder = 0
+        total_weight = 0
+        for unitary_alignment in self:
+            nv = unitary_alignment.nb_units
+            if nv < 2:
+                continue
+            weight_base = 1 / (nv - 1)
+            for i, (_, unit1) in enumerate(unitary_alignment.n_tuple):
+                for _, unit2 in unitary_alignment.n_tuple[i+1:]:
+                    # Gamma-k
+                    if category is not None and unit1.annotation != category and unit2.annotation != category:
+                        continue
+                    weight_confidence = max(0, 1 - dissimilarity.positional_dissim.dpos(unit1, unit2))
+                    weight = weight_base * weight_confidence
+                    cat_dissim = dissimilarity.categorical_dissim.dcat(unit1, unit2)
+                    total_disorder += cat_dissim * weight
+                    total_weight += weight
+        if total_disorder == 0:
+            return 0
+        return total_disorder / total_weight
 
     def check(self, continuum: Optional[Continuum] = None):
         """
