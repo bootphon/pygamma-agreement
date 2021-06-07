@@ -93,7 +93,7 @@ def test_cst_1():
 def test_cst_cat():
     continuum = Continuum.from_csv(Path("tests/data/annotation_paul_suzann_alex.csv"))
     categories = continuum.categories
-    dissim = CombinedCategoricalDissimilarity(list(categories),
+    dissim = CombinedCategoricalDissimilarity(categories,
                                               delta_empty=1,
                                               alpha=3,
                                               beta=1,
@@ -112,7 +112,7 @@ def test_cst_cat():
     cst_lots_of_cat = CorpusShufflingTool(0.9, continuum_martino)
     shuffled_cat = cst_lots_of_cat.corpus_from_reference(["martino", "Martingale", "Martine"])
     cst_lots_of_cat.category_shuffle(shuffled_cat, overlapping_fun=cat_ord, prevalence=True)
-    dissim = CombinedCategoricalDissimilarity(list(continuum_martino.categories),
+    dissim = CombinedCategoricalDissimilarity(continuum_martino.categories,
                                               delta_empty=1,
                                               alpha=3,
                                               beta=3,  # higher beta should make the gamma fall a lot since categories

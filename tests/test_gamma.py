@@ -9,7 +9,7 @@ from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity
 
 def test_gamma_2by1000():
     continuum = Continuum.from_csv(Path("tests/data/2by1000.csv"))
-    dissim = CombinedCategoricalDissimilarity(list(continuum.categories),
+    dissim = CombinedCategoricalDissimilarity(continuum.categories,
                                               delta_empty=1,
                                               alpha=3,
                                               beta=1)
@@ -22,7 +22,7 @@ def test_gamma_2by1000():
 
 def test_gamma_3by100():
     continuum = Continuum.from_csv(Path("tests/data/3by100.csv"))
-    dissim = CombinedCategoricalDissimilarity(list(continuum.categories),
+    dissim = CombinedCategoricalDissimilarity(continuum.categories,
                                               delta_empty=1,
                                               alpha=3,
                                               beta=1)
@@ -35,7 +35,7 @@ def test_gamma_3by100():
 
 def test_gamma_alexpaulsuzan():
     continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
-    dissim = CombinedCategoricalDissimilarity(list(continuum.categories),
+    dissim = CombinedCategoricalDissimilarity(continuum.categories,
                                               delta_empty=1,
                                               alpha=3,
                                               beta=1)
