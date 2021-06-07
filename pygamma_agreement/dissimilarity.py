@@ -36,6 +36,7 @@ from typing import List, TYPE_CHECKING, Tuple, Union, Callable
 import numba as nb
 import numpy as np
 from matplotlib import pyplot as plt
+from sortedcontainers import SortedSet
 
 from .numba_utils import binom
 from .cat_dissim import cat_default
@@ -115,14 +116,14 @@ class CategoricalDissimilarity(AbstractDissimilarity):
     """
 
     def __init__(self,
-                 categories: List[str],
+                 categories: SortedSet[str],
                  cat_dissimilarity_matrix: Union[Callable[[str, str], float], np.ndarray] = (
                          lambda cat1, cat2: float(cat1 != cat2)),
                  delta_empty: float = 1):
         super().__init__(delta_empty)
 
-        self.categories_dict = {cat: i for i, cat in enumerate(categories)}
-        self.categories_nb = len(self.categories_dict)
+        self.categories = categories
+        self.categories_nb = len(self.categories)
 
         if isinstance(cat_dissimilarity_matrix, np.ndarray):
             self.cat_matrix = cat_dissimilarity_matrix
@@ -156,12 +157,12 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                     raise ValueError(f"In segment {unit.segment} for annotator "
                                      f"{annotator}: annotation cannot be None")
                 try:
-                    cat_array[unit_id] = self.categories_dict[unit.annotation]
+                    cat_array[unit_id] = self.categories.index(unit.annotation)
                 except ValueError:
                     raise ValueError(
                         f"In segment {unit.segment} for annotator {annotator}: "
                         f"annotation of category {unit.category} is not in "
-                        f"set {set(self.categories_dict.keys())} of allowed categories")
+                        f"set {self.categories} of allowed categories")
             cat_array[-1] = -1  # We add an empty unit at the end of each line so that the carthesian product uses it
             categories_arrays.append(cat_array)
         return categories_arrays
@@ -187,14 +188,20 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                     raise ValueError(f"In unit {unit} in unitary alignment "
                                      f"{unit_align}: annotation cannot be None")
                 try:
-                    cat_arrays[annot_id][unit_id] = self.categories_dict[unit.annotation]
+                    cat_arrays[annot_id][unit_id] = self.categories.index(unit.annotation)
                 except ValueError:
                     raise ValueError(f"In unit {unit} for annotator {annotator}"
                                      f"in unitary alignment {unit_align}: "
                                      f"annotation of category {unit.category} "
-                                     f"is not in set {set(self.categories_dict.keys())} "
+                                     f"is not in set {self.categories} "
                                      f"of allowed categories")
         return cat_arrays
+
+    def dcat(self, unit_a: 'Unit', unit_b: 'Unit'):
+        if unit_a is None or unit_b is None:
+            return self.delta_empty
+        return self.cat_matrix[self.categories.index(unit_a.annotation),
+                               self.categories.index(unit_b.annotation)] * self.delta_empty
 
     def plot_categorical_dissimilarity_matrix(self):
         fig, ax = plt.subplots()
@@ -203,7 +210,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
             extent=[0, self.categories_nb, 0, self.categories_nb])
         ax.figure.colorbar(im, ax=ax)
         categories_indexedlist = [None for _ in range(self.categories_nb)]
-        for cat, id_cat in self.categories_dict.items():
+        for (id_cat, cat) in enumerate(self.categories):
             categories_indexedlist[id_cat] = cat
         plt.xticks([el + 0.5 for el in range(self.categories_nb)],
                    categories_indexedlist)
@@ -317,6 +324,13 @@ class PositionalDissimilarity(AbstractDissimilarity):
                 positions_arrays[annot_it][unit_id][2] = unit.segment.duration
         return positions_arrays
 
+    def dpos(self, unit_a: 'Unit', unit_b: 'Unit'):
+        if unit_a is None or unit_b is None:
+            return self.delta_empty
+        return (abs(unit_a.segment.start - unit_b.segment.start) + abs(unit_a.segment.end - unit_b.segment.end) /
+                (unit_a.segment.end - unit_a.segment.start + unit_a.segment.end - unit_a.segment.start)) ** 2 *\
+            self.delta_empty
+
 
 
     @staticmethod
@@ -377,7 +391,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
             Defaults to 1.
     """
     def __init__(self,
-                 categories: List[str],
+                 categories: SortedSet[str],
                  alpha: float = 3,
                  beta: float = 1,
                  delta_empty: float = 1,
