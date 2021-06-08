@@ -567,7 +567,8 @@ class Continuum:
         chosen_alignments_ids, = np.where(x.value > 0.9)
         self._chosen_alignments = possible_unitary_alignments[chosen_alignments_ids]
         self._alignments_disorders = disorders[chosen_alignments_ids]
-        return self._alignments_disorders.sum() / len(self._alignments_disorders)
+        return self._alignments_disorders.sum() / np.mean([len(annotations)
+                                                           for annotations in self._annotations.values()])
 
     def get_best_alignment(self, dissimilarity: Optional['AbstractDissimilarity'] = None):
         if self._chosen_alignments is None or self._alignments_disorders is None:
@@ -785,19 +786,19 @@ class GammaResults:
     @property
     def gamma(self) -> float:
         """Returns the gamma value"""
-        return 1 - self.observed_disorder / self.expected_disorder
+        return max(0.0, 1 - self.observed_disorder / self.expected_disorder)
 
     @property
     def gamma_cat(self) -> float:
         """Returns the gamma-cat value"""
-        return 1 - self.observed_cat_disorder / self.expected_cat_disorder
+        return max(0.0, 1 - self.observed_cat_disorder / self.expected_cat_disorder)
 
     def gamma_k(self, category: str) -> float:
         """Returns the gamma-k value"""
         k_disorder = self.observed_k_disorder(category)
         if k_disorder == 0:
             return 1  # No annotator have annotated with the category -> agreement is 1.
-        return 1 - k_disorder / self.expected_k_disorder(category)
+        return max(0.0, 1 - k_disorder / self.expected_k_disorder(category))
 
 
 def _compute_best_alignment_job(continuum: Continuum, dissimilarity: AbstractDissimilarity):

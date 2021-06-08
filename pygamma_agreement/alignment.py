@@ -175,6 +175,13 @@ class Alignment(AbstractAlignment):
                 in self.unitary_alignments[0].n_tuple]
 
     @property
+    def mean_nb_unit_per_annotator(self):
+        if self.continuum is not None:
+            return np.mean([len(annotations) for annotations in self.continuum._annotations.values()])
+        else:
+            return sum(unitary_alignment.nb_units for unitary_alignment in self) / self.num_annotators
+
+    @property
     def num_unitary_alignments(self):
         return len(self.unitary_alignments)
 
@@ -198,6 +205,7 @@ class Alignment(AbstractAlignment):
         unit_ids = np.vstack([unit_ids] * self.num_annotators)
         unit_ids = unit_ids.swapaxes(0, 1)
         disorders = dissimilarity(unit_ids, *disorder_args)
+        mean_nb_alignments_per_annotator = 0
         for i, disorder in enumerate(disorders):
             self.unitary_alignments[i].disorder = disorder
         self._disorder = (dissimilarity(unit_ids, *disorder_args).sum()
@@ -227,12 +235,14 @@ class Alignment(AbstractAlignment):
         for unitary_alignment in self:
             nv = unitary_alignment.nb_units
             if nv < 2:
-                continue
-            weight_base = 1 / (nv - 1)
+                weight_base = 0
+            else:
+                weight_base = 1 / (nv - 1)
             for i, (_, unit1) in enumerate(unitary_alignment.n_tuple):
                 for _, unit2 in unitary_alignment.n_tuple[i+1:]:
                     # Gamma-k
-                    if category is not None and unit1.annotation != category and unit2.annotation != category:
+                    if category is not None and not ((unit1 is not None and unit1.annotation == category) or
+                                                     (unit2 is not None and unit2.annotation == category)):
                         continue
                     weight_confidence = max(0, 1 - dissimilarity.positional_dissim.dpos(unit1, unit2))
                     weight = weight_base * weight_confidence

@@ -32,7 +32,7 @@ from .dissimilarity import (PositionalDissimilarity,
                             CategoricalDissimilarity,
                             CombinedCategoricalDissimilarity)
 #TODO enlever les imports de test
-from .notebook import alignment_png, continuum_png
+from .notebook import show_continuum, show_alignment
 from .numba_utils import *
 from .cst import *
 from .cat_dissim import *
