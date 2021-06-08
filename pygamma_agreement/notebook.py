@@ -237,7 +237,7 @@ class Notebook:
             self.plot_continuum(resource)
 
     def plot_alignment(self, alignment: Alignment, ax=None, time=True, legend=True, labelled=False):
-        self.crop = Segment(0, alignment.num_alignments)
+        self.crop = Segment(0, alignment.num_unitary_alignments)
 
         ax = self.setup(ax=ax, time=time)
         ax.set_xlabel('Alignments')
@@ -338,4 +338,12 @@ def show_continuum(continuum: Continuum, labelled=False):
     plt.rcParams['figure.figsize'] = (notebook.width, 2)
     fig, ax = plt.subplots()
     notebook.plot_continuum(continuum, ax=ax, labelled=labelled)
+    fig.show()
+
+
+def show_alignment(alignment: Alignment, labelled=False):
+    import matplotlib.pyplot as plt
+    plt.rcParams['figure.figsize'] = (notebook.width, 2)
+    fig, ax = plt.subplots()
+    notebook.plot_alignment(alignment, ax=ax, labelled=labelled)
     fig.show()
