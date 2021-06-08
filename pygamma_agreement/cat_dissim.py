@@ -8,19 +8,19 @@ from Levenshtein import distance as lev
 arguments = {}
 
 
-def cat_levenshtein(cat1: str, cat2: str):
+def cat_levenshtein(cat1: str, cat2: str) -> float:
     return lev(cat1, cat2)
 
 
-def cat_default(cat1: str, cat2: str):
-    return cat1 != cat2
+def cat_default(cat1: str, cat2: str) -> float:
+    return float(cat1 != cat2)
 
 
-def cat_ord(cat1: str, cat2: str):
+def cat_ord(cat1: str, cat2: str) -> float:
     if not (cat1.isnumeric() and cat2.isnumeric()):
         raise ValueError("Error : tried to compute ordinal categorical dissimilarity"
                          f"but categories are non-numeric (category {cat1} or {cat2})")
-    return abs(int(cat1) - int(cat2))
+    return abs(float(int(cat1) - int(cat2)))
 
 
 arguments["default"] = cat_default
