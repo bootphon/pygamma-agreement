@@ -14,9 +14,8 @@ def test_gamma_2by1000():
                                               alpha=3,
                                               beta=1)
 
-    best_alignment = continuum.get_best_alignment(dissim)
     gamma_results = continuum.compute_gamma(dissim, precision_level=0.5)
-    assert len(best_alignment.unitary_alignments) == 1085
+    assert len(gamma_results.best_alignment.unitary_alignments) == 1085
     assert 0.20 <= gamma_results.gamma <= 0.27
 
 
@@ -27,9 +26,8 @@ def test_gamma_3by100():
                                               alpha=3,
                                               beta=1)
 
-    best_alignment = continuum.get_best_alignment(dissim)
     gamma_results = continuum.compute_gamma(dissim, precision_level=0.5)
-    assert len(best_alignment.unitary_alignments) == 127
+    assert len(gamma_results.best_alignment.unitary_alignments) == 127
     assert 0.68 <= gamma_results.gamma <= 0.70
 
 
@@ -40,8 +38,7 @@ def test_gamma_alexpaulsuzan():
                                               alpha=3,
                                               beta=1)
 
-    best_alignment = continuum.get_best_alignment(dissim)
     gamma_results = continuum.compute_gamma(dissim, precision_level=0.01)
-    assert len(best_alignment.unitary_alignments) == 7
-    assert best_alignment.disorder == pytest.approx(0.731, 0.01)
+    assert len(gamma_results.best_alignment.unitary_alignments) == 7
+    assert gamma_results.best_alignment.disorder == pytest.approx(0.731, 0.01)
     assert 0.28 <= gamma_results.gamma <= 0.31
