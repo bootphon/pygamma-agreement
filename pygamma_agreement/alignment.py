@@ -244,9 +244,10 @@ class Alignment(AbstractAlignment):
                     if category is not None and not ((unit1 is not None and unit1.annotation == category) or
                                                      (unit2 is not None and unit2.annotation == category)):
                         continue
+
                     weight_confidence = max(0, 1 - dissimilarity.positional_dissim.dpos(unit1, unit2))
-                    weight = weight_base * weight_confidence
                     cat_dissim = dissimilarity.categorical_dissim.dcat(unit1, unit2)
+                    weight = weight_base * weight_confidence
                     total_disorder += cat_dissim * weight
                     total_weight += weight
         if total_disorder == 0:
