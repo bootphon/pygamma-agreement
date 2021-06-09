@@ -15,8 +15,7 @@ def test_random_reference():
     for _ in range(10):  # we do it a certain number of time to be sure no chance happened
         continuum = random_reference("Martino", 200, 40, 10, 1,
                                      categories,
-                                     overlapping=False,
-                                     seed=random.randint(0, 10000))
+                                     overlapping=False)
         assert continuum.categories == categories
         assert continuum.num_annotators == 1
         assert continuum.annotators[0] == "Martino"
