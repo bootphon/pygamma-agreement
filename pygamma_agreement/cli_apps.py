@@ -75,7 +75,7 @@ argparser.add_argument("-f", "--format", type=str, choices=["rttm", "csv"],
 argparser.add_argument("-o", "--output-csv", type=Path,
                        help="Path to the output csv report")
 argparser.add_argument("-a", "--alpha",
-                       default=2, type=float,
+                       default=3, type=float,
                        help="Alpha coefficient (positional dissimilarity ponderation)")
 argparser.add_argument("-b", "--beta",
                        default=1, type=float,

@@ -35,7 +35,7 @@ def test_cst_0():
     """
     continuum = Continuum.from_csv(Path("tests/data/annotation_paul_suzann_alex.csv"))
     categories = continuum.categories
-    dissim = CombinedCategoricalDissimilarity(list(categories),
+    dissim = CombinedCategoricalDissimilarity(categories,
                                               delta_empty=1,
                                               alpha=3,
                                               beta=1,
@@ -60,15 +60,14 @@ def test_cst_0():
     assert shuffled.annotators == SortedSet(("Martingale", "Martino"))
     assert shuffled_with_reference.categories.issubset(categories)
     assert shuffled.categories.issubset(categories)
-    assert shuffled_with_reference.compute_gamma(dissim).gamma > 0.99
-    assert shuffled.compute_gamma(dissim).gamma > 0.99
-
+    assert shuffled_with_reference.compute_gamma(dissim).gamma > 0.9
+    assert shuffled.compute_gamma(dissim).gamma > 0.9
 
 
 def test_cst_1():
     continuum = Continuum.from_csv(Path("tests/data/annotation_paul_suzann_alex.csv"))
     categories = continuum.categories
-    dissim = CombinedCategoricalDissimilarity(list(categories),
+    dissim = CombinedCategoricalDissimilarity(categories,
                                               delta_empty=1,
                                               alpha=3,
                                               beta=1,
@@ -87,8 +86,9 @@ def test_cst_1():
                                                       cat_shuffle=True,
                                                       split=True,
                                                       include_ref=True)
-    assert shuffled.compute_gamma(dissim).gamma < 0.01
-    assert shuffled_with_reference.compute_gamma(dissim).gamma < 0.01
+    assert shuffled.compute_gamma(dissim).gamma < 0.2
+    assert shuffled_with_reference.compute_gamma(dissim).gamma < 0.2
+
 
 def test_cst_cat():
     continuum = Continuum.from_csv(Path("tests/data/annotation_paul_suzann_alex.csv"))
@@ -96,14 +96,14 @@ def test_cst_cat():
     dissim = CombinedCategoricalDissimilarity(categories,
                                               delta_empty=1,
                                               alpha=3,
-                                              beta=1,
+                                              beta=3,
                                               cat_dissimilarity_matrix=cat_ord)
     cst_alex = CorpusShufflingTool(1.0, continuum)  # alex is reference
     # We test the category shuffle independently for the special options.
     shuffled_cat = cst_alex.corpus_from_reference(["martino", "Martingale", "Martine"])
     cst_alex.category_shuffle(shuffled_cat, overlapping_fun=cat_ord, prevalence=True)
     # This reference doesn't have enough categories for the gamma to go lower.
-    assert shuffled_cat.compute_gamma(dissim).gamma < 0.70
+    assert shuffled_cat.compute_gamma(dissim).gamma < 0.6
 
     # Now we generate a reference with A LOT of categories and close segments:
     continuum_martino = random_reference("Martino", 200, 40, 20, 3,
@@ -117,7 +117,7 @@ def test_cst_cat():
                                               alpha=3,
                                               beta=3,  # higher beta should make the gamma fall a lot since categories
                                               cat_dissimilarity_matrix=cat_ord)  # are now a mess
-    assert shuffled_cat.compute_gamma(dissim).gamma < 0.1
+    assert shuffled_cat.compute_gamma(dissim).gamma < 0.6
 
 
 

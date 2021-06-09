@@ -34,7 +34,7 @@ Alignement and disorder
 from abc import ABCMeta, abstractmethod
 from collections import Counter
 from typing import TYPE_CHECKING, Union
-from typing import Tuple, Optional, Iterable, Iterator
+from typing import Tuple, Optional, Iterable, Iterator, List
 
 import numpy as np
 
@@ -42,7 +42,7 @@ from .dissimilarity import AbstractDissimilarity, CombinedCategoricalDissimilari
 
 from .continuum import Continuum, Annotator, Unit
 
-UnitsTuple = Tuple[Tuple['Annotator', 'Unit']]
+UnitsTuple = List[Tuple['Annotator', Optional['Unit']]]
 
 
 class SetPartitionError(Exception):
