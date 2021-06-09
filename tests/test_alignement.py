@@ -27,6 +27,7 @@ def test_alignment_checking():
     n_tuple = [('liza', Unit(Segment(1, 5), 'Carol')),
                ('pierrot', Unit(Segment(2, 6), 'Carol'))]
     unitary_alignment = UnitaryAlignment(n_tuple)
+    assert unitary_alignment.nb_units == 2
     alignment.unitary_alignments.append(unitary_alignment)
 
     # checking missing
@@ -36,6 +37,7 @@ def test_alignment_checking():
     n_tuple = [('liza', Unit(Segment(6, 8), 'Bob')),
                ('pierrot', None)]
     unitary_alignment = UnitaryAlignment(n_tuple)
+    assert unitary_alignment.nb_units == 1
     alignment.unitary_alignments.append(unitary_alignment)
 
     # checking valid alignment
@@ -45,6 +47,7 @@ def test_alignment_checking():
     n_tuple = [('liza', Unit(Segment(6, 8), 'Bob')),
                ('pierrot', None)]
     unitary_alignment = UnitaryAlignment(n_tuple)
+    assert unitary_alignment.nb_units == 1
     alignment.unitary_alignments.append(unitary_alignment)
 
     # checking missing
@@ -67,6 +70,7 @@ def test_unitary_alignment():
                ('pierrot', Unit(Segment(12, 18), "Alice")),
                ('hadrien', None)]
     unitary_alignment = UnitaryAlignment(n_tuple)
+    assert  unitary_alignment.nb_units == 2
 
     assert (unitary_alignment.compute_disorder(combi_dis)
            ==
@@ -113,9 +117,10 @@ def test_alignment():
                ('pierrot', Unit(Segment(2, 6), 'Carol')),
                ('hadrien', Unit(Segment(1, 6), 'Carol'))]
     unitary_alignment = UnitaryAlignment(n_tuple)
+    assert unitary_alignment.nb_units == 3
     set_unitary_alignments.append(unitary_alignment)
 
-    n_tuple = [('liza', Unit(Segment(6, 8),'Bob')),
+    n_tuple = [('liza', Unit(Segment(6, 8), 'Bob')),
                ('pierrot', Unit(Segment(7, 8), 'Bob')),
                ('hadrien', Unit(Segment(8, 10), 'Alice'))]
     unitary_alignment = UnitaryAlignment(n_tuple)
@@ -125,18 +130,21 @@ def test_alignment():
                ('pierrot', Unit(Segment(7, 19), 'Jeremy')),
                ('hadrien', Unit(Segment(7, 19), 'Jeremy'))]
     unitary_alignment = UnitaryAlignment(n_tuple)
+    assert unitary_alignment.nb_units == 3
     set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = [('liza', Unit(Segment(12, 18), 'Carol')),
                ('pierrot', Unit(Segment(12, 18), 'Alice')),
                ('hadrien', None)]
     unitary_alignment = UnitaryAlignment(n_tuple)
+    assert unitary_alignment.nb_units == 2
     set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = [('liza', None),
                ('pierrot', Unit(Segment(8, 10), 'Alice')),
                ('hadrien', Unit(Segment(19, 20), 'Alice'))]
     unitary_alignment = UnitaryAlignment(n_tuple)
+    assert unitary_alignment.nb_units == 2
     set_unitary_alignments.append(unitary_alignment)
 
     alignment = Alignment(set_unitary_alignments,
@@ -189,30 +197,35 @@ def test_best_alignment():
                ('pierrot', Unit(Segment(2, 6), 'Carol')),
                ('hadrien', Unit(Segment(1, 6), 'Carol'))]
     unitary_alignment = UnitaryAlignment(n_tuple)
+    assert unitary_alignment.nb_units == 3
     set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = [('liza', Unit(Segment(6, 8), 'Bob')),
                ('pierrot', Unit(Segment(7, 8), 'Bob')),
                ('hadrien', Unit(Segment(8, 10), 'Alice'))]
     unitary_alignment = UnitaryAlignment(n_tuple)
+    assert unitary_alignment.nb_units == 3
     set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = [('liza', Unit(Segment(7, 20), 'Alice')),
                ('pierrot', Unit(Segment(7, 19), 'Jeremy')),
                ('hadrien', Unit(Segment(7, 19), 'Jeremy'))]
     unitary_alignment = UnitaryAlignment(n_tuple)
+    assert unitary_alignment.nb_units == 3
     set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = [('liza', Unit(Segment(12, 18), 'Carol')),
                ('pierrot', Unit(Segment(12, 18), 'Alice')),
                ('hadrien', None)]
     unitary_alignment = UnitaryAlignment(n_tuple)
+    assert unitary_alignment.nb_units == 2
     set_unitary_alignments.append(unitary_alignment)
 
     n_tuple = [('liza', None),
                ('pierrot', Unit(Segment(8, 10), 'Alice')),
                ('hadrien', Unit(Segment(19, 20), 'Alice'))]
     unitary_alignment = UnitaryAlignment(n_tuple)
+    assert unitary_alignment.nb_units == 2
     set_unitary_alignments.append(unitary_alignment)
 
     alignment = Alignment(set_unitary_alignments,
