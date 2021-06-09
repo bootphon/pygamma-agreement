@@ -37,9 +37,12 @@ An objective measure of the agreement (and subsequent disagreement) between anno
 
 The Gamma ($\gamma$) Inter-Annotator Agreement Measure was proposed by [@gamma-paper] as a way to quantify inter-rater agreement for sequences of annotations. The $\gamma$-agreement measure solves a number of the shortcomings of other pre-existing measures. 
 This quantification will have to satisfy some constraints: segmentation, unitizing, categorization, weighted categorization and the support for any number of annotators. They should also provide a chance-corrected value.
-Measures, such as the $\kappa$ [@kappa-paper] or Krippendorff's $\alpha$'s [@alpha-paper], have existed for some time to deal with these constraints, but never could address all of them at once. A detailed comparison between metrics is available in [@gamma-paper]. Furthermore, the authors of [@gamma-paper] [provided a Java freeware](https://gamma.greyc.fr/) GUI implementation along with their paper. 
+Other measures, such as the $\kappa$ [@kappa-paper] or Krippendorff's $\alpha$'s [@alpha-paper], have existed for some time to deal with these constraints, but never could address all of them at once. A detailed comparison between metrics is available in [@gamma-paper].
 
-Linguist and automated speech researchers today use analysis pipeline that are either Python or shell scripts. 
+To solve all of these constraints at once, the $\gamma$-agreement works in 3 steps:  1) a _disorder_ (i.e. a cost) is computed for each potential alignments between the different annotators's units, using an annotation-dependent _dissimilarity_ (akin to a distance between units). This _disorder_ models the disagreement between annotators. 2) Using a convex optimization algorithm, a global alignment with the lowest total disorder is found. 3) By sampling random and synthetic annotations from the original annotation and computing their own disorders, the original annotation's disorder value is chance-corrected to provide the final $\gamma$-agreement measure.
+The authors of [@gamma-paper] [provided a Java freeware](https://gamma.greyc.fr/) GUI implementation along with their paper. This implementation has already been used by some researchers  [@gamma-usage] to compute an inter-rater agreement measure on their annotations.
+
+However, linguist and automated speech researchers today use analysis pipelines that are either Python or shell scripts. 
 To this day, no open-source implementation allows for the $\gamma$-agreement to be computed in a programmatical way, and researchers that are already proficient in Python and willing to automate their work might be hindered by the graphical nature of the original Java implementation.
 Moreover, the original $\gamma$-agreement algorithm has several parameters that are determinant in its computation and cannot be configured as of now.
 For this reason, we thought it would greatly benefit the speech and linguistic scientific community if we could provide them with a fully open-source Python implementation of the original algorithm.
@@ -65,9 +68,9 @@ print(f"Gamma is {gamma_results.gamma}")
 
 The most important primitives from our API (the `Continuum` \autoref{fig:continuum} and `Alignment` \autoref{fig:alignment} classes) can be displayed using the `matplotlib.pyplot` backend if the user is working in a Jupyter notebook. 
 
-![Displaying a Continuum in a jupyter notebook. \label{fig:continuum}](continuum.png)
+![Displaying a Continuum in a jupyter notebook. This is a temporally accurate representation of the annotated data. \label{fig:continuum}](continuum.png)
 
-![Displaying an Alignment in a jupyter notebook. \label{fig:alignment}](best_alignment.png)
+![Displaying an Alignment in a jupyter notebook. This is a visual and schematic representation of the alignment computed between annotations of the original continuum (the order of units is respected but the annotations are scaled for visual clarity). \label{fig:alignment}](best_alignment.png)
 
 The second one is a command-line application that can be invoked directly from the shell, for those who prefer to use shell scripts for corpus processing:
 
@@ -103,8 +106,9 @@ Our implementation of the $\gamma$-agreement opens the path for a number of pote
 
 * An obvious improvement is to add support for the "$\gamma$-cat" metric, a complement measure [@gamma-cat-paper] for the $\gamma$-agreement.
 * The $\gamma$-agreement's theoretical framework allows for some useful improvements such as:
-  - the implementation of a sequence-based dissimilarity, based on the Levenshtein distance. This would however require a numba re-implementation of the latter. This could, for instance, be used to compare annotated strings of phonemes.
+  - the implementation of new dissimilarities, such as a sequence-based dissimilarity (based on the Levenshtein distance), an ordinal dissimilarity (for ordered sets of categories) and a scalar dissimilarity.
   - for categorical annotations, the support for an undefined set of categories, with annotators using different sets of categories. This would be solved using an adapted implementation of the [Hungarian Algorithm](https://en.wikipedia.org/wiki/Hungarian_algorithm). This could be useful in unconstrained diarization annotation tasks.
+  - more hypothetically, the possibility to have so-called "soft alignments", where a unit has weighted alignments with other units in its continuum.
 
 
 # Acknowledgements
