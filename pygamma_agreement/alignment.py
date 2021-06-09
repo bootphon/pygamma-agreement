@@ -195,7 +195,7 @@ class Alignment(AbstractAlignment):
         if self._disorder is None:
             self._disorder = (sum(u_align.disorder for u_align
                                   in self.unitary_alignments)
-                              / self.num_unitary_alignments)
+                              / self.mean_nb_unit_per_annotator)
         return self._disorder
 
     def compute_disorder(self, dissimilarity: AbstractDissimilarity):
@@ -205,11 +205,10 @@ class Alignment(AbstractAlignment):
         unit_ids = np.vstack([unit_ids] * self.num_annotators)
         unit_ids = unit_ids.swapaxes(0, 1)
         disorders = dissimilarity(unit_ids, *disorder_args)
-        mean_nb_alignments_per_annotator = 0
         for i, disorder in enumerate(disorders):
             self.unitary_alignments[i].disorder = disorder
         self._disorder = (dissimilarity(unit_ids, *disorder_args).sum()
-                          / self.num_unitary_alignments)
+                          / self.mean_nb_unit_per_annotator)
         return self._disorder
 
     def gamma_k_disorder(self, dissimilarity: 'CombinedCategoricalDissimilarity', category: Optional[str]) -> float:
