@@ -182,6 +182,13 @@ class Notebook:
         ax.legend(H, L, bbox_to_anchor=(0, 1), loc=3,
                   ncol=5, borderaxespad=0., frameon=False)
 
+    def link_segments(self, ax, segment1: Segment, y1: float, segment2: Segment, y2: float):
+        x = [(segment1.end + segment1.start) / 2, (segment2.end + segment2.start) / 2]
+        y = [y1, y2]
+        ax.plot(x, y, color='black', linestyle='dotted', linewidth=1)
+
+
+
     def get_y(self, segments: Iterable[Segment]) -> np.ndarray:
         """
 
@@ -274,24 +281,46 @@ class Notebook:
         if legend:
             self.draw_legend_from_labels(ax)
 
+    def plot_alignment_continuum(self, alignment: Alignment, ax=None, time=True, legend=True, labelled=False):
+        assert(alignment.continuum is not None)
+        y_annotator_unit = self.plot_continuum(alignment.continuum, ax=ax, legend=legend, labelled=labelled)
+        for unitary_alignment in alignment:
+            annotations = iter(unitary_alignment.n_tuple)
+            last_unit = None
+            while last_unit is None:
+                last_annotator, last_unit = next(annotations)
+            for (annotator, unit) in annotations:
+                if unit is None:
+                    continue
+                self.link_segments(ax,
+                                   last_unit.segment, y_annotator_unit[last_annotator][last_unit],
+                                   unit.segment, y_annotator_unit[annotator][unit])
+                last_annotator, last_unit = annotator, unit
+
+
+
+
+
+
     def plot_continuum(self, continuum: Continuum, ax=None,  # time=True,
                        legend=True, labelled=False):
         self.crop = Timeline([unit.segment for (_, unit) in continuum]).extent()
         self.setup(ax, ylim=(0, continuum.num_annotators))
-
+        y_annotator_unit = {}
         for annot_id, annotator in enumerate(continuum.annotators):
+            y_annotator_unit[annotator] = {}
             units_tl = sorted(continuum[annotator], key=(lambda unit: unit.segment))
             for unit, y in zip(units_tl, self.get_y(unit.segment for unit in units_tl)):
+                y_annotator_unit[annotator][unit] = y + annot_id
                 if labelled:
                     text = unit.annotation
                 else:
                     text = None
                 self.draw_segment(ax, unit.segment, y + annot_id,
                                   annotator=annotator, text=text)
-
-
         if legend:
             self.draw_legend_from_labels(ax)
+        return y_annotator_unit
 
 
 notebook = Notebook()
@@ -345,5 +374,5 @@ def show_alignment(alignment: Alignment, labelled=False):
     import matplotlib.pyplot as plt
     plt.rcParams['figure.figsize'] = (notebook.width, 2)
     fig, ax = plt.subplots()
-    notebook.plot_alignment(alignment, ax=ax, labelled=labelled)
+    notebook.plot_alignment_continuum(alignment, ax=ax, labelled=labelled)
     fig.show()
