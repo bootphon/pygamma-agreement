@@ -34,12 +34,12 @@ An objective measure of the agreement (and subsequent disagreement) between anno
 
 # Statement of Need
 
-The Gamma ($\gamma$) Inter-Annotator Agreement Measure was proposed by [@gamma-paper] as a way to quantify inter-rater agreement for sequences of annotations. The $\gamma$-agreement measure solves a number of the shortcomings of other pre-existing measures. 
+The Gamma ($\gamma$) Inter-Annotator Agreement Measure was proposed by @gamma-paper as a way to quantify inter-rater agreement for sequences of annotations. The $\gamma$-agreement measure solves a number of the shortcomings of other pre-existing measures. 
 This quantification will have to satisfy some constraints: segmentation, unitizing, categorization, weighted categorization and the support for any number of annotators. They should also provide a chance-corrected value.
-Other measures, such as the $\kappa$ [@kappa-paper] or Krippendorff's $\alpha$'s [@alpha-paper], have existed for some time to deal with these constraints, but cannot address all of them at once. A detailed comparison between metrics is available in [@gamma-paper].
+Other measures, such as the $\kappa$ [@kappa-paper] or Krippendorff's $\alpha$'s [@alpha-paper], have existed for some time to deal with these constraints, but cannot address all of them at once. A detailed comparison between metrics is available in @gamma-paper.
 
 To solve all of these constraints at once, the $\gamma$-agreement works in three steps:  1) a _disorder_ (i.e., a cost) is computed for each potential alignments between the different annotators' units, using an annotation-dependent _dissimilarity_ (akin to a distance between units). This _disorder_ models the disagreement between annotators. 2) Using a convex optimization algorithm, a global alignment with the lowest total disorder is found. 3) By sampling random and synthetic annotations from the original annotation and computing their own disorders, the original annotation's disorder value is chance-corrected to provide the final $\gamma$-agreement measure.
-The authors of [@gamma-paper] [provided a Java freeware](https://gamma.greyc.fr/) GUI implementation along with their paper and this implementation has already been used by some researchers [@gamma-usage] to compute an inter-rater agreement measure on their annotations.
+The authors of @gamma-paper [provided a Java freeware](https://gamma.greyc.fr/) GUI implementation along with their paper and this implementation has already been used by some researchers [@gamma-usage] to compute an inter-rater agreement measure on their annotations.
 
 However, linguist and automated speech researchers today use analysis pipelines that are either Python or shell scripts. 
 To this day, no open-source implementation allows for the $\gamma$-agreement to be computed in a programmatical way, and researchers that are already proficient in Python and willing to automate their work might be hindered by the graphical nature of the original Java implementation.
