@@ -46,6 +46,7 @@ To this day, no open-source implementation allows for the $\gamma$-agreement to 
 Moreover, the original $\gamma$-agreement algorithm has several parameters that are determinant in its computation and cannot be configured as of now.
 For this reason, it would greatly benefit the speech and linguistic scientific community if a fully open-source Python implementation of the original algorithm was available – this is what we are making availble here.
 We have made sure that our implementation has several key features:
+
 - It is comparatively as fast as the original implementation, taking about 10s to compute a high-confidence $\gamma$-agreement measure on a middle-range processor.
 - The `pygamma-agreement` package is modular and users can easily extend one of the modules without the burden of rebuilding an optimized code base from scratch (e.g., Users can easily add a new dissimilarity measure).
 - Our code allows for fine-grained constructions of an annotation Continuum and an advanced configurability of the $\gamma$-agreement's different parameters.
