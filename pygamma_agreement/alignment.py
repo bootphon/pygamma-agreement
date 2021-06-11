@@ -199,7 +199,11 @@ class Alignment(AbstractAlignment):
         return self._disorder
 
     def compute_disorder(self, dissimilarity: AbstractDissimilarity):
-        # TODO : doc
+        """
+        Recalculates the disorder of this alignment using the given dissimilarity computer.
+        Usually not needed since most alignment are generated from a minimal disorder
+        so they are
+        """
         disorder_args = dissimilarity.build_args(self)
         unit_ids = np.arange(self.num_unitary_alignments, dtype=np.int32)
         unit_ids = np.vstack([unit_ids] * self.num_annotators)
@@ -211,7 +215,7 @@ class Alignment(AbstractAlignment):
                           / self.mean_nb_unit_per_annotator)
         return self._disorder
 
-    def gamma_k_disorder(self, dissimilarity: 'CombinedCategoricalDissimilarity', category: Optional[str]) -> float:
+    def gamma_k_disorder(self, dissimilarity: 'AbstractDissimilarity', category: Optional[str]) -> float:
         """
         Returns the gamma-k or gamma-cat metric disorder (detailed in https://hal.archives-ouvertes.fr/hal-01712281)
         Of the alignment.
@@ -227,8 +231,6 @@ class Alignment(AbstractAlignment):
         if not isinstance(dissimilarity, CombinedCategoricalDissimilarity):
             raise TypeError("Cannot compute gamma-k or gamma-cat with a best alignment computed with a "
                             "non-combined dissimilarity.")
-        if category is not None and category not in self.continuum.categories:
-            return 0  # If the category if not in the continuum, we consider that the annotators agree about that.
         total_disorder = 0
         total_weight = 0
         for unitary_alignment in self:
@@ -239,16 +241,17 @@ class Alignment(AbstractAlignment):
                 weight_base = 1 / (nv - 1)
             for i, (_, unit1) in enumerate(unitary_alignment.n_tuple):
                 for _, unit2 in unitary_alignment.n_tuple[i+1:]:
-                    # Gamma-k
                     if unit1 is None or unit2 is None:
                         continue
+                    # Case handler for gamma-k
                     if category is not None and unit1.annotation != category and unit2.annotation != category:
                         continue
-                    weight_confidence = max(0, 1 - (dissimilarity.positional_dissim.dpos(unit1, unit2)))
+                    pos_dissim = dissimilarity.alpha * dissimilarity.positional_dissim.dpos(unit1, unit2)
+                    weight_confidence = max(0, 1 - pos_dissim)
                     cat_dissim = dissimilarity.categorical_dissim.dcat(unit1, unit2)
                     weight = weight_base * weight_confidence
-                    total_disorder += cat_dissim * weight_base
-                    total_weight += weight_base
+                    total_disorder += cat_dissim * weight
+                    total_weight += weight
         if total_weight == 0:
             return np.NaN
         return total_disorder / total_weight

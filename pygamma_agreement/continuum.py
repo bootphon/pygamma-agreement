@@ -60,6 +60,7 @@ CHUNK_SIZE = 2 ** 25 // os.cpu_count()
 # defining Annotator type
 Annotator = str
 PivotType = Literal["float_pivot", "int_pivot"]
+BoundsType = Literal["wide", "narrow"]
 PrecisionLevel = Literal["high", "medium", "low"]
 
 # percentages for the precision
@@ -172,7 +173,9 @@ class Continuum:
 
     @classmethod
     def sample_from_continuum(cls, continuum: 'Continuum',
-                              pivot_type: PivotType = "float_pivot",
+                              pivot_type: PivotType = "int_pivot",
+                              min_dist_between_pivots: Optional[float] = None,
+                              bounds_type: BoundsType = "wide",
                               ground_truth_annotators: Optional[List[Annotator]] = None) -> 'Continuum':
         """Generate a new random annotation from a single continuum
                 Strategy from figure 12
@@ -181,25 +184,44 @@ class Continuum:
                 ... <pygamma_agreement.continuum.Continuum at 0x7f5527a19588>
                 """
         assert pivot_type in ('float_pivot', 'int_pivot')
+        assert bounds_type in ('wide', 'narrow')
+        min_dist_between_pivots = continuum.avg_length_unit / 2
 
         last_start_time = max(unit.segment.start for _, unit in continuum)
+        if bounds_type == 'wide':
+            bound_inf, bound_sup = continuum.bounds
+        else:
+            bound_inf, bound_sup = continuum.bounds_narrow
         new_continuum = Continuum()
         if ground_truth_annotators is not None:
             assert set(continuum.annotators).issuperset(set(ground_truth_annotators))
             annotators = ground_truth_annotators
         else:
             annotators = continuum.annotators
-
         # TODO: why not sample from the whole continuum?
         # TODO : shouldn't the sampled annotators nb be equal to the annotators amount?
+        pivots = []
         for idx in range(continuum.num_annotators):
             if pivot_type == 'float_pivot':
-                pivot = random.uniform(continuum.avg_length_unit, last_start_time)
-            else:
-                pivot = random.randint(np.floor(continuum.avg_length_unit),
-                                       np.ceil(last_start_time))
+                pivot: float = random.uniform(bound_inf, bound_sup)
+                if min_dist_between_pivots is not None:
+                    # While the pivot is closer than min_dist to a precedent pivot, pick another one
+                    # (takes wrapping of continuum into consideration).
+                    while any(map((lambda x: abs(x - pivot) <= min_dist_between_pivots or
+                                   abs(x - (pivot - last_start_time)) <= min_dist_between_pivots),
+                                  pivots)):
+                        pivot = random.uniform(bound_inf, bound_sup)
 
-            rnd_annotator = random.choice(annotators)
+            else:
+                pivot: int = random.randint(np.floor(bound_inf), np.ceil(bound_sup))
+                if min_dist_between_pivots is not None:
+                    while any(map((lambda x: abs(x - pivot) <= min_dist_between_pivots or
+                                   abs(x - (pivot - last_start_time)) <= min_dist_between_pivots),
+                                  pivots)):
+                        pivot = random.randint(np.floor(bound_inf), np.ceil(bound_sup))
+            pivots.append(pivot)
+
+            rnd_annotator = random.choice(list(annotators))
             units = continuum._annotations[rnd_annotator]
             sampled_annotation = SortedSet()
             for unit in units:
@@ -216,7 +238,7 @@ class Continuum:
     def __init__(self, uri: Optional[str] = None):
         self.uri = uri
         # Structure {annotator -> SortedSet[Unit]}
-        self._annotations: Dict[Annotator, SortedSet[Unit]] = SortedDict()
+        self._annotations: SortedDict[Annotator, SortedSet[Unit]] = SortedDict()
 
         # these are instanciated when compute_disorder is called
         self._chosen_alignments: Optional[np.ndarray] = None
@@ -269,6 +291,22 @@ class Continuum:
         for annotation in weights.keys():
             weights[annotation] /= nb_units
         return weights
+
+    @property
+    def bounds(self) -> Tuple[float, float]:
+        """Start of 'smallest' annotation and end of 'largest' annotation."""
+        bounds_inf = min(next(iter(annotation_set)).segment.start for annotation_set in self._annotations.values())
+        bounds_sup = max(next(reversed(annotation_set)).segment.end for annotation_set in self._annotations.values())
+        return bounds_inf, bounds_sup
+
+    @property
+    def bounds_narrow(self):
+        """End of 'smallest' annotation and start of 'largest' annotation."""
+        bounds_inf = min(next(iter(annotation_set)).segment.end for annotation_set in self._annotations.values())
+        bounds_sup = max(next(reversed(annotation_set)).segment.start for annotation_set in self._annotations.values())
+        return bounds_inf, bounds_sup
+
+
 
     @property
     def num_annotators(self) -> int:
@@ -590,7 +628,7 @@ class Continuum:
                     u_align_tuple.append((annotator, unit))
                 except IndexError:  # it's a "null unit"
                     u_align_tuple.append((annotator, None))
-            unitary_alignment = UnitaryAlignment(tuple(u_align_tuple))
+            unitary_alignment = UnitaryAlignment(list(u_align_tuple))
             unitary_alignment.disorder = self._alignments_disorders[alignment_id]
             set_unitary_alignements.append(unitary_alignment)
         return Alignment(set_unitary_alignements, continuum=self, check_validity=True)
@@ -754,7 +792,7 @@ class GammaResults:
     def expected_disorder(self) -> float:
         """Returns the expected disagreement for computed random samples, i.e.,
         the mean of the sampled continuua's disorders"""
-        return np.mean([align.disorder for align in self.chance_alignments])
+        return float(np.mean([align.disorder for align in self.chance_alignments]))
 
     @property
     def expected_cat_disorder(self) -> float:
@@ -762,14 +800,18 @@ class GammaResults:
         Returns the expected disagreement (as defined for gamma-cat) using the same random samples
         as for gamma (the mean of the sampled continuua's gamma-cat disorders)
         """
-        return np.mean([align.gamma_k_disorder(self.dissimilarity, None) for align in self.chance_alignments])
+        return float(np.mean(list(filter((lambda x: x is not np.NaN),
+                                         (align.gamma_k_disorder(self.dissimilarity, None)
+                                          for align in self.chance_alignments)))))
 
     def expected_k_disorder(self, category: str) -> float:
         """
         Returns the expected disagreement (as defined for gamma-k) using the same random samples
         as for gamma (the mean of the sampled continuua's gamma-k disorders)
         """
-        return np.mean([align.gamma_k_disorder(self.dissimilarity, category) for align in self.chance_alignments])
+        return float(np.mean(list(filter((lambda x: x is not np.NaN),
+                                         (align.gamma_k_disorder(self.dissimilarity, category)
+                                          for align in self.chance_alignments)))))
 
     @property
     def approx_gamma_range(self):
@@ -786,19 +828,16 @@ class GammaResults:
     @property
     def gamma(self) -> float:
         """Returns the gamma value"""
-        return max(0.0, 1 - self.observed_disorder / self.expected_disorder)
+        return max(1 - self.observed_disorder / self.expected_disorder, 0.0)
 
     @property
     def gamma_cat(self) -> float:
         """Returns the gamma-cat value"""
-        return max(0.0, 1 - self.observed_cat_disorder / self.expected_cat_disorder)
+        return max(1 - self.observed_cat_disorder / self.expected_cat_disorder, 0.0)
 
     def gamma_k(self, category: str) -> float:
         """Returns the gamma-k value"""
-        k_disorder = self.observed_k_disorder(category)
-        if k_disorder == 0:
-            return 1  # No annotator have annotated with the category -> agreement is 1.
-        return max(0.0, 1 - k_disorder / self.expected_k_disorder(category))
+        return max(1 - self.observed_k_disorder(category) / self.expected_k_disorder(category), 0.0)
 
 
 def _compute_best_alignment_job(continuum: Continuum, dissimilarity: AbstractDissimilarity):

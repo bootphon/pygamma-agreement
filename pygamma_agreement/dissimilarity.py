@@ -324,11 +324,11 @@ class PositionalDissimilarity(AbstractDissimilarity):
                 positions_arrays[annot_it][unit_id][2] = unit.segment.duration
         return positions_arrays
 
-    def dpos(self, unit_a: 'Unit', unit_b: 'Unit'):
+    def dpos(self, unit_a: 'Unit', unit_b: 'Unit') -> float:
         if unit_a is None or unit_b is None:
             return self.delta_empty
-        return (abs(unit_a.segment.start - unit_b.segment.start) + abs(unit_a.segment.end - unit_b.segment.end) /
-                (unit_a.segment.end - unit_a.segment.start + unit_a.segment.end - unit_a.segment.start)) ** 2 *\
+        return ((abs(unit_a.segment.start - unit_b.segment.start) + abs(unit_a.segment.end - unit_b.segment.end)) /
+                (unit_a.segment.end - unit_a.segment.start + unit_b.segment.end - unit_b.segment.start)) ** 2 *\
             self.delta_empty
 
 

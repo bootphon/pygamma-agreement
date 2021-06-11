@@ -307,6 +307,60 @@ def random_reference(reference_annotator: str,
     return continuum
 
 
+def sample_from_continuum_gamma_cat(continuum: 'Continuum',
+                                    pivot_type: PivotType = "int_pivot",
+                                    ground_truth_annotators: Optional[List[Annotator]] = None) -> 'Continuum':
+    """Generate a new random annotation from a single continuum
+            Strategy from figure 12
+
+            >>> continuum.sample_from_continuum()
+            ... <pygamma_agreement.continuum.Continuum at 0x7f5527a19588>
+            """
+    assert pivot_type in ('float_pivot', 'int_pivot')
+
+    last_start_time = max(unit.segment.start for _, unit in continuum)
+    new_continuum = Continuum()
+    if ground_truth_annotators is not None:
+        assert set(continuum.annotators).issuperset(set(ground_truth_annotators))
+        annotators = ground_truth_annotators
+    else:
+        annotators = continuum.annotators
+
+    # TODO: why not sample from the whole continuum?
+    # TODO : shouldn't the sampled annotators nb be equal to the annotators amount?
+    pivots = []
+    for idx in range(continuum.num_annotators):
+        if pivot_type == 'float_pivot':
+            min_dist = continuum.avg_length_unit / 2
+            pivot: float = random.uniform(continuum.avg_length_unit, last_start_time)
+            # While the pivot is closer than min_dist to a precedent pivot
+            while any(map((lambda x: abs(x - pivot) <= min_dist or abs(x - (pivot - last_start_time)) <= min_dist),
+                          pivots)):
+                pivot = random.uniform(continuum.avg_length_unit, last_start_time)
+
+        else:
+            min_dist = int(continuum.avg_length_unit) // 2
+            pivot: int = random.randint(np.floor(continuum.avg_length_unit), np.ceil(last_start_time))
+            while any(map((lambda x: abs(x - pivot) <= min_dist or abs(x - (pivot - last_start_time)) <= min_dist),
+                          pivots)):
+                pivot = random.randint(np.floor(continuum.avg_length_unit), np.ceil(last_start_time))
+        pivots.append(pivot)
+
+        rnd_annotator = random.choice(list(annotators))
+        units = continuum._annotations[rnd_annotator]
+        sampled_annotation = SortedSet()
+        for unit in units:
+            if pivot < unit.segment.start:
+                new_segment = Segment(unit.segment.start - pivot,
+                                      unit.segment.end - pivot)
+            else:
+                new_segment = Segment(unit.segment.start + pivot,
+                                      unit.segment.end + pivot)
+            sampled_annotation.add(Unit(new_segment, unit.annotation))
+        new_continuum._annotations[f'Sampled_annotation {idx}'] = sampled_annotation
+    return new_continuum
+
+
 def benchmark_gamma_cst(reference: Continuum,
                         dissimilarity: AbstractDissimilarity,
                         nb_magnitudes: int,
