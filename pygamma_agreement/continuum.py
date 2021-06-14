@@ -34,7 +34,6 @@ Continuum and corpus
 import csv
 import logging
 import os
-import random
 from copy import deepcopy
 from functools import total_ordering
 from pathlib import Path
@@ -574,7 +573,7 @@ class Continuum:
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[List[Annotator]] = None,
                       sampler: 'AbstractContinuumSampler' = None,
-                      random_seed: Optional[float] = 4577,
+                      random_seed: Optional[int] = 4577,
                       ) -> 'GammaResults':
         """
         Parameters
@@ -605,7 +604,7 @@ class Continuum:
             sampler = MathetContinuumSampler(self, ground_truth_annotators)
 
         if random_seed is not None:
-            random.seed(random_seed)
+            np.random.seed(random_seed)
 
         # Multiprocessed computation of sample disorder
         p = Pool()

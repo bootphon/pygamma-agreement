@@ -3,7 +3,6 @@ import abc
 from abc import ABCMeta, abstractmethod, abstractproperty
 from typing import Optional, List, Literal, Union, Tuple
 from sortedcontainers import SortedSet, SortedDict
-import random
 import numpy as np
 from pyannote.core import Segment
 from .continuum import Continuum, Unit, Annotator
@@ -65,26 +64,26 @@ class MathetContinuumSampler(AbstractContinuumSampler):
         # TODO: why not sample from the whole continuum?
         # TODO : shouldn't the sampled annotators nb be equal to the annotators amount?
         pivots = []
-        for idx in range(continuum.num_annotators):
+        for idx in range(len(annotators)):
             if self._pivot_type == 'float_pivot':
-                pivot: float = random.uniform(bound_inf, bound_sup)
+                pivot: float = np.random.uniform(bound_inf, bound_sup)
                 if min_dist_between_pivots is not None:
                     # While the pivot is closer than min_dist to a precedent pivot, pick another one
                     # (takes wrapping of continuum into consideration).
                     while any(map((lambda x: abs(x - pivot) < min_dist_between_pivots or
                                    abs(x - (pivot - bound_sup)) < min_dist_between_pivots),
                                   pivots)):
-                        pivot = random.uniform(bound_inf, bound_sup)
+                        pivot = np.random.uniform(bound_inf, bound_sup)
             else:
-                pivot: int = random.randint(np.floor(bound_inf), np.ceil(bound_sup))
+                pivot: int = np.random.randint(np.floor(bound_inf), np.ceil(bound_sup))
                 if min_dist_between_pivots is not None:
                     while any(map((lambda x: abs(x - pivot) < min_dist_between_pivots or
                                    abs(x - (pivot - bound_sup)) < min_dist_between_pivots),
                                   pivots)):
-                        pivot = random.randint(np.floor(bound_inf), np.ceil(bound_sup))
+                        pivot = np.random.randint(np.floor(bound_inf), np.ceil(bound_sup))
             pivots.append(pivot)
 
-            rnd_annotator = random.choice(list(annotators))
+            rnd_annotator = np.random.choice(annotators)
             units = continuum._annotations[rnd_annotator]
             sampled_annotation = SortedSet()
             for unit in units:
@@ -97,6 +96,7 @@ class MathetContinuumSampler(AbstractContinuumSampler):
                 sampled_annotation.add(Unit(new_segment, unit.annotation))
             new_continuum._annotations[f'Sampled_annotation {idx}'] = sampled_annotation
         return new_continuum
+
 
 class StatisticalContinuumSampler(AbstractContinuumSampler):
 
