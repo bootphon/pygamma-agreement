@@ -6,7 +6,6 @@ from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity
 from pygamma_agreement.cst import CorpusShufflingTool, random_reference
 from pygamma_agreement.cat_dissim import cat_ord
 import numpy as np
-from pygamma_agreement.notebook import continuum_png
 from sortedcontainers import SortedSet
 
 

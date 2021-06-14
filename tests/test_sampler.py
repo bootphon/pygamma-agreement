@@ -1,13 +1,10 @@
 """Test for the different continuum samplers"""
 from pathlib import Path
 
-from pygamma_agreement.continuum import Continuum
 from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity
-from pygamma_agreement.cst import CorpusShufflingTool, random_reference
-from pygamma_agreement.cat_dissim import cat_ord
 from pygamma_agreement.sampler import *
-from pygamma_agreement.notebook import continuum_png
 from sortedcontainers import SortedSet
+
 
 def test_mathet_sampler():
     np.random.seed(4778)
@@ -26,6 +23,7 @@ def test_mathet_sampler():
     gamma_results = new_continuum.compute_gamma(dissim, precision_level=0.01)
     assert gamma_results.gamma < 0.1
     assert gamma_results.gamma_cat < 0.1
+
 
 def test_statistical_sampler():
     np.random.seed(4778)
