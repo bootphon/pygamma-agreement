@@ -1,16 +1,17 @@
-"""Tests for the CST & generation"""
-import random
+"""Tests for the CST & random reference generation"""
 from pathlib import Path
 
 from pygamma_agreement.continuum import Continuum
 from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity
 from pygamma_agreement.cst import CorpusShufflingTool, random_reference
 from pygamma_agreement.cat_dissim import cat_ord
+import numpy as np
 from pygamma_agreement.notebook import continuum_png
 from sortedcontainers import SortedSet
 
 
 def test_random_reference():
+    np.random.seed(4772)
     categories = SortedSet(("aa", "ab", "ba", "bb"))
     for _ in range(10):  # we do it a certain number of time to be sure no chance happened
         continuum = random_reference("Martino", 200, 40, 10, 1,
@@ -32,6 +33,7 @@ def test_cst_0():
     This test only checks deterministic possibilities. A tool for benchmarking gamma
     using the CST is also provided for more experimental tests.
     """
+    np.random.seed(4772)
     continuum = Continuum.from_csv(Path("tests/data/annotation_paul_suzann_alex.csv"))
     categories = continuum.categories
     dissim = CombinedCategoricalDissimilarity(categories,
@@ -64,6 +66,7 @@ def test_cst_0():
 
 
 def test_cst_1():
+    np.random.seed(4772)
     continuum = Continuum.from_csv(Path("tests/data/annotation_paul_suzann_alex.csv"))
     categories = continuum.categories
     dissim = CombinedCategoricalDissimilarity(categories,

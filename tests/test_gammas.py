@@ -9,6 +9,7 @@ from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity
 
 
 def test_gamma_2by1000():
+    np.random.seed(4772)
     continuum = Continuum.from_csv(Path("tests/data/2by1000.csv"))
     dissim = CombinedCategoricalDissimilarity(continuum.categories,
                                               delta_empty=1,
@@ -29,6 +30,7 @@ def test_gamma_2by1000():
     assert 0.11 <= gamma_results.gamma_k('Verb') <= 0.15
 
 def test_gamma_3by100():
+    np.random.seed(4772)
     continuum = Continuum.from_csv(Path("tests/data/3by100.csv"))
     dissim = CombinedCategoricalDissimilarity(continuum.categories,
                                               delta_empty=1,
@@ -49,6 +51,7 @@ def test_gamma_3by100():
 
 
 def test_gamma_alexpaulsuzan():
+    np.random.seed(4772)
     continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
     dissim = CombinedCategoricalDissimilarity(continuum.categories,
                                               delta_empty=1,
@@ -62,7 +65,7 @@ def test_gamma_alexpaulsuzan():
     # Gamma:
     assert 0.44 <= gamma_results.gamma <= 0.47
     # Gamma-cat:
-    assert 0.67 <= gamma_results.gamma_cat <= 0.69
+    assert 0.67 <= gamma_results.gamma_cat <= 0.70
     # Gamma-k's
     gamma_ks = {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1}
     for i in range(1, 7):
