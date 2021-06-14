@@ -52,6 +52,8 @@ class MathetContinuumSampler(AbstractContinuumSampler):
         assert self._pivot_type in ('float_pivot', 'int_pivot')
         continuum = self._reference_continuum
         min_dist_between_pivots = continuum.avg_length_unit / 2
+        if self._pivot_type == 'int_pivot':
+            min_dist_between_pivots = (continuum.avg_length_unit / 2)
         bound_inf, bound_sup = continuum.bounds
         new_continuum = Continuum()
         annotators = self._ground_truth_annotators
@@ -64,16 +66,15 @@ class MathetContinuumSampler(AbstractContinuumSampler):
                 if min_dist_between_pivots is not None:
                     # While the pivot is closer than min_dist to a precedent pivot, pick another one
                     # (takes wrapping of continuum into consideration).
-                    while any(map((lambda x: abs(x - pivot) <= min_dist_between_pivots or
-                                   abs(x - (pivot - bound_sup)) <= min_dist_between_pivots),
+                    while any(map((lambda x: abs(x - pivot) < min_dist_between_pivots or
+                                   abs(x - (pivot - bound_sup)) < min_dist_between_pivots),
                                   pivots)):
                         pivot = random.uniform(bound_inf, bound_sup)
-
             else:
                 pivot: int = random.randint(np.floor(bound_inf), np.ceil(bound_sup))
                 if min_dist_between_pivots is not None:
-                    while any(map((lambda x: abs(x - pivot) <= min_dist_between_pivots or
-                                   abs(x - (pivot - bound_sup)) <= min_dist_between_pivots),
+                    while any(map((lambda x: abs(x - pivot) < min_dist_between_pivots or
+                                   abs(x - (pivot - bound_sup)) < min_dist_between_pivots),
                                   pivots)):
                         pivot = random.randint(np.floor(bound_inf), np.ceil(bound_sup))
             pivots.append(pivot)
