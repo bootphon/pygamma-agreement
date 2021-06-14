@@ -297,11 +297,6 @@ class Notebook:
                                    unit.segment, y_annotator_unit[annotator][unit])
                 last_annotator, last_unit = annotator, unit
 
-
-
-
-
-
     def plot_continuum(self, continuum: Continuum, ax=None,  # time=True,
                        legend=True, labelled=False):
         self.crop = Timeline([unit.segment for (_, unit) in continuum]).extent()
@@ -350,17 +345,6 @@ def repr_continuum(continuum: Continuum, labelled=False):
     plt.close(fig)
     plt.rcParams['figure.figsize'] = figsize
     return data
-
-
-def alignment_png(alignment: Alignment, file: str, labelled=False):
-    with open(file, "wb+") as f:
-        f.write(repr_alignment(alignment, labelled=labelled))
-
-
-def continuum_png(continuum: Continuum, file: str, labelled=False):
-    with open(file, "wb+") as f:
-        f.write(repr_continuum(continuum, labelled=labelled))
-
 
 def show_continuum(continuum: Continuum, labelled=False):
     import matplotlib.pyplot as plt
