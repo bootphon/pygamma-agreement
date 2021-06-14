@@ -245,9 +245,9 @@ class Alignment(AbstractAlignment):
                     # Case handler for gamma-k
                     if category is not None and unit1.annotation != category and unit2.annotation != category:
                         continue
-                    pos_dissim = dissimilarity.alpha * dissimilarity.positional_dissim.dpos(unit1, unit2)
+                    pos_dissim = dissimilarity.alpha * dissimilarity.positional_dissim.d(unit1, unit2)
                     weight_confidence = max(0, 1 - pos_dissim)
-                    cat_dissim = dissimilarity.categorical_dissim.dcat(unit1, unit2)
+                    cat_dissim = dissimilarity.categorical_dissim.d(unit1, unit2)
                     weight = weight_base * weight_confidence
                     total_disorder += cat_dissim * weight
                     total_weight += weight

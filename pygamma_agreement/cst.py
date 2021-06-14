@@ -50,7 +50,7 @@ class CorpusShufflingTool:
     def __init__(self,
                  magnitude: float,
                  reference_continuum: Continuum,
-                 seed: Optional[float] = 4772,
+                 reference_annotator: Annotator = None,
                  categories: Iterable[str] = None):
         """
         Parameters
@@ -58,12 +58,11 @@ class CorpusShufflingTool:
         magnitude:
             magnitude m of the cst (cf @gamma-paper)
         reference_continuum:
-            this continuum will be copied, and will serve as reference for the tweaks made by the corpus shuffling tool.
+            this continuum will serve as reference for the tweaks made by the corpus shuffling tool.
         categories:
             this is used to consider additionnal categories when shuffling the corpus, in the eventuality that the
             reference continuum does not contain any unit of a possible category.
         """
-        self._seed: Optional[int] = seed
         self.magnitude: float = magnitude
         reference_annotators = reference_continuum.annotators
         if len(reference_annotators) > 1:
@@ -75,10 +74,6 @@ class CorpusShufflingTool:
         if categories is not None:
             for category in categories:
                 self._categories.add(category)
-
-    def __setseed(self):
-        if self._seed is not None:
-            np.random.seed(self._seed)
 
     def corpus_from_reference(self, new_annotators: Union[int, Iterable[str]]):
         continuum = Continuum()
@@ -93,14 +88,13 @@ class CorpusShufflingTool:
                               unit.annotation)
         return continuum
 
-    def shift_shuffle(self, continuum: Continuum):
+    def shift_shuffle(self, continuum: Continuum) -> None:
         """
-        Tweaks the continuum by shifting the ends of each segment, with uniformly distributed values
+        Tweaks the given continuum by shifting the ends of each segment, with uniformly distributed values
         of bounds proportionnal to the magnitude of the CST and the length of the segment.
         """
-        self.__setseed()
         shift_max = self.magnitude * self.SHIFT_FACTOR * \
-                    self._reference_continuum.avg_length_unit
+            self._reference_continuum.avg_length_unit
         for annotator in continuum.annotators:
             for unit in continuum[annotator]:
                 continuum[annotator].remove(unit)
@@ -110,13 +104,12 @@ class CorpusShufflingTool:
                     end_seg = unit.segment.end + np.random.uniform(-shift_max, shift_max)
                 continuum.add(annotator, Segment(start_seg, end_seg), unit.annotation)
 
-    def false_neg_shuffle(self, continuum: Continuum):
+    def false_neg_shuffle(self, continuum: Continuum) -> None:
         """
         Tweaks the continuum by randomly removing units ("false negatives").
         Every unit (for each annotator) have a probability equal to the magnitude of being removed.
         If this probability is one, a single random unit (for each annotator) will be left alone.
         """
-        self.__setseed()
         for annotator in continuum.annotators:
             security = np.random.choice(continuum[annotator])
             # security : if an annotator doesnt have any annotations gamma cant be computed.
@@ -126,7 +119,7 @@ class CorpusShufflingTool:
             if len(continuum[annotator]) == 0:
                 continuum[annotator].add(security)
 
-    def false_pos_shuffle(self, continuum: Continuum):
+    def false_pos_shuffle(self, continuum: Continuum) -> None:
         """
         Tweaks the continuum by randomly adding "false positive" units.
         The number of added units per annotator is constant & proportionnal to the magnitude of the CST.
@@ -134,7 +127,6 @@ class CorpusShufflingTool:
         The length of the segment is random (normal distribution) based on the average and standard deviation
         of those of the reference.
         """
-        self.__setseed()
         ref_units = self._reference_continuum[self._reference_annotator]
         avg_dur = np.average([unit.segment.end - unit.segment.start for unit in ref_units])
         var_dur = np.std([unit.segment.end - unit.segment.start for unit in ref_units])
@@ -154,7 +146,7 @@ class CorpusShufflingTool:
                          overlapping_fun: Callable[[str, str], float] = None,
                          prevalence: bool = False):
         """
-        Shuffles the categories in the annotations using the process described in
+        Shuffles the categories of the annotations in the given continuum using the process described in
         section 3.3.5 of https://hal.archives-ouvertes.fr/hal-00769639/.
         Parameters
         ----------
@@ -164,7 +156,6 @@ class CorpusShufflingTool:
         prevalence:
             specify whether or not to consider the proportion of presence of each category in the reference.
         """
-        self.__setseed()
         category_weights = self._reference_continuum.category_weights
         # matrix "A"
         nb_categories = len(category_weights)
@@ -210,7 +201,6 @@ class CorpusShufflingTool:
         and the number of units in the reference.
         A splitted segment can be re-splitted.
         """
-        self.__setseed()
         for annotator in continuum.annotators:
             units = continuum[annotator]
             for _ in range(int(self.magnitude * self.SPLIT_FACTOR * len(units))):
@@ -226,7 +216,7 @@ class CorpusShufflingTool:
                        cat_shuffle: bool = False, include_ref: bool = False
                        ) -> Continuum:
         """
-        Generates a shuffled corpus with the provided (or generated) reference annotation set,
+        Generates a new shuffled corpus with the provided (or generated) reference annotation set,
         using the method described in 6.3 of @gamma-paper, https://www.aclweb.org/anthology/J15-3003.pdf#page=30,
         and missing elements described in another article : https://hal.archives-ouvertes.fr/hal-00769639/
         """
@@ -306,61 +296,6 @@ def random_reference(reference_annotator: str,
             last_end = point
     return continuum
 
-
-def sample_from_continuum_gamma_cat(continuum: 'Continuum',
-                                    pivot_type: PivotType = "int_pivot",
-                                    ground_truth_annotators: Optional[List[Annotator]] = None) -> 'Continuum':
-    """Generate a new random annotation from a single continuum
-            Strategy from figure 12
-
-            >>> continuum.sample_from_continuum()
-            ... <pygamma_agreement.continuum.Continuum at 0x7f5527a19588>
-            """
-    assert pivot_type in ('float_pivot', 'int_pivot')
-
-    last_start_time = max(unit.segment.start for _, unit in continuum)
-    new_continuum = Continuum()
-    if ground_truth_annotators is not None:
-        assert set(continuum.annotators).issuperset(set(ground_truth_annotators))
-        annotators = ground_truth_annotators
-    else:
-        annotators = continuum.annotators
-
-    # TODO: why not sample from the whole continuum?
-    # TODO : shouldn't the sampled annotators nb be equal to the annotators amount?
-    pivots = []
-    for idx in range(continuum.num_annotators):
-        if pivot_type == 'float_pivot':
-            min_dist = continuum.avg_length_unit / 2
-            pivot: float = random.uniform(continuum.avg_length_unit, last_start_time)
-            # While the pivot is closer than min_dist to a precedent pivot
-            while any(map((lambda x: abs(x - pivot) <= min_dist or abs(x - (pivot - last_start_time)) <= min_dist),
-                          pivots)):
-                pivot = random.uniform(continuum.avg_length_unit, last_start_time)
-
-        else:
-            min_dist = int(continuum.avg_length_unit) // 2
-            pivot: int = random.randint(np.floor(continuum.avg_length_unit), np.ceil(last_start_time))
-            while any(map((lambda x: abs(x - pivot) <= min_dist or abs(x - (pivot - last_start_time)) <= min_dist),
-                          pivots)):
-                pivot = random.randint(np.floor(continuum.avg_length_unit), np.ceil(last_start_time))
-        pivots.append(pivot)
-
-        rnd_annotator = random.choice(list(annotators))
-        units = continuum._annotations[rnd_annotator]
-        sampled_annotation = SortedSet()
-        for unit in units:
-            if pivot < unit.segment.start:
-                new_segment = Segment(unit.segment.start - pivot,
-                                      unit.segment.end - pivot)
-            else:
-                new_segment = Segment(unit.segment.start + pivot,
-                                      unit.segment.end + pivot)
-            sampled_annotation.add(Unit(new_segment, unit.annotation))
-        new_continuum._annotations[f'Sampled_annotation {idx}'] = sampled_annotation
-    return new_continuum
-
-
 def benchmark_gamma_cst(reference: Continuum,
                         dissimilarity: AbstractDissimilarity,
                         nb_magnitudes: int,
@@ -375,7 +310,7 @@ def benchmark_gamma_cst(reference: Continuum,
 
     returns: ([Magnitudes],[Gammas])
     """
-    cst = CorpusShufflingTool(1.0, reference, seed=seed)
+    cst = CorpusShufflingTool(1.0, reference)
 
     magnitudes = [i / nb_magnitudes for i in range(nb_magnitudes + 1)]
     gammas = []

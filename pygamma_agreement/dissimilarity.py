@@ -56,7 +56,6 @@ def positional_dissim(unit_a: np.ndarray,
     distance_pos = (starts_diff + ends_diff) / (unit_a[2] + unit_b[2])
     return distance_pos * distance_pos * delta_empty
 
-
 class AbstractDissimilarity:
 
     def __init__(self, delta_empty: float = 1):
@@ -73,6 +72,13 @@ class AbstractDissimilarity:
         Builds the compact, array-shaped representation of an alignment.
         """
         raise NotImplemented()
+
+    def d(self, unit_a: 'Unit', unit_b: 'Unit') -> float:
+        """
+        Returns the disorder between two unit objects, Depending on the type of dissimilaty.
+        If unit_a or unit_b is the empty unit, delta_empty is returned and
+        d(unit_a, unit_b) = d(unit_b, unit_a).
+        """
 
     def build_args(self, resource: Union['Alignment', 'Continuum']) -> Tuple:
         """
@@ -197,7 +203,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                                      f"of allowed categories")
         return cat_arrays
 
-    def dcat(self, unit_a: 'Unit', unit_b: 'Unit'):
+    def d(self, unit_a: 'Unit', unit_b: 'Unit'):
         if unit_a is None or unit_b is None:
             return self.delta_empty
         return self.cat_matrix[self.categories.index(unit_a.annotation),
@@ -324,7 +330,7 @@ class PositionalDissimilarity(AbstractDissimilarity):
                 positions_arrays[annot_it][unit_id][2] = unit.segment.duration
         return positions_arrays
 
-    def dpos(self, unit_a: 'Unit', unit_b: 'Unit') -> float:
+    def d(self, unit_a: 'Unit', unit_b: 'Unit') -> float:
         if unit_a is None or unit_b is None:
             return self.delta_empty
         return ((abs(unit_a.segment.start - unit_b.segment.start) + abs(unit_a.segment.end - unit_b.segment.end)) /

@@ -250,7 +250,7 @@ class Continuum:
         return len(self._annotations)
 
     @property
-    def avg_num_annotations_per_annotator(self):
+    def avg_num_annotations_per_annotator(self) -> float:
         """Average number of annotated segments per annotator"""
         return self.num_units / self.num_annotators
 
@@ -593,15 +593,12 @@ class Continuum:
             annotators. This should be used when you want to compare a prediction
             against some ground truth annotation.
         sampler:
-            Sampler object (inherited from AbstractContinuumSampler), which implements a sampling strategy based on a
-            reference continuum. Default is the default MathetContinuumSampler.
+            Sampler object (inherited from AbstractContinuumSampler), which implements a sampling strategy
+            for creating random continuua used to calculate the expected disorder.
+            Default is the default MathetContinuumSampler.
         random_seed: optional float, int or str
             random seed used to set up the random state before sampling the
             random continuua
-
-        Returns
-        -------
-
         """
         from .sampler import MathetContinuumSampler
         if sampler is None:
