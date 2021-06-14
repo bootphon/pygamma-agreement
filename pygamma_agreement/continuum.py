@@ -49,18 +49,18 @@ from sortedcontainers import SortedDict, SortedSet
 from typing_extensions import Literal
 from multiprocessing import Pool
 
-from .dissimilarity import AbstractDissimilarity, CombinedCategoricalDissimilarity
+from .dissimilarity import AbstractDissimilarity
 from .numba_utils import chunked_cartesian_product
 
 if TYPE_CHECKING:
     from .alignment import UnitaryAlignment, Alignment
+    from .sampler import AbstractContinuumSampler, MathetContinuumSampler
 
 CHUNK_SIZE = 2 ** 25 // os.cpu_count()
 
 # defining Annotator type
 Annotator = str
 PivotType = Literal["float_pivot", "int_pivot"]
-BoundsType = Literal["wide", "narrow"]
 PrecisionLevel = Literal["high", "medium", "low"]
 
 # percentages for the precision
@@ -170,70 +170,6 @@ class Continuum:
         for uri, annot in annotations.items():
             continuum.add_annotation(uri, annot)
         return continuum
-
-    @classmethod
-    def sample_from_continuum(cls, continuum: 'Continuum',
-                              pivot_type: PivotType = "int_pivot",
-                              min_dist_between_pivots: Optional[float] = None,
-                              bounds_type: BoundsType = "wide",
-                              ground_truth_annotators: Optional[List[Annotator]] = None) -> 'Continuum':
-        """Generate a new random annotation from a single continuum
-                Strategy from figure 12
-
-                >>> continuum.sample_from_continuum()
-                ... <pygamma_agreement.continuum.Continuum at 0x7f5527a19588>
-                """
-        assert pivot_type in ('float_pivot', 'int_pivot')
-        assert bounds_type in ('wide', 'narrow')
-        min_dist_between_pivots = continuum.avg_length_unit / 2
-
-        last_start_time = max(unit.segment.start for _, unit in continuum)
-        if bounds_type == 'wide':
-            bound_inf, bound_sup = continuum.bounds
-        else:
-            bound_inf, bound_sup = continuum.bounds_narrow
-        new_continuum = Continuum()
-        if ground_truth_annotators is not None:
-            assert set(continuum.annotators).issuperset(set(ground_truth_annotators))
-            annotators = ground_truth_annotators
-        else:
-            annotators = continuum.annotators
-        # TODO: why not sample from the whole continuum?
-        # TODO : shouldn't the sampled annotators nb be equal to the annotators amount?
-        pivots = []
-        for idx in range(continuum.num_annotators):
-            if pivot_type == 'float_pivot':
-                pivot: float = random.uniform(bound_inf, bound_sup)
-                if min_dist_between_pivots is not None:
-                    # While the pivot is closer than min_dist to a precedent pivot, pick another one
-                    # (takes wrapping of continuum into consideration).
-                    while any(map((lambda x: abs(x - pivot) <= min_dist_between_pivots or
-                                   abs(x - (pivot - last_start_time)) <= min_dist_between_pivots),
-                                  pivots)):
-                        pivot = random.uniform(bound_inf, bound_sup)
-
-            else:
-                pivot: int = random.randint(np.floor(bound_inf), np.ceil(bound_sup))
-                if min_dist_between_pivots is not None:
-                    while any(map((lambda x: abs(x - pivot) <= min_dist_between_pivots or
-                                   abs(x - (pivot - last_start_time)) <= min_dist_between_pivots),
-                                  pivots)):
-                        pivot = random.randint(np.floor(bound_inf), np.ceil(bound_sup))
-            pivots.append(pivot)
-
-            rnd_annotator = random.choice(list(annotators))
-            units = continuum._annotations[rnd_annotator]
-            sampled_annotation = SortedSet()
-            for unit in units:
-                if pivot < unit.segment.start:
-                    new_segment = Segment(unit.segment.start - pivot,
-                                          unit.segment.end - pivot)
-                else:
-                    new_segment = Segment(unit.segment.start + pivot,
-                                          unit.segment.end + pivot)
-                sampled_annotation.add(Unit(new_segment, unit.annotation))
-            new_continuum._annotations[f'Sampled_annotation {idx}'] = sampled_annotation
-        return new_continuum
 
     def __init__(self, uri: Optional[str] = None):
         self.uri = uri
@@ -605,8 +541,7 @@ class Continuum:
         chosen_alignments_ids, = np.where(x.value > 0.9)
         self._chosen_alignments = possible_unitary_alignments[chosen_alignments_ids]
         self._alignments_disorders = disorders[chosen_alignments_ids]
-        return self._alignments_disorders.sum() / np.mean([len(annotations)
-                                                           for annotations in self._annotations.values()])
+        return self._alignments_disorders.sum() / self.avg_num_annotations_per_annotator
 
     def get_best_alignment(self, dissimilarity: Optional['AbstractDissimilarity'] = None):
         if self._chosen_alignments is None or self._alignments_disorders is None:
@@ -638,8 +573,7 @@ class Continuum:
                       n_samples: int = 30,
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[List[Annotator]] = None,
-                      sampling_strategy: str = "single",
-                      pivot_type: PivotType = "float_pivot",
+                      sampler: 'AbstractContinuumSampler' = None,
                       random_seed: Optional[float] = 4577,
                       ) -> 'GammaResults':
         """
@@ -658,10 +592,9 @@ class Continuum:
             if set, the random continuua will only be sampled from these
             annotators. This should be used when you want to compare a prediction
             against some ground truth annotation.
-        sampling_strategy:
-            "single" or "multi"
-        pivot_type: 'float_pivot' or 'int_pivot'
-            pivot type to be used when sampling continuua
+        sampler:
+            Sampler object (inherited from AbstractContinuumSampler), which implements a sampling strategy based on a
+            reference continuum. Default is the default MathetContinuumSampler.
         random_seed: optional float, int or str
             random seed used to set up the random state before sampling the
             random continuua
@@ -670,10 +603,9 @@ class Continuum:
         -------
 
         """
-        assert sampling_strategy in ("single", "multi")
-        if sampling_strategy == "multi":
-            raise NotImplemented("Multi-continuum sampling strategy is not "
-                                 "supported for now")
+        from .sampler import MathetContinuumSampler
+        if sampler is None:
+            sampler = MathetContinuumSampler(self, ground_truth_annotators)
 
         if random_seed is not None:
             random.seed(random_seed)
@@ -683,7 +615,7 @@ class Continuum:
         result_pool = [
             # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
             p.apply_async(_compute_best_alignment_job,
-                          (Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
+                          (sampler.sample_from_continuum,
                            dissimilarity,)
                           )
             for _ in range(n_samples)]
@@ -709,7 +641,7 @@ class Continuum:
             if required_samples > n_samples:
                 result_pool = [
                     p.apply_async(_compute_best_alignment_job,
-                                  (Continuum.sample_from_continuum(self, pivot_type, ground_truth_annotators),
+                                  (sampler.sample_from_continuum,
                                    dissimilarity,)
                                   )
                     for _ in range(required_samples - n_samples)
@@ -727,7 +659,6 @@ class Continuum:
 
         return GammaResults(
             best_alignment=best_alignment,
-            pivot_type=pivot_type,
             n_samples=n_samples,
             chance_alignments=chance_best_alignments,
             precision_level=precision_level,
@@ -765,7 +696,6 @@ class GammaResults:
     used for getting the values of measures from the gamma family (gamma, gamma-cat and gamma-k).
     """
     best_alignment: 'Alignment'
-    pivot_type: PivotType
     n_samples: int
     chance_alignments: List['Alignment']
     dissimilarity: AbstractDissimilarity

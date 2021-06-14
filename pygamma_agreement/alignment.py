@@ -33,8 +33,7 @@ Alignement and disorder
 """
 from abc import ABCMeta, abstractmethod
 from collections import Counter
-from typing import TYPE_CHECKING, Union
-from typing import Tuple, Optional, Iterable, Iterator, List
+from typing import Tuple, Optional, Iterable, Iterator, List, TYPE_CHECKING, Union
 
 import numpy as np
 
@@ -175,7 +174,7 @@ class Alignment(AbstractAlignment):
                 in self.unitary_alignments[0].n_tuple]
 
     @property
-    def mean_nb_unit_per_annotator(self):
+    def avg_num_annotations_per_annotator(self):
         if self.continuum is not None:
             return self.continuum.avg_num_annotations_per_annotator
         else:
@@ -195,7 +194,7 @@ class Alignment(AbstractAlignment):
         if self._disorder is None:
             self._disorder = (sum(u_align.disorder for u_align
                                   in self.unitary_alignments)
-                              / self.mean_nb_unit_per_annotator)
+                              / self.avg_num_annotations_per_annotator)
         return self._disorder
 
     def compute_disorder(self, dissimilarity: AbstractDissimilarity):
@@ -212,7 +211,7 @@ class Alignment(AbstractAlignment):
         for i, disorder in enumerate(disorders):
             self.unitary_alignments[i].disorder = disorder
         self._disorder = (dissimilarity(unit_ids, *disorder_args).sum()
-                          / self.mean_nb_unit_per_annotator)
+                          / self.avg_num_annotations_per_annotator)
         return self._disorder
 
     def gamma_k_disorder(self, dissimilarity: 'AbstractDissimilarity', category: Optional[str]) -> float:
