@@ -93,14 +93,29 @@ class Unit:
         else:
             return self.segment < other.segment
 
-class Continuum:
-    """Continuum
 
-    Parameters
-    ----------
-    uri : string, optional
-        name of annotated resource (e.g. audio or video file)
+class Continuum:
     """
+    Representation of a continuum, i.e a set of annotated segments by multiple annotators.
+    It is implemented as a dictionnary of sets (all sorted) :
+
+    ``{'annotator1': {unit1, ...}, ...}``
+    """
+
+    def __init__(self, uri: Optional[str] = None):
+        """
+        Default constructor.
+
+        :param str, optional uri:
+            name of annotated resource (e.g. audio or video file)
+        """
+        self.uri = uri
+        # Structure {annotator -> SortedSet}
+        self._annotations: SortedDict = SortedDict()
+
+        # these are instanciated when compute_disorder is called
+        self._chosen_alignments: Optional[np.ndarray] = None
+        self._alignments_disorders: Optional[np.ndarray] = None
 
     @classmethod
     def from_csv(cls,
@@ -113,20 +128,16 @@ class Continuum:
 
         .. warning::
 
-            The CSV file shouldn't have any header
+            The CSV file mustn't have any header
 
-        Parameters
-        ----------
-        path: path or str
+        :param Path or str path:
             Path to the CSV file storing annotations
-        discard_invalid_rows: bool
-            Path: if a row contains invalid annotations, discard it)
-        delimiter: str, default ","
-            CSV delimiter
+        :param bool discard_invalid_rows:
+            If set, every invalid row is ignored when parsing the file.
+        :param str delimiter:
+            CSV columns delimiter. Defaults to ','
 
-        Returns
-        -------
-        continuum : Continuum
+        :return Continuum:
             New continuum object loaded from the CSV
 
         """
@@ -170,15 +181,6 @@ class Continuum:
             continuum.add_annotation(uri, annot)
         return continuum
 
-    def __init__(self, uri: Optional[str] = None):
-        self.uri = uri
-        # Structure {annotator -> SortedSet}
-        self._annotations: SortedDict = SortedDict()
-
-        # these are instanciated when compute_disorder is called
-        self._chosen_alignments: Optional[np.ndarray] = None
-        self._alignments_disorders: Optional[np.ndarray] = None
-
     def copy(self) -> 'Continuum':
         """
         Makes a copy of the current continuum.
@@ -199,22 +201,30 @@ class Continuum:
         ... else:
         ...    # continuum is empty
         """
-        return len(self._annotations) > 0
+        return all(len(annotations) > 0 for annotations in self._annotations.values())
 
     def __len__(self):
         return len(self._annotations)
 
     @property
     def num_units(self) -> int:
-        """Number of units"""
+        """Total number of units in the continuum."""
         return sum(len(units) for units in self._annotations.values())
 
     @property
     def categories(self) -> SortedSet:
+        """
+        Returns the (alphabetically) sorted set of all the continuum's annotations's categories.
+        """
         return SortedSet(unit.annotation for _, unit in self
                          if unit.annotation is not None)
+
     @property
     def category_weights(self) -> SortedDict:
+        """
+        Returns a dictionnary where the keys are the categories in the continuum, and a key's value
+        is the proportion of occurence of the category in the continuum.
+        """
         weights = SortedDict()
         nb_units = 0
         for _, unit in self:
@@ -271,7 +281,7 @@ class Continuum:
 
     def add_annotator(self,  annotator: Annotator):
         """
-        Adds the annotator to the set. Does nothing if already present.
+        Adds the annotator to the set, with no annotated segment. Does nothing if already present.
         """
         if annotator not in self._annotations:
             self._annotations[annotator] = SortedSet()
@@ -402,25 +412,18 @@ class Continuum:
                 else:
                     self.add(annotator, Segment(start, end), value)
 
-    def merge(self, continuum: 'Continuum', in_place: bool = False) \
-            -> Optional['Continuum']:
+    def merge(self, continuum: 'Continuum', in_place: bool = False) -> Optional['Continuum']:
         """
         Merge two Continuua together. Units from the same annotators
-        are also merged together.(with the usual order of units).
+        are also merged together (with the usual order of units).
 
-        Parameters
-        ----------
-        continuum: Continuum
-            other continuum to merge the current one with.
-        in_place: optional bool
+        :rtype: Continuum, optional
+        :param Continuum continuum:
+            other continuum to merge into the current one.
+        :param boolean in_place:
             If set to true, the merge is done in place, and the current
-            continuum (self) is the one being modified.
-
-        Returns
-        -------
-        continuum: optional Continuum
-            Only returned if "in_place" is false
-
+            continuum (self) is the one being modified. A new continuum
+            resulting in the merge is returned otherwise.
         """
         current_cont = self if in_place else self.copy()
         for annotator, unit in continuum:
@@ -432,17 +435,9 @@ class Continuum:
         """
         Same as a "not-in-place" merge.
 
-        Parameters
-        ----------
-        other: Continuum
+        :param Continuum other:
+            the continuum to merge into `self`
 
-        Returns
-        -------
-        continuum: Continuum
-
-        See also
-        --------
-        :meth:`pygamma_agreement.Continuum.merge`
         """
         return self.merge(other, in_place=False)
 
@@ -450,18 +445,25 @@ class Continuum:
         self._annotations[key] = value
 
     def __getitem__(self, *keys: Union[Annotator, Tuple[Annotator, int]]) \
-            -> Union[SortedSet, Unit]:
-        """Get annotation object
+            -> SortedSet:
+        """Get a set of annotations from an annotator or a specific annotation.
 
-        >>> annotation = continuum[annotator]
+        >>> continuum['Alex']
+        SortedSet([Unit(segment=<Segment(2, 9)>, annotation='1'), Unit(segment=<Segment(11, 17)>, ...
+        >>> continuum['Alex', 1 ]
+        # TODO fix le deuxième cas
+
+
         """
         if len(keys) == 1:
             annotator = keys[0]
             return self._annotations[annotator]
         elif len(keys) == 2 and isinstance(keys[1], int):
             annotator, idx = keys
-            return self._annotations[annotator][idx]
+            return self._annotations[annotator].peekitem(idx)
         else:
+            for key in keys:
+                print(key)
             raise KeyError
 
     def __iter__(self) -> Iterable[Tuple[Annotator, Unit]]:
@@ -470,23 +472,22 @@ class Continuum:
                 yield annotator, unit
 
     @property
-    def annotators(self):
+    def annotators(self) -> SortedSet:
         """List all annotators in the Continuum
 
         >>> self.annotators:
-        ... ["annotator_a", "annotator_b", "annot_ref"]
+        ... SortedSet(["annotator_a", "annotator_b", "annot_ref"])
         """
         return SortedSet(self._annotations.keys())
 
     def iterunits(self, annotator: str):
-        # TODO: implem and doc
-        """Iterate over units (in chronological and alphabetical order
-        if annotations are present)
+        """Iterate over units from the given annotator
+        (in chronological and alphabetical order if annotations are present)
 
         >>> for unit in self.iterunits("Max"):
         ...     # do something with the unit
         """
-        return iter(self._annotations)
+        return iter(self._annotations[annotator])
 
     def compute_disorders(self, dissimilarity: AbstractDissimilarity):
         assert len(self.annotators) >= 2, "Disorder cannot be computed with less than two annotators."

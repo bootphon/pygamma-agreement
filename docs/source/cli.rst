@@ -23,7 +23,7 @@ CSV files need to have the following structure:
 
 .. code-block::
 
-    annotator_id, annotation, segment_start, segment_end
+    annotator, annotation, segment_start, segment_end
 
 Thus, for instance:
 
