@@ -243,7 +243,10 @@ class Notebook:
         elif isinstance(resource, Continuum):
             self.plot_continuum(resource)
 
-    def plot_alignment(self, alignment: Alignment, ax=None, time=True, legend=True, labelled=False):
+    def plot_alignment(self, alignment: Alignment, ax=None, time=True, legend=True, labelled=True):
+        if alignment.continuum is not None:
+            self.plot_alignment_continuum(alignment, ax, time, legend, labelled)
+            return
         self.crop = Segment(0, alignment.num_unitary_alignments)
 
         ax = self.setup(ax=ax, time=time)
@@ -281,7 +284,7 @@ class Notebook:
         if legend:
             self.draw_legend_from_labels(ax)
 
-    def plot_alignment_continuum(self, alignment: Alignment, ax=None, time=True, legend=True, labelled=False):
+    def plot_alignment_continuum(self, alignment: Alignment, ax=None, time=True, legend=True, labelled=True):
         assert(alignment.continuum is not None)
         y_annotator_unit = self.plot_continuum(alignment.continuum, ax=ax, legend=legend, labelled=labelled)
         for unitary_alignment in alignment:
@@ -298,7 +301,7 @@ class Notebook:
                 last_annotator, last_unit = annotator, unit
 
     def plot_continuum(self, continuum: Continuum, ax=None,  # time=True,
-                       legend=True, labelled=False):
+                       legend=True, labelled=True):
         self.crop = Timeline([unit.segment for (_, unit) in continuum]).extent()
         self.setup(ax, ylim=(0, continuum.num_annotators))
         y_annotator_unit = {}
@@ -321,11 +324,11 @@ class Notebook:
 notebook = Notebook()
 
 
-def repr_alignment(alignment: Alignment, labelled=False):
+def repr_alignment(alignment: Alignment, labelled=True):
     """Get `png` data for `Alignment`"""
     import matplotlib.pyplot as plt
     figsize = plt.rcParams['figure.figsize']
-    plt.rcParams['figure.figsize'] = (notebook.width, 1)
+    plt.rcParams['figure.figsize'] = (notebook.width, 2)
     fig, ax = plt.subplots()
     notebook.plot_alignment(alignment, ax=ax, labelled=labelled)
     data = print_figure(fig, 'png')
@@ -334,8 +337,8 @@ def repr_alignment(alignment: Alignment, labelled=False):
     return data
 
 
-def repr_continuum(continuum: Continuum, labelled=False):
-    """Get `png` data for `annotation`"""
+def repr_continuum(continuum: Continuum, labelled=True):
+    """Get `png` data for `Continuum`"""
     import matplotlib.pyplot as plt
     figsize = plt.rcParams['figure.figsize']
     plt.rcParams['figure.figsize'] = (notebook.width, 2)
@@ -346,17 +349,21 @@ def repr_continuum(continuum: Continuum, labelled=False):
     plt.rcParams['figure.figsize'] = figsize
     return data
 
-def show_continuum(continuum: Continuum, labelled=False):
+def show_continuum(continuum: Continuum, labelled=True):
     import matplotlib.pyplot as plt
+    figsize = plt.rcParams['figure.figsize']
     plt.rcParams['figure.figsize'] = (notebook.width, 2)
     fig, ax = plt.subplots()
     notebook.plot_continuum(continuum, ax=ax, labelled=labelled)
     fig.show()
+    plt.rcParams['figure.figsize'] = figsize
 
 
-def show_alignment(alignment: Alignment, labelled=False):
+def show_alignment(alignment: Alignment, labelled=True):
     import matplotlib.pyplot as plt
+    figsize = plt.rcParams['figure.figsize']
     plt.rcParams['figure.figsize'] = (notebook.width, 2)
     fig, ax = plt.subplots()
     notebook.plot_alignment_continuum(alignment, ax=ax, labelled=labelled)
     fig.show()
+    plt.rcParams['figure.figsize'] = figsize

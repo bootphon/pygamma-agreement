@@ -1,8 +1,7 @@
 #!usr/bin/env python
-import abc
-from abc import ABCMeta, abstractmethod, abstractproperty
-from typing import Optional, List, Literal, Union, Tuple
-from sortedcontainers import SortedSet, SortedDict
+from abc import ABCMeta, abstractmethod
+from typing import Optional, Literal
+from sortedcontainers import SortedSet
 import numpy as np
 from pyannote.core import Segment
 from .continuum import Continuum, Unit, Annotator

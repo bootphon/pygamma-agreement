@@ -56,6 +56,7 @@ def positional_dissim(unit_a: np.ndarray,
     distance_pos = (starts_diff + ends_diff) / (unit_a[2] + unit_b[2])
     return distance_pos * distance_pos * delta_empty
 
+
 class AbstractDissimilarity:
 
     def __init__(self, delta_empty: float = 1):
