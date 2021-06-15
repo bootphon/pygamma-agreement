@@ -56,6 +56,13 @@ what would be displayed:
    :alt: showing a continuum in a jupyter notebook
    :align: center
 
+The same image can also be displayed with ``matplotlib`` by using :
+
+.. code-block:: python
+
+    from pygamma_agreement import show_continuum
+    show_continuum(continuum, labelled=True)
+
 
 Setting up a dissimilarity
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -105,6 +112,15 @@ it (if we're in a jupyter notebook):
 .. image:: images/best_alignment.png
    :alt: showing a continuum in a jupyter notebook
    :align: center
+
+The same image can also be displayed with ``matplotlib`` by using :
+
+.. code-block:: python
+
+    from pygamma_agreement import show_alignment
+    show_alignment(gamma_results.best_alignment, labelled=True)
+
+
 
 
 
