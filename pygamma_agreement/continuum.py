@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from .alignment import UnitaryAlignment, Alignment
     from .sampler import AbstractContinuumSampler, MathetContinuumSampler
 
-CHUNK_SIZE = 2 ** 25 // os.cpu_count()
+CHUNK_SIZE = (10**5) // os.cpu_count()
 
 # defining Annotator type
 Annotator = str
@@ -618,8 +618,9 @@ class Continuum:
         chance_best_alignments: List[Alignment] = []
         chance_disorders: List[float] = []
         logging.info(f"Starting computation for a batch of {n_samples} random samples...")
-        for result in result_pool:
+        for i, result in enumerate(result_pool):
             chance_best_alignments.append(result.get())
+            logging.info(f"finished computation of random sample dissimilarity {i + 1}/{n_samples}")
             chance_disorders.append(chance_best_alignments[-1].disorder)
         logging.info("done.")
 
@@ -633,7 +634,6 @@ class Continuum:
             variation_coeff = np.std(chance_disorders) / np.mean(chance_disorders)
             confidence = 1.96
             required_samples = np.ceil((variation_coeff * confidence / precision_level) ** 2).astype(np.int32)
-            logging.debug(f"Number of required samples for confidence {precision_level}: {required_samples}")
             if required_samples > n_samples:
                 result_pool = [
                     p.apply_async(_compute_best_alignment_job,
@@ -646,16 +646,16 @@ class Continuum:
                              f"because variation was too high.")
                 for i, result in enumerate(result_pool):
                     chance_best_alignments.append(result.get())
+                    logging.info(f"finished computation of additionnal random sample dissimilarity "
+                                 f"{i + 1}/{required_samples - n_samples}")
                 logging.info("done.")
 
         p.close()
         # Step 2: find the best alignment of the continuum from there, gamma is rapidly calculed (cf GammaResults class)
         best_alignment = self.get_best_alignment(dissimilarity)
-        best_alignment.continuum = self
 
         return GammaResults(
             best_alignment=best_alignment,
-            n_samples=n_samples,
             chance_alignments=chance_best_alignments,
             precision_level=precision_level,
             dissimilarity=dissimilarity
@@ -692,10 +692,13 @@ class GammaResults:
     used for getting the values of measures from the gamma family (gamma, gamma-cat and gamma-k).
     """
     best_alignment: 'Alignment'
-    n_samples: int
     chance_alignments: List['Alignment']
     dissimilarity: AbstractDissimilarity
     precision_level: Optional[float] = None
+
+    @property
+    def n_samples(self):
+        return len(self.chance_alignments)
 
     @property
     def alignments_nb(self):
