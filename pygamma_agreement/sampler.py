@@ -47,7 +47,7 @@ class MathetContinuumSampler(AbstractContinuumSampler):
     to add them to our implementation so our results correspond to their program.
     """
     def __init__(self, reference_continuum: Continuum,
-                 ground_truth_annotators: Optional[SortedSet    [Annotator]] = None,
+                 ground_truth_annotators: Optional[SortedSet] = None,
                  pivot_type: PivotType = 'int_pivot'):
         super().__init__(reference_continuum, ground_truth_annotators)
         self._pivot_type = pivot_type
