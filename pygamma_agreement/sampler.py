@@ -16,10 +16,10 @@ class AbstractContinuumSampler(metaclass=ABCMeta):
     using particular sampling techniques.
     """
     _reference_continuum: Continuum
-    _ground_truth_annotators: SortedSet[Annotator]
+    _ground_truth_annotators: SortedSet
 
     def __init__(self, reference_continuum: Continuum,
-                 ground_truth_annotators: Optional[SortedSet[Annotator]] = None):
+                 ground_truth_annotators: Optional[SortedSet] = None):
         self._reference_continuum = reference_continuum
         if ground_truth_annotators is None:
             self._ground_truth_annotators = self._reference_continuum.annotators

@@ -172,8 +172,8 @@ class Continuum:
 
     def __init__(self, uri: Optional[str] = None):
         self.uri = uri
-        # Structure {annotator -> SortedSet[Unit]}
-        self._annotations: SortedDict[Annotator, SortedSet[Unit]] = SortedDict()
+        # Structure {annotator -> SortedSet}
+        self._annotations: SortedDict = SortedDict()
 
         # these are instanciated when compute_disorder is called
         self._chosen_alignments: Optional[np.ndarray] = None
@@ -210,11 +210,11 @@ class Continuum:
         return sum(len(units) for units in self._annotations.values())
 
     @property
-    def categories(self) -> SortedSet[str]:
+    def categories(self) -> SortedSet:
         return SortedSet(unit.annotation for _, unit in self
                          if unit.annotation is not None)
     @property
-    def category_weights(self) -> SortedDict[str]:
+    def category_weights(self) -> SortedDict:
         weights = SortedDict()
         nb_units = 0
         for _, unit in self:

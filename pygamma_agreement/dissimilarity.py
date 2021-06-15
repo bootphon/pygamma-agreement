@@ -123,7 +123,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
     """
 
     def __init__(self,
-                 categories: SortedSet[str],
+                 categories: SortedSet,
                  cat_dissimilarity_matrix: Union[Callable[[str, str], float], np.ndarray] = (
                          lambda cat1, cat2: float(cat1 != cat2)),
                  delta_empty: float = 1):
@@ -398,7 +398,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
             Defaults to 1.
     """
     def __init__(self,
-                 categories: SortedSet[str],
+                 categories: SortedSet,
                  alpha: float = 3,
                  beta: float = 1,
                  delta_empty: float = 1,

@@ -70,7 +70,7 @@ class CorpusShufflingTool:
                             "its first annotator in alphabetical order will be used as reference.")
         self._reference_annotator: str = reference_annotators[0]
         self._reference_continuum: Continuum = reference_continuum
-        self._categories: SortedSet[str] = self._reference_continuum.categories
+        self._categories: SortedSet = self._reference_continuum.categories
         if categories is not None:
             for category in categories:
                 self._categories.add(category)
