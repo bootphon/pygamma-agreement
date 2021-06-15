@@ -661,9 +661,6 @@ class Continuum:
             dissimilarity=dissimilarity
         )
 
-    def compute_gamma_cat(self):
-        raise NotImplemented()
-
     def to_csv(self, path: Union[str, Path], delimiter=","):
         if isinstance(path, str):
             path = Path(path)
