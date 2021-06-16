@@ -231,6 +231,15 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         ax.xaxis.set_ticks_position('top')
         plt.show()
 
+    def build_args(self, resource: Union['Alignment', 'Continuum']) -> Tuple:
+        from .continuum import Continuum
+        from .alignment import Alignment
+        if isinstance(resource, Continuum):
+            return self.build_arrays_continuum(resource),
+        elif isinstance(resource, Alignment):
+            return self.build_arrays_alignment(resource),
+
+
     @staticmethod
     @nb.njit(nb.float32[:](nb.int32[:, :],
                            nb.types.ListType(nb.int16[::1]),
@@ -276,10 +285,8 @@ class CategoricalDissimilarity(AbstractDissimilarity):
         return disorders
 
     def __call__(self, units_tuples: np.ndarray,
-                 units_positions: List[np.ndarray],
                  units_categories: List[np.ndarray]) -> np.ndarray:
         return self.alignments_disorder(units_tuples_ids=units_tuples,
-                                        units_positions=units_positions,
                                         units_categories=units_categories,
                                         delta_empty=self.delta_empty,
                                         cat_matrix=self.cat_matrix)
@@ -295,6 +302,14 @@ class PositionalDissimilarity(AbstractDissimilarity):
     """
     def __init__(self, delta_empty: float = 1):
         super().__init__(delta_empty=delta_empty)
+
+    def build_args(self, resource: Union['Alignment', 'Continuum']) -> Tuple:
+        from .continuum import Continuum
+        from .alignment import Alignment
+        if isinstance(resource, Continuum):
+            return self.build_arrays_continuum(resource),
+        elif isinstance(resource, Alignment):
+            return self.build_arrays_alignment(resource),
 
     def build_arrays_continuum(self, continuum: 'Continuum'):
         positions_arrays = nb.typed.List()
@@ -376,15 +391,22 @@ class PositionalDissimilarity(AbstractDissimilarity):
 
 
 class CombinedCategoricalDissimilarity(AbstractDissimilarity):
-    """Combined Dissimilarity
+    def __init__(self,
+                 categories: SortedSet,
+                 alpha: float = 3,
+                 beta: float = 1,
+                 delta_empty: float = 1,
+                 cat_dissimilarity_matrix: Union[Callable[[str, str], float], np.ndarray] = cat_default):
+        """
+        Combined categorical dissimilarity constructor.
 
         Parameters
         ----------
         categories : list of str
             list of N categories
-        cat_dissimilarity_matrix : optional, f: (str,str) -> float function representing
-            the matrix containing the values between categories. Has to be symetrical (f(x, y) = f(y, x))
-            with an empty diagonal (f(x, x) = 0). Defaults to setting all dissimilarities to 1.
+        cat_dissimilarity_matrix : optional, (str,str) -> float function or np.ndarray
+            Function :math:`f` that gives the 'distance' between categories. Has to be symetrical
+            (:math:`f(x, y) = f(y, x)`) with an empty diagonal (:math:`f(x, x) = 0`).
             OR
             N,N matrix (np.array) containing dissimilarity values between categories (works best with ordinal
             categories, since categories are indexed in alphabetical order).
@@ -396,13 +418,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         beta: optional float
             coefficient weighting the categorical dissimilarity value.
             Defaults to 1.
-    """
-    def __init__(self,
-                 categories: SortedSet,
-                 alpha: float = 3,
-                 beta: float = 1,
-                 delta_empty: float = 1,
-                 cat_dissimilarity_matrix: Union[Callable[[str, str], float], np.ndarray] = cat_default):
+        """
         super().__init__(delta_empty)
         assert alpha >= 0
         assert beta >= 0
@@ -442,8 +458,6 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         """
         Computes the disorder of each unitary alignment provided.
         Parameters
-        ----------
-        units_tuples_ids:
         """
         disorders = np.zeros(len(units_tuples_ids), dtype=np.float32)
         annotator_id = np.arange(units_tuples_ids.shape[1]).astype(np.int16)

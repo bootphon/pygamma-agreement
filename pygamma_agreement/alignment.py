@@ -34,12 +34,13 @@ Alignement and disorder
 from abc import ABCMeta, abstractmethod
 from collections import Counter
 from typing import Tuple, Optional, Iterable, Iterator, List, TYPE_CHECKING, Union
+from sortedcontainers import SortedSet
 
 import numpy as np
 
 from .dissimilarity import AbstractDissimilarity, CombinedCategoricalDissimilarity
 
-from .continuum import Continuum, Unit
+from .continuum import Continuum
 
 UnitsTuple = List[Tuple[str, Optional['Unit']]]
 
@@ -126,18 +127,6 @@ class UnitaryAlignment:
 
 
 class Alignment(AbstractAlignment):
-    """Alignment
-
-    Parameters
-    ----------
-    unitary_alignments :
-        set of unitary alignments that make a partition of the set of
-        units/segments
-    continuum : optional Continuum
-        Continuum where the alignment is from
-    check_validity: bool
-        Check the validity of that Alignment against the specified continuum
-    """
 
     def __init__(self,
                  unitary_alignments: Iterable[UnitaryAlignment],
@@ -145,6 +134,22 @@ class Alignment(AbstractAlignment):
                  check_validity: bool = False,
                  disorder: Optional[float] = None
                  ):
+        """
+        Alignment constructor.
+
+        Parameters
+        ----------
+        unitary_alignments :
+            set of unitary alignments that make a partition of the set of
+            units/segments
+        continuum : optional Continuum
+            Continuum where the alignment is from
+        check_validity: bool
+            Check the validity of that Alignment against the specified continuum
+        disorder: float, optional
+            If set, self.disorder returns it until a call to self.compute_disorder. It allows to make the most
+            of the best alignment computation, that takes advantage of this value.
+        """
         self.unitary_alignments = list(unitary_alignments)
         self.continuum = continuum
         self._disorder: Optional[float] = disorder
@@ -154,7 +159,7 @@ class Alignment(AbstractAlignment):
         else:
             self.check()
 
-    def __getitem__(self, *keys: Union[int, Tuple[int, str]]):
+    def __getitem__(self, keys: Union[int, Tuple[int, str]]):
         # TODO : test and document
         if len(keys) == 1:
             idx = keys[0]
@@ -171,8 +176,8 @@ class Alignment(AbstractAlignment):
 
     @property
     def annotators(self):
-        return [annotator for annotator, _
-                in self.unitary_alignments[0].n_tuple]
+        return SortedSet([annotator for annotator, _
+                in self.unitary_alignments[0].n_tuple])
 
     @property
     def avg_num_annotations_per_annotator(self):
@@ -222,11 +227,12 @@ class Alignment(AbstractAlignment):
 
         Parameters
         ----------
-        dissimilarity:
-        the dissimilarity measure to be used in the algorithm. Raises ValueError if it is not a combined categorical
-        dissimilarity, as gamma-cat requires both positional and categorical dissimilarity.
+        dissimilarity: AbstractDissimilarity
+            the dissimilarity measure to be used in the algorithm. Raises ValueError if it is not a combined categorical
+            dissimilarity, as gamma-cat requires both positional and categorical dissimilarity.
         category:
-        The category to be used as reference for gamma-k. Set it as None for computing the gamma-cat disorder.
+            If set, the category to be used as reference for gamma-k.
+            Leave it unset to compute the gamma-cat disorder.
         """
         if not isinstance(dissimilarity, CombinedCategoricalDissimilarity):
             raise TypeError("Cannot compute gamma-k or gamma-cat with a best alignment computed with a "

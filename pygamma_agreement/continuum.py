@@ -77,6 +77,12 @@ class Unit:
     a text annotation. Can be sorted or used in a set. If two units share
     the same time segment, they're sorted alphabetically using their
     annotation. The `None` annotation is first in the "alphabet"
+
+    >>> new_unit = Unit(segment=Segment(17.5, 21.3), annotation='Verb')
+    >>> new_unit.segment.start, new_unit.segment.end
+    17.5, 21.3
+    >>> new_unit.annotation
+    'Verb'
     """
     segment: Segment
     annotation: Optional[str] = None
@@ -415,8 +421,6 @@ class Continuum:
         Merge two Continuua together. Units from the same annotators
         are also merged together (with the usual order of units).
 
-        :rtype: Continuum, optional
-
         Parameters
         ----------
         continuum: Continuum
@@ -425,6 +429,10 @@ class Continuum:
             If set to true, the merge is done in place, and the current
             continuum (self) is the one being modified. A new continuum
             resulting in the merge is returned otherwise.
+
+        Returns
+        -------
+        Continuum, optional: Returns the merged copy if in_place is set to True.
         """
         current_cont = self if in_place else self.copy()
         for annotator, unit in continuum:
@@ -446,6 +454,7 @@ class Continuum:
     def __setitem__(self, annotator: str, units: SortedSet):
         """
         Overwrites the annotators's set of units with the given one.
+
         >>> units = SortedSet((Unit(segment=Segment(12.5, 13.0), annotation='Verb')))
         >>> continuum['Victor'] = units
         >>> continuum['Victor']
@@ -793,7 +802,7 @@ class GammaResults:
         return max(1 - self.observed_cat_disorder / self.expected_cat_disorder, 0.0)
 
     def gamma_k(self, category: str) -> float:
-        """Returns the gamma-k value"""
+        """Returns the gamma-k value for the given category"""
         return max(1 - self.observed_k_disorder(category) / self.expected_k_disorder(category), 0.0)
 
 
