@@ -39,9 +39,9 @@ import numpy as np
 
 from .dissimilarity import AbstractDissimilarity, CombinedCategoricalDissimilarity
 
-from .continuum import Continuum, Annotator, Unit
+from .continuum import Continuum, Unit
 
-UnitsTuple = List[Tuple['Annotator', Optional['Unit']]]
+UnitsTuple = List[Tuple[str, Optional['Unit']]]
 
 
 class SetPartitionError(Exception):
@@ -142,18 +142,19 @@ class Alignment(AbstractAlignment):
     def __init__(self,
                  unitary_alignments: Iterable[UnitaryAlignment],
                  continuum: Optional['Continuum'] = None,
-                 check_validity: bool = False
+                 check_validity: bool = False,
+                 disorder: Optional[float] = None
                  ):
         self.unitary_alignments = list(unitary_alignments)
         self.continuum = continuum
-        self._disorder: Optional[float] = None
+        self._disorder: Optional[float] = disorder
 
         if not check_validity:
             return
         else:
             self.check()
 
-    def __getitem__(self, *keys: Union[int, Tuple[int, 'Annotator']]):
+    def __getitem__(self, *keys: Union[int, Tuple[int, str]]):
         # TODO : test and document
         if len(keys) == 1:
             idx = keys[0]

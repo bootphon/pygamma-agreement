@@ -58,7 +58,6 @@ if TYPE_CHECKING:
 CHUNK_SIZE = (10**5) // os.cpu_count()
 
 # defining Annotator type
-Annotator = str
 PivotType = Literal["float_pivot", "int_pivot"]
 PrecisionLevel = Literal["high", "medium", "low"]
 
@@ -108,7 +107,9 @@ class Continuum:
         """
         Default constructor.
 
-        :param str, optional uri:
+        Parameters
+        ----------
+        uri: optional str
             name of annotated resource (e.g. audio or video file)
         """
         self.uri = uri
@@ -128,14 +129,18 @@ class Continuum:
 
             The CSV file mustn't have any header
 
-        :param Path or str path:
+        Parameters
+        ----------
+        path: Path or str
             Path to the CSV file storing annotations
-        :param bool discard_invalid_rows:
+        discard_invalid_rows: bool
             If set, every invalid row is ignored when parsing the file.
-        :param str delimiter:
+        delimiter: str
             CSV columns delimiter. Defaults to ','
 
-        :return Continuum:
+        Returns
+        -------
+        Continuum:
             New continuum object loaded from the CSV
 
         """
@@ -277,14 +282,14 @@ class Continuum:
         """Mean of the annotated segments' durations"""
         return sum(unit.segment.duration for _, unit in self) / self.num_units
 
-    def add_annotator(self,  annotator: Annotator):
+    def add_annotator(self,  annotator: str):
         """
         Adds the annotator to the set, with no annotated segment. Does nothing if already present.
         """
         if annotator not in self._annotations:
             self._annotations[annotator] = SortedSet()
 
-    def add(self, annotator: Annotator, segment: Segment, annotation: Optional[str] = None):
+    def add(self, annotator: str, segment: Segment, annotation: Optional[str] = None):
         """
         Add a segment to the continuum
 
@@ -305,7 +310,7 @@ class Continuum:
 
         self._annotations[annotator].add(Unit(segment, annotation))
 
-    def add_annotation(self, annotator: Annotator, annotation: Annotation):
+    def add_annotation(self, annotator: str, annotation: Annotation):
         """
         Add a full pyannote annotation to the continuum.
 
@@ -313,14 +318,14 @@ class Continuum:
         ----------
         annotator: str
             A string id for the annotator who produced that annotation.
-        annotation: :class:`pyannote.core.Annotation`
+        annotation: pyannote.core.Annotation
             A pyannote `Annotation` object. If a label is present for a given
             segment, it will be considered as that label's annotation.
         """
         for segment, _, label in annotation.itertracks(yield_label=True):
             self.add(annotator, segment, label)
 
-    def add_timeline(self, annotator: Annotator, timeline: Timeline):
+    def add_timeline(self, annotator: str, timeline: Timeline):
         """
         Add a full pyannote timeline to the continuum.
 
@@ -336,7 +341,7 @@ class Continuum:
             self.add(annotator, segment)
 
     def add_textgrid(self,
-                     annotator: Annotator,
+                     annotator: str,
                      tg_path: Union[str, Path],
                      selected_tiers: Optional[List[str]] = None,
                      use_tier_as_annotation: bool = False):
@@ -375,7 +380,7 @@ class Continuum:
                              interval.mark)
 
     def add_elan(self,
-                 annotator: Annotator,
+                 annotator: str,
                  eaf_path: Union[str, Path],
                  selected_tiers: Optional[List[str]] = None,
                  use_tier_as_annotation: bool = False):
@@ -411,9 +416,12 @@ class Continuum:
         are also merged together (with the usual order of units).
 
         :rtype: Continuum, optional
-        :param Continuum continuum:
+
+        Parameters
+        ----------
+        continuum: Continuum
             other continuum to merge into the current one.
-        :param boolean in_place:
+        in_place: bool
             If set to true, the merge is done in place, and the current
             continuum (self) is the one being modified. A new continuum
             resulting in the merge is returned otherwise.
@@ -428,13 +436,14 @@ class Continuum:
         """
         Same as a "not-in-place" merge.
 
-        :param Continuum other:
+        Parameters
+        ----------
+        other: Continuum
             the continuum to merge into `self`
-
         """
         return self.merge(other, in_place=False)
 
-    def __setitem__(self, annotator: Annotator, units: SortedSet):
+    def __setitem__(self, annotator: str, units: SortedSet):
         """
         Overwrites the annotators's set of units with the given one.
         >>> units = SortedSet((Unit(segment=Segment(12.5, 13.0), annotation='Verb')))
@@ -442,14 +451,16 @@ class Continuum:
         >>> continuum['Victor']
         SortedSet([Unit(segment=<Segment(12.5, 13.0)>, annotation='Verb')]
 
-        :param Annotator annotator: Any annotator, existing or not in the continuum.
-        :param SortedSet of Units units:
+        Parameters
+        ----------
+        annotator: str
+            Any annotator, existing or not in the continuum.
+        units: SortedSet of Unit
             A SortedSet of units, that will become the annotator's.
         """
         self._annotations[annotator] = units
 
-
-    def __getitem__(self, keys: Union[Annotator, Tuple[Annotator, int]]) -> Union[SortedSet, Unit]:
+    def __getitem__(self, keys: Union[str, Tuple[str, int]]) -> Union[SortedSet, Unit]:
         """Get a set of annotations from an annotator or a specific annotation.
 
         >>> continuum['Alex']
@@ -457,11 +468,17 @@ class Continuum:
         >>> continuum['Alex', 0]
         Unit(segment=<Segment(2, 9)>, annotation='1')
 
-        :param Annotator or Annotator,int keys:
-        :raise KeyError:
+        Parameters
+        ----------
+        keys: Annotator or Annotator,int
+
+
+        Raises
+        ------
+        KeyError
         """
         try:
-            if isinstance(keys, Annotator):
+            if isinstance(keys, str):
                 return self._annotations[keys]
             else:
                 annotator, idx = keys
@@ -472,8 +489,7 @@ class Continuum:
         except KeyError:
             raise KeyError('key must be either Annotator (from the continuum) or (Annotator, int)')
 
-
-    def __iter__(self) -> Iterable[Tuple[Annotator, Unit]]:
+    def __iter__(self) -> Iterable[Tuple[str, Unit]]:
         for annotator, annotations in self._annotations.items():
             for unit in annotations:
                 yield annotator, unit
@@ -504,7 +520,10 @@ class Continuum:
         :math:`(O(p_1 \\times p_2 \\times ... \\times p_n)` where :math:`p_i` is the number
         of annotations of annotator :math:`i`).
 
-        :param Dissimilarity dissimilarity: the dissimilarity that will be used to compute unit-to-unit disorder.
+        Parameters
+        ----------
+        dissimilarity: AbstractDissimilarity
+            the dissimilarity that will be used to compute unit-to-unit disorder.
         """
         assert len(self.annotators) >= 2, "Disorder cannot be computed with less than two annotators."
 
@@ -588,23 +607,26 @@ class Continuum:
                       random_seed: Optional[int] = 4577,
                       ) -> 'GammaResults':
         """
-        :param AbstractDissimilarity dissimilarity:
+
+        Parameters
+        ----------
+        dissimilarity: AbstractDissimilarity
             dissimilarity instance. Used to compute the disorder between units.
-        :param optional int n_samples:
+        n_samples: optional int
             number of random continuum sampled from this continuum  used to
             estimate the gamma measure
-        :param optional float or "high", "medium", "low" precision_level:
+        precision_level: optional float or "high", "medium", "low"
             error percentage of the gamma estimation. If a literal
             precision level is passed (e.g. "medium"), the corresponding numerical
             value will be used (high: 1%, medium: 2%, low : 5%)
-        :param ground_truth_annotators:
+        ground_truth_annotators: SortedSet of str
             if set, the random continuua will only be sampled from these
             annotators. This should be used when you want to compare a prediction
             against some ground truth annotation.
-        :param AbstractContinuumSampler sampler:
+        sampler: AbstractContinuumSampler
             Sampler object, which implements a sampling strategy for creating random continuua used
             to calculate the expected disorder. If not set, defaults to the same one as in the Gamma Software.
-        :param optional float, int or str random_seed:
+        random_seed: optional int
             random seed used to set up the random state before sampling the
             random continuua
         """
