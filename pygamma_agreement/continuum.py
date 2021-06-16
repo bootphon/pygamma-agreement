@@ -101,6 +101,8 @@ class Continuum:
 
     ``{'annotator1': {unit1, ...}, ...}``
     """
+    uri: str
+    _annotations: SortedDict
 
     def __init__(self, uri: Optional[str] = None):
         """
@@ -112,10 +114,6 @@ class Continuum:
         self.uri = uri
         # Structure {annotator -> SortedSet}
         self._annotations: SortedDict = SortedDict()
-
-        # these are instanciated when compute_disorder is called
-        self._chosen_alignments: Optional[np.ndarray] = None
-        self._alignments_disorders: Optional[np.ndarray] = None
 
     @classmethod
     def from_csv(cls,
@@ -307,11 +305,6 @@ class Continuum:
 
         self._annotations[annotator].add(Unit(segment, annotation))
 
-        # units array has to be updated, nullifying
-        if self._alignments_disorders is not None:
-            self._chosen_alignments = None
-            self._alignments_disorders = None
-
     def add_annotation(self, annotator: Annotator, annotation: Annotation):
         """
         Add a full pyannote annotation to the continuum.
@@ -441,30 +434,44 @@ class Continuum:
         """
         return self.merge(other, in_place=False)
 
-    def __setitem__(self, key, value):
-        self._annotations[key] = value
+    def __setitem__(self, annotator: Annotator, units: SortedSet):
+        """
+        Overwrites the annotators's set of units with the given one.
+        >>> units = SortedSet((Unit(segment=Segment(12.5, 13.0), annotation='Verb')))
+        >>> continuum['Victor'] = units
+        >>> continuum['Victor']
+        SortedSet([Unit(segment=<Segment(12.5, 13.0)>, annotation='Verb')]
 
-    def __getitem__(self, *keys: Union[Annotator, Tuple[Annotator, int]]) \
-            -> SortedSet:
+        :param Annotator annotator: Any annotator, existing or not in the continuum.
+        :param SortedSet of Units units:
+            A SortedSet of units, that will become the annotator's.
+        """
+        self._annotations[annotator] = units
+
+
+    def __getitem__(self, keys: Union[Annotator, Tuple[Annotator, int]]) -> Union[SortedSet, Unit]:
         """Get a set of annotations from an annotator or a specific annotation.
 
         >>> continuum['Alex']
         SortedSet([Unit(segment=<Segment(2, 9)>, annotation='1'), Unit(segment=<Segment(11, 17)>, ...
-        >>> continuum['Alex', 1 ]
-        # TODO fix le deuxième cas
+        >>> continuum['Alex', 0]
+        Unit(segment=<Segment(2, 9)>, annotation='1')
 
-
+        :param Annotator or Annotator,int keys:
+        :raise KeyError:
         """
-        if len(keys) == 1:
-            annotator = keys[0]
-            return self._annotations[annotator]
-        elif len(keys) == 2 and isinstance(keys[1], int):
-            annotator, idx = keys
-            return self._annotations[annotator].peekitem(idx)
-        else:
-            for key in keys:
-                print(key)
-            raise KeyError
+        try:
+            if isinstance(keys, Annotator):
+                return self._annotations[keys]
+            else:
+                annotator, idx = keys
+                try:
+                    return self._annotations[annotator][idx]
+                except IndexError:
+                    raise IndexError(f'index {idx} of annotations by {annotator} is out of range')
+        except KeyError:
+            raise KeyError('key must be either Annotator (from the continuum) or (Annotator, int)')
+
 
     def __iter__(self) -> Iterable[Tuple[Annotator, Unit]]:
         for annotator, annotations in self._annotations.items():
@@ -473,7 +480,7 @@ class Continuum:
 
     @property
     def annotators(self) -> SortedSet:
-        """List all annotators in the Continuum
+        """Returns a sorted set of the annotators in the Continuum
 
         >>> self.annotators:
         ... SortedSet(["annotator_a", "annotator_b", "annot_ref"])
@@ -489,7 +496,16 @@ class Continuum:
         """
         return iter(self._annotations[annotator])
 
-    def compute_disorders(self, dissimilarity: AbstractDissimilarity):
+    def get_best_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
+        """
+        Returns the best alignment of the continuum for the given dissimilarity. This alignment comes
+        with the associated disorder, so you can obtain it in constant time with alignment.disorder.
+        Beware that the computational complexity of the algorithm is very high
+        :math:`(O(p_1 \\times p_2 \\times ... \\times p_n)` where :math:`p_i` is the number
+        of annotations of annotator :math:`i`).
+
+        :param Dissimilarity dissimilarity: the dissimilarity that will be used to compute unit-to-unit disorder.
+        """
         assert len(self.annotators) >= 2, "Disorder cannot be computed with less than two annotators."
 
         disorder_args = dissimilarity.build_args(self)
@@ -539,22 +555,13 @@ class Continuum:
 
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
         chosen_alignments_ids, = np.where(x.value > 0.9)
-        self._chosen_alignments = possible_unitary_alignments[chosen_alignments_ids]
-        self._alignments_disorders = disorders[chosen_alignments_ids]
-        return self._alignments_disorders.sum() / self.avg_num_annotations_per_annotator
-
-    def get_best_alignment(self, dissimilarity: Optional['AbstractDissimilarity'] = None):
-        if self._chosen_alignments is None or self._alignments_disorders is None:
-            if dissimilarity is not None:
-                self.compute_disorders(dissimilarity)
-            else:
-                raise ValueError("Best alignment disorder hasn't been computed, "
-                                 "the dissimilarity argument is required")
+        chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
+        alignments_disorders: np.ndarray = disorders[chosen_alignments_ids]
 
         from .alignment import UnitaryAlignment, Alignment
 
         set_unitary_alignements = []
-        for alignment_id, alignment in enumerate(self._chosen_alignments):
+        for alignment_id, alignment in enumerate(chosen_alignments):
             u_align_tuple = []
             for annotator_id, unit_id in enumerate(alignment):
                 annotator, units = self._annotations.peekitem(annotator_id)
@@ -564,39 +571,40 @@ class Continuum:
                 except IndexError:  # it's a "null unit"
                     u_align_tuple.append((annotator, None))
             unitary_alignment = UnitaryAlignment(list(u_align_tuple))
-            unitary_alignment.disorder = self._alignments_disorders[alignment_id]
+            unitary_alignment.disorder = alignments_disorders[alignment_id]
             set_unitary_alignements.append(unitary_alignment)
-        return Alignment(set_unitary_alignements, continuum=self, check_validity=True)
+        return Alignment(set_unitary_alignements,
+                         continuum=self,
+                         # Validity of results from get_best_alignments have been thoroughly tested :
+                         check_validity=False,
+                         disorder=alignments_disorders.sum() / self.avg_num_annotations_per_annotator)
 
     def compute_gamma(self,
                       dissimilarity: 'AbstractDissimilarity',
                       n_samples: int = 30,
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
-                      ground_truth_annotators: Optional[List[Annotator]] = None,
+                      ground_truth_annotators: Optional[SortedSet] = None,
                       sampler: 'AbstractContinuumSampler' = None,
                       random_seed: Optional[int] = 4577,
                       ) -> 'GammaResults':
         """
-        Parameters
-        ----------
-        dissimilarity: AbstractDissimilarity
+        :param AbstractDissimilarity dissimilarity:
             dissimilarity instance. Used to compute the disorder between units.
-        n_samples: optional int
+        :param optional int n_samples:
             number of random continuum sampled from this continuum  used to
             estimate the gamma measure
-        precision_level: optional float or "high", "medium", "low"
+        :param optional float or "high", "medium", "low" precision_level:
             error percentage of the gamma estimation. If a literal
             precision level is passed (e.g. "medium"), the corresponding numerical
             value will be used (high: 1%, medium: 2%, low : 5%)
-        ground_truth_annotators:
+        :param ground_truth_annotators:
             if set, the random continuua will only be sampled from these
             annotators. This should be used when you want to compare a prediction
             against some ground truth annotation.
-        sampler:
-            Sampler object (inherited from AbstractContinuumSampler), which implements a sampling strategy
-            for creating random continuua used to calculate the expected disorder.
-            Default is the default MathetContinuumSampler.
-        random_seed: optional float, int or str
+        :param AbstractContinuumSampler sampler:
+            Sampler object, which implements a sampling strategy for creating random continuua used
+            to calculate the expected disorder. If not set, defaults to the same one as in the Gamma Software.
+        :param optional float, int or str random_seed:
             random seed used to set up the random state before sampling the
             random continuua
         """
