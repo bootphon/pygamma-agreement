@@ -4,7 +4,7 @@ from typing import Optional, Literal
 from sortedcontainers import SortedSet
 import numpy as np
 from pyannote.core import Segment
-from .continuum import Continuum, Unit, Annotator
+from .continuum import Continuum, Unit
 
 PivotType = Literal["float_pivot", "int_pivot"]
 

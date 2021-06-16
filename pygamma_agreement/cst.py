@@ -50,7 +50,7 @@ class CorpusShufflingTool:
     def __init__(self,
                  magnitude: float,
                  reference_continuum: Continuum,
-                 reference_annotator: Annotator = None,
+                 reference_annotator: str = None,
                  categories: Iterable[str] = None):
         """
         Parameters
@@ -211,7 +211,7 @@ class CorpusShufflingTool:
                 del to_split
 
     def corpus_shuffle(self,
-                       annotators: Union[int, Iterable[Annotator]],
+                       annotators: Union[int, Iterable[str]],
                        shift: bool = False, false_pos: bool = False, false_neg: bool = False, split: bool = False,
                        cat_shuffle: bool = False, include_ref: bool = False
                        ) -> Continuum:
