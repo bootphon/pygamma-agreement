@@ -55,6 +55,26 @@ The package comes with a unit-tests suit. To run it, first install *pytest* on y
 Please read `CONTRIBUTING.md` before submitting and issue or writing some contribution 
 to this package.
 
+## Citing Pygamma
+
+If you're using pygamma in your work, please cite our package using the following bibtex entry:
+
+```
+@article{Titeux2021,
+  doi = {10.21105/joss.02989},
+  url = {https://doi.org/10.21105/joss.02989},
+  year = {2021},
+  publisher = {The Open Journal},
+  volume = {6},
+  number = {62},
+  pages = {2989},
+  author = {Hadrien Titeux and Rachid Riad},
+  title = {pygamma-agreement: Gamma $\gamma$ measure for inter/intra-annotator agreement in Python},
+  journal = {Journal of Open Source Software}
+}
+
+```
+
 ## References
 
 [1] Titeux H., Riad R.
