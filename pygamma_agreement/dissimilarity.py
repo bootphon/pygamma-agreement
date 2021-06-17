@@ -37,8 +37,6 @@ import numba as nb
 import numpy as np
 from matplotlib import pyplot as plt
 from sortedcontainers import SortedSet
-
-from .numba_utils import binom
 from .cat_dissim import cat_default
 
 if TYPE_CHECKING:
@@ -281,7 +279,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                         distance_pos = cat_matrix[unit_a, unit_b] * delta_empty
                         disorders[tuple_id] += distance_pos
 
-        disorders = disorders / binom(units_tuples_ids.shape[1], 2)
+        disorders /= (units_tuples_ids.shape[1] * (units_tuples_ids.shape[1] - 1) // 2)
         return disorders
 
     def __call__(self, units_tuples: np.ndarray,
@@ -379,7 +377,7 @@ class PositionalDissimilarity(AbstractDissimilarity):
                         distance_pos = positional_dissim(unit_a, unit_b, delta_empty)
                         disorders[tuple_id] += distance_pos
 
-        disorders = disorders / binom(units_tuples_ids.shape[1], 2)
+        disorders /= (units_tuples_ids.shape[1] * (units_tuples_ids.shape[1] - 1) // 2)
 
         return disorders
 
@@ -477,7 +475,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
                         disorders[tuple_id] += \
                             positional_dissim(unit_a, unit_b, delta_empty) * alpha \
                             + cat_matrix[cat_a, cat_b] * delta_empty * beta
-        disorders /= binom(units_tuples_ids.shape[1], 2)
+        disorders /= (units_tuples_ids.shape[1] * (units_tuples_ids.shape[1] - 1) // 2)
         return disorders
 
     def __call__(self, units_tuples: np.ndarray,
