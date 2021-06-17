@@ -75,7 +75,7 @@ both.
 
     pygamma-agreement -k -g tests/data/*.csv -o test.csv
 
-You can then visualize the results with tools like ``tabview`` or other spreadsheet software alike, or analyse the data.
+You can then visualize the results with tools like ``tabview`` or other spreadsheet software alike.
 
 
 

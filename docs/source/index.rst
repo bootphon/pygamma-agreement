@@ -25,3 +25,4 @@ The package is available on pip, thus, just run
    principles
    cli
    api_reference
+   issues
