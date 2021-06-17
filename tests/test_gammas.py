@@ -5,7 +5,10 @@ import numpy as np
 import pytest
 
 from pygamma_agreement.continuum import Continuum
-from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity
+from pygamma_agreement.dissimilarity import (CombinedCategoricalDissimilarity,
+                                             PositionalDissimilarity,
+                                             CategoricalDissimilarity)
+from pygamma_agreement.cat_dissim import cat_ord
 
 
 def test_gamma_2by1000():
@@ -67,3 +70,31 @@ def test_gamma_alexpaulsuzan():
     for i in range(1, 7):
         assert gamma_ks[str(i)] == gamma_results.gamma_k(str(i))
     # assert gamma_results.gamma_k('7') is np.NaN
+
+
+def test_gamma_alexpaulsuzan_otherdissims():
+    np.random.seed(4772)
+    continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
+    dissimilarity = PositionalDissimilarity()
+
+    gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.01)
+
+    gamma = gamma_results.gamma
+    try:
+        gamma_cat = gamma_results.gamma_cat
+        assert False
+    except:
+        pass
+
+    dissimilarity = CategoricalDissimilarity(categories=continuum.categories,
+                                             cat_dissimilarity_matrix=cat_ord)
+
+    gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.01)
+
+    gamma = gamma_results.gamma
+    try:
+        gamma_cat = gamma_results.gamma_cat
+        assert False
+    except:
+        pass
+
