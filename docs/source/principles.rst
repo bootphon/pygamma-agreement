@@ -406,7 +406,7 @@ the gamma value is computed from a ``Continuum`` object, using a given ``Dissimi
     parameter gets closer to 0. If time of computation becomes to high, it is advised to lower the precision
     before anything else.
 
-Gamma-cat (:math:`γ_{cat}`) and Gamma-k (:math:`γ_{k}`)
+Gamma-cat (γ-cat) and Gamma-k (γ-k)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 :math:`γ_{cat}` is an alternate inter-annotator agreement measure based on γ, made to evaluate the task of
 categorizing pre-defined units. Just like γ, it is a *chance-adjusted* metric :
