@@ -50,7 +50,7 @@ setup(
     long_description_content_type="text/markdown",
     author='Rachid RIAD',
     author_email='rachid.riad@ens.fr',
-    url='http://pygamme.readthedocs.io/',
+    url='https://pygamma-agreement.readthedocs.io/en/latest/',
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
@@ -60,7 +60,10 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
-        "Topic :: Scientific/Engineering"
+        "Programming Language :: Python :: 3.9",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Text Processing :: Linguistic",
+        "Topic :: Multimedia :: Sound/Audio :: Speech"
     ],
     entry_points={
         'console_scripts': [
