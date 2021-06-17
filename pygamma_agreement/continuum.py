@@ -54,7 +54,7 @@ from .numba_utils import chunked_cartesian_product
 
 if TYPE_CHECKING:
     from .alignment import UnitaryAlignment, Alignment
-    from .sampler import AbstractContinuumSampler, ShuffleContinuumSampler
+    from .sampler import AbstractContinuumSampler, StatisticalContinuumSampler
 
 CHUNK_SIZE = (10**5) // os.cpu_count()
 
@@ -645,9 +645,9 @@ class Continuum:
         if dissimilarity is None:
             dissimilarity = CombinedCategoricalDissimilarity(self.categories)
 
-        from .sampler import ShuffleContinuumSampler
+        from .sampler import StatisticalContinuumSampler
         if sampler is None:
-            sampler = ShuffleContinuumSampler(self, ground_truth_annotators)
+            sampler = StatisticalContinuumSampler(self, ground_truth_annotators)
 
         if random_seed is not None:
             np.random.seed(random_seed)
@@ -800,16 +800,16 @@ class GammaResults:
     @property
     def gamma(self) -> float:
         """Returns the gamma value"""
-        return max(1 - self.observed_disorder / self.expected_disorder, 0.0)
+        return 1 - self.observed_disorder / self.expected_disorder
 
     @property
     def gamma_cat(self) -> float:
         """Returns the gamma-cat value"""
-        return max(1 - self.observed_cat_disorder / self.expected_cat_disorder, 0.0)
+        return 1 - self.observed_cat_disorder / self.expected_cat_disorder
 
     def gamma_k(self, category: str) -> float:
         """Returns the gamma-k value for the given category"""
-        return max(1 - self.observed_k_disorder(category) / self.expected_k_disorder(category), 0.0)
+        return 1 - self.observed_k_disorder(category) / self.expected_k_disorder(category)
 
 
 def __compute_best_alignment_job__(continuum: Continuum, dissimilarity: AbstractDissimilarity):

@@ -66,7 +66,7 @@ argparser = argparse.ArgumentParser(
     """)
 argparser.add_argument("input_csv", type=Path, nargs="+",
                        help="Path to an input csv file(s) or directory(es)")
-argparser.add_argument("-d", "--delimiter",
+argparser.add_argument("-s", "--separator",
                        default=",", type=str,
                        help="Column delimiter used for input and output csv")
 argparser.add_argument("-f", "--format", type=str, choices=["rttm", "csv"],
@@ -75,7 +75,7 @@ argparser.add_argument("-f", "--format", type=str, choices=["rttm", "csv"],
 argparser.add_argument("-o", "--output-csv", type=Path,
                        help="Path to the output csv report")
 argparser.add_argument("-a", "--alpha",
-                       default=3, type=float,
+                       default=1, type=float,
                        help="Alpha coefficient (positional dissimilarity ponderation)")
 argparser.add_argument("-b", "--beta",
                        default=1, type=float,
@@ -90,14 +90,14 @@ argparser.add_argument("-n", "--n-samples",
                        help="Number of random continuua to be sampled for the "
                             "gamma computation. Warning : additionnal continuua "
                             "will be sampled if precision level is not satisfied.")
-argparser.add_argument("-c", "--cat-dissim", type=str, choices=cat_dissim.arguments,
+argparser.add_argument("-d", "--cat-dissim", type=str, choices=cat_dissim.arguments,
                        default="default",
                        help="Categorical dissimilarity to use for measuring inter-annotation disorder. "
                             "The default one gives 1.0 if annotation have different categories, 0.0 otherwise")
 argparser.add_argument("-v", "--verbose",
                        action="store_true",
                        help="Logs progress of the algorithm")
-argparser.add_argument("-g", "--gamma-cat",
+argparser.add_argument("-c", "--gamma-cat",
                        action="store_true",
                        help="Outputs the gamma-cat in addition to the gamma-agreement")
 argparser.add_argument("-k", "--gamma-k",
@@ -110,7 +110,7 @@ def pygamma_cmd():
     logging.getLogger().setLevel(logging.INFO if args.verbose else logging.ERROR)
 
     input_files: List[Path] = []
-    results: Dict[Path, float] = {}
+    results: List[List[str]] = []
     for input_csv in args.input_csv:
         input_csv: Path
 
@@ -149,17 +149,30 @@ def pygamma_cmd():
         logging.info(f"Finished computing best alignment & gamma in {(time.time() - start) * 1000} ms")
         # start = time.time()
 
-        results[file_path] = gamma.gamma
-        print(f"{file_path}")
-        print(f"gamma={gamma.gamma}")
-        if args.gamma_cat:
-            print(f"gamma-cat={gamma.gamma_cat}")
-        if args.gamma_k:
-            for category in continuum.categories:
-                print(f"gamma-k('{category}')={gamma.gamma_k(category)}")
-
+        result_list = [file_path]
+        if args.output_csv is None:
+            print(f"{file_path}")
+            print(f"gamma={gamma.gamma}")
+            if args.gamma_cat:
+                print(f"gamma-cat={gamma.gamma_cat}")
+            if args.gamma_k:
+                for category in continuum.categories:
+                    print(f"gamma-k('{category}')={gamma.gamma_k(category)}")
+        else:
+            result_list.append(str(gamma.gamma))
+            if args.gamma_cat:
+                result_list.append(str(gamma.gamma_cat))
+            if args.gamma_k:
+                result_list.append(str({category: gamma.gamma_k(category) for category in continuum.categories}))
+        results.append(result_list)
 
     if args.output_csv is not None:
+        labels = ['filename', 'gamma']
+        if args.gamma_cat:
+            labels.append('gamma-cat')
+        if args.gamma_k:
+            labels.append("gamma-k's")
         with open(args.output_csv, "w") as output_csv:
-            writer = csv.writer(output_csv, delimiter=args.delimiter)
-            writer.writerows(list(results.items()))
+            writer = csv.writer(output_csv, delimiter=args.separator)
+            writer.writerow(labels)
+            writer.writerows(results)

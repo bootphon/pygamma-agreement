@@ -22,7 +22,9 @@ def test_mathet_sampler():
                                               delta_empty=1,
                                               alpha=3,
                                               beta=1)
-    gamma_results = new_continuum.compute_gamma(dissim, precision_level=0.01)
+    gamma_results = new_continuum.compute_gamma(dissim,
+                                                sampler=ShuffleContinuumSampler(new_continuum),
+                                                precision_level=0.01)
     assert gamma_results.gamma < 0.1
     assert gamma_results.gamma_cat < 0.1
 
@@ -42,7 +44,8 @@ def test_statistical_sampler():
                                               alpha=3,
                                               beta=1)
 
-    gamma_results = new_continuum.compute_gamma(dissim, precision_level=0.01)
+    gamma_results = new_continuum.compute_gamma(dissim,
+                                                precision_level=0.01)
     assert gamma_results.gamma < 0.1
     assert gamma_results.gamma_cat < 0.1
 

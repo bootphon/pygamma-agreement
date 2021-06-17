@@ -223,7 +223,7 @@ class Alignment(AbstractAlignment):
     def gamma_k_disorder(self, dissimilarity: 'AbstractDissimilarity', category: Optional[str]) -> float:
         """
         Returns the gamma-k or gamma-cat metric disorder (detailed in https://hal.archives-ouvertes.fr/hal-01712281)
-        Of the alignment.
+        of the alignment.
 
         Parameters
         ----------

@@ -53,8 +53,7 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
 
     def __init__(self, reference_continuum: Continuum,
                  ground_truth_annotators: Optional[SortedSet] = None,
-                 pivot_type: PivotType = 'int_pivot',
-                 min_dist_between_pivots: bool = True):
+                 pivot_type: PivotType = 'int_pivot'):
         """
         Parameters
         ----------
@@ -65,13 +64,9 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         pivot_type: 'int_pivot' or 'float_pivot'
             the java implementation by Mathet et Al. uses a integer pivoting for shuffling, we judged it unclear that
             the method descibed in the paper was typed this way so we left the option to generate pivots using floats.
-        min_dist_between_pivots:
-            if True, a minimal distance between the pivots (equal to half the average length of annotations in the
-            reference) is forced, in accordance to the java implementation, also undocumented in the research paper.
         """
         super().__init__(reference_continuum, ground_truth_annotators)
         self._pivot_type = pivot_type
-        self._min_dist_between_pivots = min_dist_between_pivots
 
     @property
     def sample_from_continuum(self) -> Continuum:
@@ -85,20 +80,18 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         for idx in range(len(annotators)):
             if self._pivot_type == 'float_pivot':
                 pivot: float = np.random.uniform(bound_inf, bound_sup)
-                if self._min_dist_between_pivots:
-                    # While the pivot is closer than min_dist to a precedent pivot, pick another one
-                    # (takes wrapping of continuum into consideration).
-                    while any(map((lambda x: abs(x - pivot) < min_dist_between_pivots or
-                                   abs(x - (pivot - bound_sup)) < min_dist_between_pivots),
-                                  pivots)):
-                        pivot = np.random.uniform(bound_inf, bound_sup)
+                # While the pivot is closer than min_dist to a precedent pivot, pick another one
+                # (takes wrapping of continuum into consideration).
+                while any(map((lambda x: abs(x - pivot) < min_dist_between_pivots or
+                               abs(x - (pivot - bound_sup)) < min_dist_between_pivots),
+                              pivots)):
+                    pivot = np.random.uniform(bound_inf, bound_sup)
             else:
                 pivot: int = np.random.randint(np.floor(bound_inf), np.ceil(bound_sup))
-                if self._min_dist_between_pivots:
-                    while any(map((lambda x: abs(x - pivot) < min_dist_between_pivots or
-                                   abs(x - (pivot - bound_sup)) < min_dist_between_pivots),
-                                  pivots)):
-                        pivot = np.random.randint(np.floor(bound_inf), np.ceil(bound_sup))
+                while any(map((lambda x: abs(x - pivot) < min_dist_between_pivots or
+                               abs(x - (pivot - bound_sup)) < min_dist_between_pivots),
+                              pivots)):
+                    pivot = np.random.randint(np.floor(bound_inf), np.ceil(bound_sup))
             pivots.append(pivot)
 
             rnd_annotator = np.random.choice(annotators)

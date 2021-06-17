@@ -391,7 +391,7 @@ class PositionalDissimilarity(AbstractDissimilarity):
 class CombinedCategoricalDissimilarity(AbstractDissimilarity):
     def __init__(self,
                  categories: SortedSet,
-                 alpha: float = 3,
+                 alpha: float = 1,
                  beta: float = 1,
                  delta_empty: float = 1,
                  cat_dissimilarity_matrix: Union[Callable[[str, str], float], np.ndarray] = cat_default):

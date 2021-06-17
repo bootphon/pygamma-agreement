@@ -110,6 +110,7 @@ def test_alignment():
     combi_dis = CombinedCategoricalDissimilarity(
         categories=categories,
         delta_empty=0.5,
+        alpha=3,
         cat_dissimilarity_matrix=cat)
     set_unitary_alignments = []
 
@@ -190,6 +191,7 @@ def test_best_alignment():
     combi_dis = CombinedCategoricalDissimilarity(
         categories=categories,
         delta_empty=0.5,
+        alpha=3,
         cat_dissimilarity_matrix=cat)
     set_unitary_alignments = []
 
