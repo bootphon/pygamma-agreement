@@ -296,6 +296,7 @@ def random_reference(reference_annotator: str,
             last_end = point
     return continuum
 
+
 def benchmark_gamma_cst(reference: Continuum,
                         dissimilarity: AbstractDissimilarity,
                         nb_magnitudes: int,

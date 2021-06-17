@@ -1,6 +1,7 @@
 #!usr/bin/env python
 from abc import ABCMeta, abstractmethod
-from typing import Optional, Literal
+from typing import Optional, Iterable
+from typing_extensions import Literal
 from sortedcontainers import SortedSet
 import numpy as np
 from pyannote.core import Segment
@@ -38,13 +39,14 @@ class AbstractContinuumSampler(metaclass=ABCMeta):
         pass
 
 
-class MathetContinuumSampler(AbstractContinuumSampler):
+class ShuffleContinuumSampler(AbstractContinuumSampler):
     """
     This continuum sampler uses the methods used in gamma-software, ie those described in
     gamma-paper : https://www.aclweb.org/anthology/J15-3003.pdf, section 5.2.
     and implemented in the GammaSoftware.
     We found some unexplained specificities, such as a minimum distance between pivots, and chose
-    to add them to our implementation so our results correspond to their program.
+    to add them to our implementation so our results correspond to their program's. They can be disabled
+    at construction.
     """
     _pivot_type: PivotType
     _min_dist_between_pivots: bool
@@ -53,6 +55,20 @@ class MathetContinuumSampler(AbstractContinuumSampler):
                  ground_truth_annotators: Optional[SortedSet] = None,
                  pivot_type: PivotType = 'int_pivot',
                  min_dist_between_pivots: bool = True):
+        """
+        Parameters
+        ----------
+        reference_continuum: Continuum
+            the continuum that will be shuffled into the samples
+        ground_truth_annotators: SortedSet of str, optional
+            the set of annotators (from the reference) that will be considered for sampling
+        pivot_type: 'int_pivot' or 'float_pivot'
+            the java implementation by Mathet et Al. uses a integer pivoting for shuffling, we judged it unclear that
+            the method descibed in the paper was typed this way so we left the option to generate pivots using floats.
+        min_dist_between_pivots:
+            if True, a minimal distance between the pivots (equal to half the average length of annotations in the
+            reference) is forced, in accordance to the java implementation, also undocumented in the research paper.
+        """
         super().__init__(reference_continuum, ground_truth_annotators)
         self._pivot_type = pivot_type
         self._min_dist_between_pivots = min_dist_between_pivots
@@ -101,6 +117,16 @@ class MathetContinuumSampler(AbstractContinuumSampler):
 
 
 class StatisticalContinuumSampler(AbstractContinuumSampler):
+    """
+    This sampler creates continua using the average and standard deviation of :
+
+    * The number of annotations per annotator
+    * The gap between two of an annotator's annotations
+    * The duration of the annotations' segments
+    The sample is thus created by computing normal distributions using these parameters.
+
+    It also requires the probability of occurence of each annotations category.
+    """
 
     _avg_nb_units_per_annotator: float
     _std_nb_units_per_annotator: float
@@ -142,12 +168,60 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
             self._categories_weight[categories_set.index(unit.annotation)] += 1
         self._categories_weight /= self._reference_continuum.num_units
 
-    def __init__(self, continuum: Continuum):
-        super().__init__(continuum)
-        self._set_gap_information()
-        self._set_duration_information()
-        self._set_categories_information()
-        self._set_nb_units_information()
+    def __init__(self, continuum: Continuum = None,
+                 annotators: Iterable[str] = None,
+                 avg_num_units_per_annotator: float = None, std_num_units_per_annotator: float = None,
+                 avg_gap: float = None, std_gap: float = None,
+                 avg_duration: float = None, std_duration: float = None,
+                 categories: np.ndarray = None, categories_weight: np.ndarray = None
+                 ):
+        """
+
+        Parameters
+        ----------
+        continuum: Continuum, optional
+            The continuum that will be analysed to obtain all statistical values needed for sample generation.
+            If not set, it is required that all the parameters are provided. If set, the other parameters will be
+            ignored.
+        annotators:
+            the annotators that will be involved in the samples
+        avg_num_units_per_annotator: float, optional
+            average number of units per annotator
+        std_num_units_per_annotator: float, optional
+            standard deviation of the number of units per annotator
+        avg_gap: float, optional
+            average gap between two of an annotator's annotations
+        std_gap: float, optional
+            standard deviation of the gap between two of an annotator's annotations
+        avg_duration: float, optional
+            average duration of an annotation
+        std_duration: float, optional
+            standard deviation of the duration of an annotation
+        categories: np.array[str, 1d]
+            The possible categories of the annotations
+        categories_weight: np.array[float, 1d]
+            The probability of occurence of each category. Can raise errors if len(categories) != len(category_weights)
+            and category_weights.sum() != 1.0.
+        """
+        if continuum is None:
+            reference_dummy = Continuum()
+            for annotator in annotators:
+                reference_dummy.add_annotator(annotator)
+            super().__init__(reference_dummy)
+            self._avg_nb_units_per_annotator = avg_num_units_per_annotator
+            self._std_nb_units_per_annotator = std_num_units_per_annotator
+            self._avg_gap = avg_gap
+            self._std_gap = std_gap
+            self._categories = categories
+            self._categories_weight = categories_weight
+            self._avg_unit_duration = avg_duration
+            self._std_unit_duration = std_duration
+        else:
+            super().__init__(continuum)
+            self._set_gap_information()
+            self._set_duration_information()
+            self._set_categories_information()
+            self._set_nb_units_information()
 
     @property
     def sample_from_continuum(self) -> Continuum:

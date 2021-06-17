@@ -45,6 +45,7 @@ from dataclasses import dataclass
 from pyannote.core import Annotation, Segment, Timeline
 from pyannote.database.util import load_rttm
 from sortedcontainers import SortedDict, SortedSet
+
 from typing_extensions import Literal
 from multiprocessing import Pool
 
@@ -53,7 +54,7 @@ from .numba_utils import chunked_cartesian_product
 
 if TYPE_CHECKING:
     from .alignment import UnitaryAlignment, Alignment
-    from .sampler import AbstractContinuumSampler, MathetContinuumSampler
+    from .sampler import AbstractContinuumSampler, ShuffleContinuumSampler
 
 CHUNK_SIZE = (10**5) // os.cpu_count()
 
@@ -608,7 +609,7 @@ class Continuum:
                          disorder=alignments_disorders.sum() / self.avg_num_annotations_per_annotator)
 
     def compute_gamma(self,
-                      dissimilarity: 'AbstractDissimilarity',
+                      dissimilarity: Optional['AbstractDissimilarity'] = None,
                       n_samples: int = 30,
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[SortedSet] = None,
@@ -619,8 +620,9 @@ class Continuum:
 
         Parameters
         ----------
-        dissimilarity: AbstractDissimilarity
-            dissimilarity instance. Used to compute the disorder between units.
+        dissimilarity: AbstractDissimilarity, optional
+            dissimilarity instance. Used to compute the disorder between units. If not set, it defaults
+            to the combined categorical dissimilarity with parameters taken from the java implementation.
         n_samples: optional int
             number of random continuum sampled from this continuum  used to
             estimate the gamma measure
@@ -639,9 +641,13 @@ class Continuum:
             random seed used to set up the random state before sampling the
             random continuua
         """
-        from .sampler import MathetContinuumSampler
+        from .dissimilarity import CombinedCategoricalDissimilarity
+        if dissimilarity is None:
+            dissimilarity = CombinedCategoricalDissimilarity(self.categories)
+
+        from .sampler import ShuffleContinuumSampler
         if sampler is None:
-            sampler = MathetContinuumSampler(self, ground_truth_annotators)
+            sampler = ShuffleContinuumSampler(self, ground_truth_annotators)
 
         if random_seed is not None:
             np.random.seed(random_seed)
@@ -650,10 +656,8 @@ class Continuum:
         p = Pool()
         result_pool = [
             # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
-            p.apply_async(_compute_best_alignment_job,
-                          (sampler.sample_from_continuum,
-                           dissimilarity,)
-                          )
+            p.apply_async(__compute_best_alignment_job__,
+                          (sampler.sample_from_continuum, dissimilarity,))
             for _ in range(n_samples)]
         chance_best_alignments: List[Alignment] = []
         chance_disorders: List[float] = []
@@ -676,10 +680,8 @@ class Continuum:
             required_samples = np.ceil((variation_coeff * confidence / precision_level) ** 2).astype(np.int32)
             if required_samples > n_samples:
                 result_pool = [
-                    p.apply_async(_compute_best_alignment_job,
-                                  (sampler.sample_from_continuum,
-                                   dissimilarity,)
-                                  )
+                    p.apply_async(__compute_best_alignment_job__,
+                                  (sampler.sample_from_continuum, dissimilarity,))
                     for _ in range(required_samples - n_samples)
                 ]
                 logging.info(f"Computing second batch of {required_samples - n_samples} "
@@ -735,23 +737,27 @@ class GammaResults:
 
     @property
     def n_samples(self):
+        """Number of samples used for computation of the expected disorder."""
         return len(self.chance_alignments)
 
     @property
     def alignments_nb(self):
+        """Number of unitary alignments in the best alignment."""
         return len(self.best_alignment.unitary_alignments)
 
     @property
     def observed_disorder(self) -> float:
         """Returns the disorder of the computed best alignment, i.e, the
-        observed agreement."""
+        observed disagreement."""
         return self.best_alignment.disorder
 
     @property
     def observed_cat_disorder(self) -> float:
+        """Observed disorder for gamma-cat (disorder of the best alignment)"""
         return self.best_alignment.gamma_k_disorder(self.dissimilarity, None)
 
     def observed_k_disorder(self, category: str) -> float:
+        """Observed disorder for gamma-k of the given category (disorder of best alignment)"""
         return self.best_alignment.gamma_k_disorder(self.dissimilarity, category)
 
     @property
@@ -763,7 +769,7 @@ class GammaResults:
     @property
     def expected_cat_disorder(self) -> float:
         """
-        Returns the expected disagreement (as defined for gamma-cat) using the same random samples
+        Returns the expected disagreement (as defined for gamma-cat) using the same random samples' best alignments
         as for gamma (the mean of the sampled continuua's gamma-cat disorders)
         """
         return float(np.mean(list(filter((lambda x: x is not np.NaN),
@@ -772,7 +778,7 @@ class GammaResults:
 
     def expected_k_disorder(self, category: str) -> float:
         """
-        Returns the expected disagreement (as defined for gamma-k) using the same random samples
+        Returns the expected disagreement (as defined for gamma-k) using the same random samples' best alignments
         as for gamma (the mean of the sampled continuua's gamma-k disorders)
         """
         return float(np.mean(list(filter((lambda x: x is not np.NaN),
@@ -806,7 +812,7 @@ class GammaResults:
         return max(1 - self.observed_k_disorder(category) / self.expected_k_disorder(category), 0.0)
 
 
-def _compute_best_alignment_job(continuum: Continuum, dissimilarity: AbstractDissimilarity):
+def __compute_best_alignment_job__(continuum: Continuum, dissimilarity: AbstractDissimilarity):
     """
     Function used to launch a multiprocessed job for calculating the best aligment of a continuum
     using the given dissimilarity.
