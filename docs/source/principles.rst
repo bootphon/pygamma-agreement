@@ -406,6 +406,38 @@ the gamma value is computed from a ``Continuum`` object, using a given ``Dissimi
     parameter gets closer to 0. If time of computation becomes to high, it is advised to lower the precision
     before anything else.
 
+Gamma-cat (:math:`γ_{cat}`) and Gamma-k (:math:`γ_{k}`)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+:math:`γ_{cat}` is an alternate inter-annotator agreement measure based on γ, made to evaluate the task of
+categorizing pre-defined units. Just like γ, it is a *chance-adjusted* metric :
+
+.. math::
+
+    \gamma_{cat} = 1 - \frac{\delta_{best}^{cat}}{\delta_{random}^{cat}}
+
+Where the disorder :math:`\delta_{cat}` of a continuum is computed using the same
+:ref:`best alignment <best_alignments>` used for the γ-agreement : this disorder is basically the average
+dissimilarity between pairs of non-empty :ref:`units <units>` in every :ref:`unitary alignment <alignments>`, weighted
+by the possitional agreement between the units.
+
+The :math:`γ_{cat}`-agreement can be obtained from the :ref:`GammaResults object <gamma_agreement>` easily:
+
+.. code-block:: python
+
+    print(f"gamma-cat value is : {gamma_results.gamma_cat} ")
+
+:math:`γ_{k}` is another alternate agreement measure. It only differs from :math:`γ_{cat}` by the fact that it
+only considers one defined category.
+
+The :math:`γ_{k}` value for a category alse can be obtained from the :ref:`GammaResults object <gamma_agreement>`:
+
+.. code-block:: python
+
+
+    for category in continuum.categories:
+        print(f"gamma-k of '{category}' is : {gamma_results.gamma_k(category)} ")
+
+Further details about the measures and the algorithms used for computing them can be consulted in [mathet2015]_.
 
 
 
