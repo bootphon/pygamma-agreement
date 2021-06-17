@@ -53,12 +53,8 @@ def test_gamma_3by100():
 def test_gamma_alexpaulsuzan():
     np.random.seed(4772)
     continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
-    dissim = CombinedCategoricalDissimilarity(continuum.categories,
-                                              delta_empty=1,
-                                              alpha=3,
-                                              beta=1)
 
-    gamma_results = continuum.compute_gamma(dissim, precision_level=0.01)
+    gamma_results = continuum.compute_gamma(precision_level=0.01)
     assert len(gamma_results.best_alignment.unitary_alignments) == 7
 
     assert gamma_results.best_alignment.disorder == pytest.approx(0.96, 0.01)

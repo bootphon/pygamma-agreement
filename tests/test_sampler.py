@@ -1,8 +1,10 @@
 """Test for the different continuum samplers"""
 from pathlib import Path
+import numpy as np
+from pygamma_agreement.continuum import Continuum
 
 from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity
-from pygamma_agreement.sampler import *
+from pygamma_agreement.sampler import ShuffleContinuumSampler, StatisticalContinuumSampler
 from sortedcontainers import SortedSet
 
 
@@ -10,7 +12,7 @@ def test_mathet_sampler():
     np.random.seed(4778)
     continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
 
-    sampler = MathetContinuumSampler(continuum,
+    sampler = ShuffleContinuumSampler(continuum,
                                      ground_truth_annotators=SortedSet(("Paul", "Suzan")),
                                      pivot_type='float_pivot')
     new_continuum = sampler.sample_from_continuum
@@ -49,6 +51,21 @@ def test_statistical_sampler():
     assert 0.41 <= gamma_results.gamma <= 0.44
     # Gamma-cat:
     assert 0.61 <= gamma_results.gamma_cat <= 0.64
+
+
+def test_statistical_sampler_manual():
+    np.random.seed(7455)
+    sampler = StatisticalContinuumSampler(avg_duration=10, avg_gap=5, avg_num_units_per_annotator=30,
+                                          annotators=['Martin', 'Martino', 'Martine'],
+                                          std_duration=3, std_gap=5, std_num_units_per_annotator=5,
+                                          categories=np.array(['Verb', 'Noun', 'Prep', 'Adj']),
+                                          categories_weight=np.array([0.1, 0.4, 0.2, 0.3]))
+    continuum = sampler.sample_from_continuum
+    gamma_results = continuum.compute_gamma()
+    gamma = gamma_results.gamma
+    gamma_cat = gamma_results.gamma_cat
+    for category in ['Verb', 'Noun', 'Prep', 'Adj']:
+        gamma_k = gamma_results.gamma_k(category)
 
 
 
