@@ -71,7 +71,7 @@ argparser.add_argument("-d", "--delimiter",
                        help="Column delimiter used for input and output csv")
 argparser.add_argument("-f", "--format", type=str, choices=["rttm", "csv"],
                        default="csv",
-                       help="Path to the output csv report")
+                       help="Format of the input file")
 argparser.add_argument("-o", "--output-csv", type=Path,
                        help="Path to the output csv report")
 argparser.add_argument("-a", "--alpha",
@@ -92,10 +92,17 @@ argparser.add_argument("-n", "--n-samples",
                             "will be sampled if precision level is not satisfied.")
 argparser.add_argument("-c", "--cat-dissim", type=str, choices=cat_dissim.arguments,
                        default="default",
-                       help="Categorical dissimilarity between annotations.")
+                       help="Categorical dissimilarity to use for measuring inter-annotation disorder. "
+                            "The default one gives 1.0 if annotation have different categories, 0.0 otherwise")
 argparser.add_argument("-v", "--verbose",
                        action="store_true",
                        help="Logs progress of the algorithm")
+argparser.add_argument("-g", "--gamma-cat",
+                       action="store_true",
+                       help="Outputs the gamma-cat in addition to the gamma-agreement")
+argparser.add_argument("-k", "--gamma-k",
+                       action="store_true",
+                       help="Outputs the gamma-k's every inputs' categories")
 
 
 def pygamma_cmd():
@@ -143,7 +150,14 @@ def pygamma_cmd():
         # start = time.time()
 
         results[file_path] = gamma.gamma
-        print(f"{file_path} : {gamma.gamma}")
+        print(f"{file_path}")
+        print(f"gamma={gamma.gamma}")
+        if args.gamma_cat:
+            print(f"gamma-cat={gamma.gamma_cat}")
+        if args.gamma_k:
+            for category in continuum.categories:
+                print(f"gamma-k('{category}')={gamma.gamma_k(category)}")
+
 
     if args.output_csv is not None:
         with open(args.output_csv, "w") as output_csv:
