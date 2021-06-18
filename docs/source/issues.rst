@@ -2,7 +2,6 @@
 Issues
 ======
 
-
 Gamma Software issues
 ---------------------
 
@@ -79,7 +78,46 @@ intended formula:
     dissimilarity.alpha = 1.0  # gamma_results stores the dissimilarity used for computing the
                                # best alignments, as it is needed for computing gamma-cat
     print(f"gamma-cat is {gamma_results.gamma_cat}")  # Gamma-k can also be influenced by alpha
-    dissimilarity.alpha = 3.0  # Add this line if you want to reuse the dissimilarity
+    dissimilarity.alpha = 3.0  # Add this line if you want to reuse the dissimilarity with alpha = 3
+
+
+How to obtain the results from the Gamma Software
+-------------------------------------------------
+
+This part explains how one can obtain an *almost* similar output as the Gamma Software using ``pygamma-agreement``.
+The two main differences being :
+
+Sampler
+^^^^^^^
+The sampler ``pygamma-agreement`` uses by default is **not** the one described in [mathet2015]_. Our sampler collects
+statistical data about the input continuum (averages / standard deviation of several values such as length of
+annotations), used then to generate the samples. We made this choice because we felt that their sampler, which simply
+re-shuffles the input continuum, was unconvincing for the need of 'true' randomness.
+
+To re-activate their sampler, you can use the ``--mathet-sampler`` (or ``-m``) when using the command line, or
+set manually the sampler used for computing the gamma agreement in python :
+
+.. code-block:: python
+
+    from pygamma_agreement import ShuffleContinuumSampler
+    ...
+    gamma_results = continuum.compute_gamma(dissim,
+                                            sampler=ShuffleContinuumSampler(new_continuum),
+                                            precision_level=0.01)
+
+Alpha value
+^^^^^^^^^^^
+The Gamma Software uses :math:`\alpha=3` in the combined categorical dissimilarity.
+
+To set it in the command line interface, simply use the ``--alpha 3`` (or ``-a 3``) option.
+In python, you need to manually create the combined categorical dissimilarity with the ``alpha=3`` parameter.
+
+.. code-block:: python
+
+    dissim = CombinedCategoricalDissimilarity(continuum.categories,
+                                              alpha=3)
+    gamma_results = continuum.compute_gamma(dissim, precision_level=0.01)
+
 
 Bugs in former versions of pygamma-agreement
 --------------------------------------------
@@ -92,13 +130,10 @@ output for gamma or other values. Those have been fixed in version `?`.
 
 In [mathet2015]_, section 4.3, a value is defined as such:
 
-.. pull-quote::
-
-    let :math:`\bar{x}={\frac{\sum_{i=1}^{n}x_i}{n}}` be the average number of annotations per annotator
+    "let :math:`\bar{x}={\frac{\sum_{i=1}^{n}x_i}{n}}` be the average number of annotations per annotator"
 
 A misreading made us interpret this value as the ***total number of annotations*** in the continuum. Thus, the values
-calculated by ``pygamma-agreement`` were strongly impacted, as those can differ a lot more than the intended one between
-sampled continua.
+calculated by ``pygamma-agreement`` were strongly impacted (a difference of sometimes *0.2* for smal continua) (fixed)
 
 2. Minimal distance between pivots
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -110,7 +145,7 @@ continuum using random shift positions; and they specify a constraint on those p
     "To limit this phenomenon, we do not allow the distance between two shifts to be less than the average length of units."
 
 In the previous version of the library, we overlooked this specificity of the sampling algorithm, which made the gamma
-values slightly bigger than expected (after correction of the previous, far more impactful bug).
+values slightly bigger than expected (even after correction of the previous, far more impactful error).
 
 
 ..  [mathet2015] Yann Mathet et Al.

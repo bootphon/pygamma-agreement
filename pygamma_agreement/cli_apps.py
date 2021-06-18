@@ -36,7 +36,7 @@ from argparse import RawTextHelpFormatter, ArgumentDefaultsHelpFormatter
 from pathlib import Path
 from typing import Dict, List
 
-from pygamma_agreement import Continuum, CombinedCategoricalDissimilarity, cat_dissim
+from pygamma_agreement import Continuum, CombinedCategoricalDissimilarity, cat_dissim, ShuffleContinuumSampler
 
 
 class RawAndDefaultArgumentFormatter(RawTextHelpFormatter,
@@ -82,18 +82,19 @@ argparser.add_argument("-b", "--beta",
                        help="Beta coefficient (categorical dissimilarity ponderation)")
 argparser.add_argument("-p", "--precision-level",
                        default=0.05, type=float,
-                       help="Precision level used for the gamma computation. "
-                            "This is a percentage, lower means more precision. "
+                       help="Precision level used for the gamma computation. \n"
+                            "This is a percentage, lower means more precision. \n"
                             "A value under 0.10 is advised.")
 argparser.add_argument("-n", "--n-samples",
                        default=30, type=int,
-                       help="Number of random continuua to be sampled for the "
-                            "gamma computation. Warning : additionnal continuua "
-                            "will be sampled if precision level is not satisfied.")
+                       help="Number of random continuua to be sampled for the \n"
+                            "gamma computation. Warning : additionnal continuua \n"
+                            "will be sampled if precision level is not satisfied.\n")
 argparser.add_argument("-d", "--cat-dissim", type=str, choices=cat_dissim.arguments,
                        default="default",
-                       help="Categorical dissimilarity to use for measuring inter-annotation disorder. "
-                            "The default one gives 1.0 if annotation have different categories, 0.0 otherwise")
+                       help="Categorical dissimilarity to use for measuring \n"
+                            "inter-annotation disorder. The default one gives 1.0\n"
+                            "if annotation have different categories, 0.0 otherwise")
 argparser.add_argument("-v", "--verbose",
                        action="store_true",
                        help="Logs progress of the algorithm")
@@ -103,6 +104,10 @@ argparser.add_argument("-c", "--gamma-cat",
 argparser.add_argument("-k", "--gamma-k",
                        action="store_true",
                        help="Outputs the gamma-k's every inputs' categories")
+argparser.add_argument("-m", "--mathet-sampler",
+                       action="store_true",
+                       help="Set the expected dissimilarity sampler to the one\n"
+                            "chosen by Mathet et Al.")
 
 
 def pygamma_cmd():
@@ -130,7 +135,7 @@ def pygamma_cmd():
     for file_path in input_files:
         start = time.time()
         if args.format == "csv":
-            continuum = Continuum.from_csv(file_path, delimiter=args.delimiter)
+            continuum = Continuum.from_csv(file_path, delimiter=args.separator)
         else:
             continuum = Continuum.from_rttm(file_path)
         logging.info(f"Finished loading continuum from {os.path.basename(file_path)} in {(time.time() - start) * 1000} ms")
@@ -143,8 +148,13 @@ def pygamma_cmd():
         logging.info(f"Finished loading dissimilarity object in {(time.time() - start) * 1000} ms")
         start = time.time()
 
+        sampler = None
+        if args.mathet_sampler:
+            sampler = ShuffleContinuumSampler(continuum)
+
         gamma = continuum.compute_gamma(dissimilarity=dissim,
                                         precision_level=args.precision_level,
+                                        sampler=sampler,
                                         n_samples=args.n_samples)
         logging.info(f"Finished computing best alignment & gamma in {(time.time() - start) * 1000} ms")
         # start = time.time()

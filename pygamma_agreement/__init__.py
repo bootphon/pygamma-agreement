@@ -35,3 +35,4 @@ from .sampler import (AbstractContinuumSampler,
                       ShuffleContinuumSampler,
                       StatisticalContinuumSampler)
 from .notebook import show_continuum, show_alignment
+from .cst import CorpusShufflingTool
