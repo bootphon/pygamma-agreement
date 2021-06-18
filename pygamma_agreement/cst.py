@@ -76,6 +76,7 @@ class CorpusShufflingTool:
 
     def corpus_from_reference(self, new_annotators: Union[int, Iterable[str]]):
         continuum = Continuum()
+        continuum.bound_inf, continuum.bound_sup = self._reference_continuum.bounds
         if isinstance(new_annotators, int):
             new_annotators = SortedSet(f"annotator_{i}" for i in range(new_annotators))
         else:
@@ -112,8 +113,8 @@ class CorpusShufflingTool:
         for annotator in continuum.annotators:
             security = np.random.choice(continuum[annotator])
             # security : if an annotator doesnt have any annotations gamma cant be computed.
-            for unit in continuum[annotator]:
-                if np.random.uniform() < self.magnitude:
+            for unit in list(continuum[annotator]):
+                if np.random.uniform(0, 1) < self.magnitude:
                     continuum[annotator].remove(unit)
             if len(continuum[annotator]) == 0:
                 continuum[annotator].add(security)

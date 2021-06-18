@@ -1,22 +1,27 @@
 """Tests for the CST & random reference generation"""
 from pathlib import Path
 
+import pygamma_agreement
 from pygamma_agreement.continuum import Continuum
 from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity
-from pygamma_agreement.cst import CorpusShufflingTool, random_reference
+from pygamma_agreement.cst import CorpusShufflingTool
 from pygamma_agreement.cat_dissim import cat_ord
+from pygamma_agreement.sampler import StatisticalContinuumSampler
 import numpy as np
 from sortedcontainers import SortedSet
 
 
 def test_random_reference():
     np.random.seed(4772)
-    categories = SortedSet(("aa", "ab", "ba", "bb"))
+    categories = np.array(["aa", "ab", "ba", "bb"])
     for _ in range(10):  # we do it a certain number of time to be sure no chance happened
-        continuum = random_reference("Martino", 200, 40, 10, 1,
-                                     categories,
-                                     overlapping=False)
-        assert continuum.categories == categories
+        continuum = StatisticalContinuumSampler(annotators=['Martino'], avg_num_units_per_annotator=40,
+                                                std_num_units_per_annotator=0,
+                                                avg_gap=0, std_gap=5,
+                                                avg_duration=10, std_duration=1,
+                                                categories=categories).sample_from_continuum
+
+        assert continuum.categories == SortedSet(categories)
         assert continuum.num_annotators == 1
         assert continuum.annotators[0] == "Martino"
 
@@ -66,7 +71,7 @@ def test_cst_0():
 
 def test_cst_1():
     np.random.seed(4772)
-    continuum = Continuum.from_csv(Path("tests/data/annotation_paul_suzann_alex.csv"))
+    continuum = Continuum.from_csv(Path("/home/leopold/PycharmProjects/pygamma-agreement/tests/data/annotation_paul_suzann_alex.csv"))
     categories = continuum.categories
     dissim = CombinedCategoricalDissimilarity(categories,
                                               delta_empty=1,
@@ -87,6 +92,8 @@ def test_cst_1():
                                                       cat_shuffle=True,
                                                       split=True,
                                                       include_ref=True)
+    pygamma_agreement.show_continuum(shuffled)
+    pygamma_agreement.show_continuum(shuffled_with_reference)
     assert shuffled.compute_gamma(dissim).gamma < 0.2
     assert shuffled_with_reference.compute_gamma(dissim).gamma < 0.2
 
@@ -107,9 +114,12 @@ def test_cst_cat():
     assert shuffled_cat.compute_gamma(dissim).gamma < 0.6
 
     # Now we generate a reference with A LOT of categories and close segments:
-    continuum_martino = random_reference("Martino", 200, 40, 20, 3,
-                                         40,  # 40 categories
-                                         overlapping=False)
+    continuum_martino = StatisticalContinuumSampler(annotators=['Martino'], avg_num_units_per_annotator=40,
+                                                    std_num_units_per_annotator=0,
+                                                    avg_gap=0, std_gap=5,
+                                                    avg_duration=10, std_duration=1,
+                                                    categories=np.array([str(i) for i in range(40)]))\
+        .sample_from_continuum
     cst_lots_of_cat = CorpusShufflingTool(0.9, continuum_martino)
     shuffled_cat = cst_lots_of_cat.corpus_from_reference(["martino", "Martingale", "Martine"])
     cst_lots_of_cat.category_shuffle(shuffled_cat, overlapping_fun=cat_ord, prevalence=True)

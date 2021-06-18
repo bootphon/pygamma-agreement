@@ -166,7 +166,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
                 except ValueError:
                     raise ValueError(
                         f"In segment {unit.segment} for annotator {annotator}: "
-                        f"annotation of category {unit.category} is not in "
+                        f"annotation of category {unit.annotation} is not in "
                         f"set {self.categories} of allowed categories")
             cat_array[-1] = -1  # We add an empty unit at the end of each line so that the carthesian product uses it
             categories_arrays.append(cat_array)

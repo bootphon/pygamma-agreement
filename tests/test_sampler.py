@@ -13,8 +13,8 @@ def test_mathet_sampler():
     continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
 
     sampler = ShuffleContinuumSampler(continuum,
-                                     ground_truth_annotators=SortedSet(("Paul", "Suzan")),
-                                     pivot_type='float_pivot')
+                                      ground_truth_annotators=SortedSet(("Paul", "Suzan")),
+                                      pivot_type='float_pivot')
     new_continuum = sampler.sample_from_continuum
     assert new_continuum.categories.issubset(continuum.categories)
     assert len(new_continuum.annotators) == 2
@@ -25,8 +25,8 @@ def test_mathet_sampler():
     gamma_results = new_continuum.compute_gamma(dissim,
                                                 sampler=ShuffleContinuumSampler(new_continuum),
                                                 precision_level=0.01)
-    assert gamma_results.gamma < 0.1
-    assert gamma_results.gamma_cat < 0.1
+    assert gamma_results.gamma < 0.2
+    assert gamma_results.gamma_cat < 0.2
 
 
 def test_statistical_sampler():

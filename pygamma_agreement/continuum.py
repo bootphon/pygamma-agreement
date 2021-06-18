@@ -109,6 +109,8 @@ class Continuum:
     """
     uri: str
     _annotations: SortedDict
+    bound_inf: float
+    bound_sup: float
 
     def __init__(self, uri: Optional[str] = None):
         """
@@ -122,6 +124,8 @@ class Continuum:
         self.uri = uri
         # Structure {annotator -> SortedSet}
         self._annotations: SortedDict = SortedDict()
+        self.bound_inf = 0.0
+        self.bound_sup = 0.0
 
     @classmethod
     def from_csv(cls,
@@ -166,7 +170,6 @@ class Continuum:
                         print(f"Discarded invalid segment : {str(e)}")
                     else:
                         raise e
-
         return continuum
 
     @classmethod
@@ -201,6 +204,7 @@ class Continuum:
         """
         continuum = Continuum(self.uri)
         continuum._annotations = deepcopy(self._annotations)
+        continuum.bound_inf, continuum.bound_sup = self.bound_inf, self.bound_sup
         return continuum
 
     def __bool__(self):
@@ -250,18 +254,7 @@ class Continuum:
     @property
     def bounds(self) -> Tuple[float, float]:
         """Start of 'smallest' annotation and end of 'largest' annotation."""
-        bounds_inf = min(next(iter(annotation_set)).segment.start for annotation_set in self._annotations.values())
-        bounds_sup = max(next(reversed(annotation_set)).segment.end for annotation_set in self._annotations.values())
-        return bounds_inf, bounds_sup
-
-    @property
-    def bounds_narrow(self):
-        """End of 'smallest' annotation and start of 'largest' annotation."""
-        bounds_inf = min(next(iter(annotation_set)).segment.end for annotation_set in self._annotations.values())
-        bounds_sup = max(next(reversed(annotation_set)).segment.start for annotation_set in self._annotations.values())
-        return bounds_inf, bounds_sup
-
-
+        return self.bound_inf, self.bound_sup
 
     @property
     def num_annotators(self) -> int:
@@ -316,6 +309,8 @@ class Continuum:
             self._annotations[annotator] = SortedSet()
 
         self._annotations[annotator].add(Unit(segment, annotation))
+        self.bound_inf = min(self.bound_inf, segment.start)
+        self.bound_sup = max(self.bound_sup, segment.end)
 
     def add_annotation(self, annotator: str, annotation: Annotation):
         """
@@ -800,16 +795,25 @@ class GammaResults:
     @property
     def gamma(self) -> float:
         """Returns the gamma value"""
-        return 1 - self.observed_disorder / self.expected_disorder
+        observed_disorder = self.observed_disorder
+        if observed_disorder == 0:
+            return 1
+        return 1 - observed_disorder / self.expected_disorder
 
     @property
     def gamma_cat(self) -> float:
         """Returns the gamma-cat value"""
-        return 1 - self.observed_cat_disorder / self.expected_cat_disorder
+        observed_cat_disorder = self.observed_cat_disorder
+        if observed_cat_disorder == 0:
+            return 1
+        return 1 - observed_cat_disorder / self.expected_cat_disorder
 
     def gamma_k(self, category: str) -> float:
         """Returns the gamma-k value for the given category"""
-        return 1 - self.observed_k_disorder(category) / self.expected_k_disorder(category)
+        observed_k_disorder = self.observed_k_disorder(category)
+        if observed_k_disorder == 0:
+            return 1
+        return 1 - observed_k_disorder / self.expected_k_disorder(category)
 
 
 def __compute_best_alignment_job__(continuum: Continuum, dissimilarity: AbstractDissimilarity):

@@ -96,16 +96,18 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
 
             rnd_annotator = np.random.choice(annotators)
             units = continuum[rnd_annotator]
-            sampled_annotation = SortedSet()
+            new_annotator = f'Sampled_annotation {idx}'
             for unit in units:
                 if unit.segment.start + pivot > bound_sup:
-                    new_segment = Segment(unit.segment.start + pivot + bound_inf - bound_sup,
-                                          unit.segment.end + pivot + bound_inf - bound_sup)
+                    new_continuum.add(new_annotator,
+                                      Segment(unit.segment.start + pivot + bound_inf - bound_sup,
+                                              unit.segment.end + pivot + bound_inf - bound_sup),
+                                      unit.annotation)
                 else:
-                    new_segment = Segment(unit.segment.start + pivot,
-                                          unit.segment.end + pivot)
-                sampled_annotation.add(Unit(new_segment, unit.annotation))
-            new_continuum[f'Sampled_annotation {idx}'] = sampled_annotation
+                    new_continuum.add(new_annotator,
+                                      Segment(unit.segment.start + pivot,
+                                              unit.segment.end + pivot),
+                                      unit.annotation)
         return new_continuum
 
 
@@ -140,6 +142,9 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
             else:
                 gaps.append(unit.segment.start - last_unit.segment.end)
             last_unit = unit
+        for annotation_set in self._reference_continuum._annotations.values():
+            if annotation_set[0].segment.start > 0:
+                gaps.append(annotation_set[0].segment.start)
         self._avg_gap = float(np.mean(gaps))
         self._std_gap = float(np.std(gaps))
 
@@ -219,9 +224,9 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
     @property
     def sample_from_continuum(self) -> Continuum:
         new_continnum = Continuum()
-        for annotator in self._reference_continuum.annotators:
+        for annotator in self._ground_truth_annotators:
             last_point = 0
-            nb_units = int(np.random.normal(self._avg_nb_units_per_annotator, self._std_nb_units_per_annotator))
+            nb_units = max(1, int(np.random.normal(self._avg_nb_units_per_annotator, self._std_nb_units_per_annotator)))
             for _ in range(nb_units):
                 gap = np.random.normal(self._avg_gap, self._std_gap)
                 length = abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
