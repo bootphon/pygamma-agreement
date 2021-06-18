@@ -609,7 +609,7 @@ class Continuum:
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[SortedSet] = None,
                       sampler: 'AbstractContinuumSampler' = None,
-                      random_seed: Optional[int] = 4577,
+                      random_seed: Optional[int] = None,
                       ) -> 'GammaResults':
         """
 
