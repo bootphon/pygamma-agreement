@@ -28,13 +28,14 @@
 
 import numpy.random
 
-from .continuum import *
+from .continuum import Annotator, Continuum, Unit
 from .dissimilarity import AbstractDissimilarity
 from .sampler import AbstractContinuumSampler
 from typing import Union, Iterable, Callable, List, Tuple
 from sortedcontainers import SortedSet
 import numpy as np
 from pyannote.core import Segment
+import logging
 
 
 class CorpusShufflingTool:
@@ -49,7 +50,6 @@ class CorpusShufflingTool:
     def __init__(self,
                  magnitude: float,
                  reference_continuum: Continuum,
-                 reference_annotator: str = None,
                  categories: Iterable[str] = None):
         """
         Parameters
@@ -67,14 +67,14 @@ class CorpusShufflingTool:
         if len(reference_annotators) > 1:
             logging.warning("Warning : a reference continuum with multiple annotators was given to the CST, so "
                             "its first annotator in alphabetical order will be used as reference.")
-        self._reference_annotator: str = reference_annotators[0]
+        self._reference_annotator: Annotator = reference_annotators[0]
         self._reference_continuum: Continuum = reference_continuum
         self._categories: SortedSet = self._reference_continuum.categories
         if categories is not None:
             for category in categories:
                 self._categories.add(category)
 
-    def corpus_from_reference(self, new_annotators: Union[int, Iterable[str]]):
+    def corpus_from_reference(self, new_annotators: Union[int, Iterable[Annotator]]):
         continuum = Continuum()
         continuum.bound_inf, continuum.bound_sup = self._reference_continuum.bounds
         if isinstance(new_annotators, int):
@@ -186,7 +186,7 @@ class CorpusShufflingTool:
                 + overlapping_matrix * (self.magnitude - self.magnitude ** 3)
 
         for annotator in continuum.annotators:
-            for unit in continuum[annotator]:
+            for unit in list(continuum[annotator]):
                 continuum[annotator].remove(unit)
                 try:
                     new_category = np.random.choice(categories, p=prob_matrix[category_weights.index(unit.annotation)])
@@ -206,9 +206,11 @@ class CorpusShufflingTool:
             units = continuum[annotator]
             for _ in range(int(self.magnitude * self.SPLIT_FACTOR * len(units))):
                 to_split = units.pop(numpy.random.randint(0, len(units)))
-                cut = numpy.random.uniform(to_split.segment.start, to_split.segment.end)
-                units.add(Unit(Segment(cut, to_split.segment.end), to_split.annotation))
-                units.add(Unit(Segment(to_split.segment.start, cut), to_split.annotation))
+                security = (to_split.segment.end - to_split.segment.start)*0.01
+                cut = numpy.random.uniform(to_split.segment.start + security, to_split.segment.end)
+
+                continuum.add(annotator, Segment(cut, to_split.segment.end), to_split.annotation)
+                continuum.add(annotator, Segment(to_split.segment.start, cut), to_split.annotation)
                 del to_split
 
     def corpus_shuffle(self,

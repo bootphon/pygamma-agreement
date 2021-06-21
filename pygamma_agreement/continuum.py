@@ -59,6 +59,7 @@ if TYPE_CHECKING:
 CHUNK_SIZE = (10**6) // os.cpu_count()
 
 # defining Annotator type
+Annotator = str
 PivotType = Literal["float_pivot", "int_pivot"]
 PrecisionLevel = Literal["high", "medium", "low"]
 
@@ -103,7 +104,7 @@ class Unit:
 class Continuum:
     """
     Representation of a continuum, i.e a set of annotated segments by multiple annotators.
-    It is implemented as a dictionnary of sets (all sorted) :
+    It is implemented as a dictionnarfrom .notebook import show_continuumy of sets (all sorted) :
 
     ``{'annotator1': {unit1, ...}, ...}``
     """
@@ -235,7 +236,7 @@ class Continuum:
 
     @property
     def category_weights(self) -> SortedDict:
-        """
+        """from .notebook import show_continuum
         Returns a dictionnary where the keys are the categories in the continuum, and a key's value
         is the proportion of occurence of the category in the continuum.
         """
@@ -282,20 +283,20 @@ class Continuum:
         """Mean of the annotated segments' durations"""
         return sum(unit.segment.duration for _, unit in self) / self.num_units
 
-    def add_annotator(self,  annotator: str):
+    def add_annotator(self,  annotator: Annotator):
         """
         Adds the annotator to the set, with no annotated segment. Does nothing if already present.
         """
         if annotator not in self._annotations:
             self._annotations[annotator] = SortedSet()
 
-    def add(self, annotator: str, segment: Segment, annotation: Optional[str] = None):
+    def add(self, annotator: Annotator, segment: Segment, annotation: Optional[str] = None):
         """
         Add a segment to the continuum
 
         Parameters
         ----------
-        annotator: str
+        annotator: Annotator (str)
             The annotator that produced the added annotation
         segment: `pyannote.core.Segment`
             The segment for that annotation
@@ -312,13 +313,13 @@ class Continuum:
         self.bound_inf = min(self.bound_inf, segment.start)
         self.bound_sup = max(self.bound_sup, segment.end)
 
-    def add_annotation(self, annotator: str, annotation: Annotation):
+    def add_annotation(self, annotator: Annotator, annotation: Annotation):
         """
         Add a full pyannote annotation to the continuum.
 
         Parameters
         ----------
-        annotator: str
+        annotator: Annotator (str)
             A string id for the annotator who produced that annotation.
         annotation: pyannote.core.Annotation
             A pyannote `Annotation` object. If a label is present for a given
@@ -327,13 +328,13 @@ class Continuum:
         for segment, _, label in annotation.itertracks(yield_label=True):
             self.add(annotator, segment, label)
 
-    def add_timeline(self, annotator: str, timeline: Timeline):
+    def add_timeline(self, annotator: Annotator, timeline: Timeline):
         """
         Add a full pyannote timeline to the continuum.
 
         Parameters
         ----------
-        annotator: str
+        annotator: Annotator (str)
             A string id for the annotator who produced that timeline.
         timeline: `pyannote.core.Timeline`
             A pyannote `Annotation` object. No annotation will be attached to
@@ -343,7 +344,7 @@ class Continuum:
             self.add(annotator, segment)
 
     def add_textgrid(self,
-                     annotator: str,
+                     annotator: Annotator,
                      tg_path: Union[str, Path],
                      selected_tiers: Optional[List[str]] = None,
                      use_tier_as_annotation: bool = False):
@@ -352,7 +353,7 @@ class Continuum:
 
         Parameters
         ----------
-        annotator: str
+        annotator: Annotator (str)
             A string id for the annotator who produced that TextGrid.
         tg_path: `Path` or str
             Path to the textgrid file.
@@ -382,7 +383,7 @@ class Continuum:
                              interval.mark)
 
     def add_elan(self,
-                 annotator: str,
+                 annotator: Annotator,
                  eaf_path: Union[str, Path],
                  selected_tiers: Optional[List[str]] = None,
                  use_tier_as_annotation: bool = False):
@@ -391,7 +392,7 @@ class Continuum:
 
         Parameters
         ----------
-        annotator: str
+        annotator: Annotator (str)
             A string id for the annotator who produced that ELAN file.
         eaf_path: `Path` or str
             Path to the .eaf (ELAN) file.
@@ -447,7 +448,7 @@ class Continuum:
         """
         return self.merge(other, in_place=False)
 
-    def __setitem__(self, annotator: str, units: SortedSet):
+    def __setitem__(self, annotator: Annotator, units: SortedSet):
         """
         Overwrites the annotators's set of units with the given one.
 
@@ -458,7 +459,7 @@ class Continuum:
 
         Parameters
         ----------
-        annotator: str
+        annotator: Annotator (str)
             Any annotator, existing or not in the continuum.
         units: SortedSet of Unit
             A SortedSet of units, that will become the annotator's.
@@ -508,7 +509,7 @@ class Continuum:
         """
         return SortedSet(self._annotations.keys())
 
-    def iterunits(self, annotator: str):
+    def iterunits(self, annotator: Annotator):
         """Iterate over units from the given annotator
         (in chronological and alphabetical order if annotations are present)
 

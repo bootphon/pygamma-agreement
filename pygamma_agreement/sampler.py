@@ -70,6 +70,9 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
 
     @staticmethod
     def __remove_pivot_segment__(pivot: float, segments: List[Segment], dist: float) -> List[Segment]:
+        """
+        Returns a copy of the given list of segments, minus the segment delimited by [pivot - dist, pivot + dist].
+        """
         new_segments = []
         while len(segments) > 0:
             segment = segments.pop()
@@ -87,6 +90,10 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         return new_segments
 
     def __random_from_segments__(self, segments: List[Segment]) -> float:
+        """
+        Returns a random value from the provided list of segments, by randomly choosing
+        a segment (weighted by its length) and then using uniform distribution in it.
+        """
         segments = np.array(segments)
         weights = np.array(list(segment.end - segment.start for segment in segments))
         weights /= np.sum(weights)
@@ -116,16 +123,19 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
             units = continuum[rnd_annotator]
             new_annotator = f'Sampled_annotation {idx}'
             for unit in units:
-                if unit.segment.start + pivot > bound_sup:
-                    new_continuum.add(new_annotator,
-                                      Segment(unit.segment.start + pivot + bound_inf - bound_sup,
-                                              unit.segment.end + pivot + bound_inf - bound_sup),
-                                      unit.annotation)
-                else:
-                    new_continuum.add(new_annotator,
-                                      Segment(unit.segment.start + pivot,
-                                              unit.segment.end + pivot),
-                                      unit.annotation)
+                try:
+                    if unit.segment.start + pivot > bound_sup:
+                        new_continuum.add(new_annotator,
+                                          Segment(unit.segment.start + pivot + bound_inf - bound_sup,
+                                                  unit.segment.end + pivot + bound_inf - bound_sup),
+                                          unit.annotation)
+                    else:
+                        new_continuum.add(new_annotator,
+                                          Segment(unit.segment.start + pivot,
+                                                  unit.segment.end + pivot),
+                                          unit.annotation)
+                except ValueError:
+                    pass
         return new_continuum
 
 
@@ -248,6 +258,8 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
             for _ in range(nb_units):
                 gap = np.random.normal(self._avg_gap, self._std_gap)
                 length = abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
+                while length <= 0:
+                    length = abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
                 category = np.random.choice(self._categories, p=self._categories_weight)
                 start = last_point + gap
                 end = start + length
