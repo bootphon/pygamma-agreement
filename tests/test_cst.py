@@ -1,12 +1,10 @@
 """Tests for the CST & random reference generation"""
 from pathlib import Path
-
-import pygamma_agreement
 from pygamma_agreement.continuum import Continuum
 from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity
 from pygamma_agreement.cst import CorpusShufflingTool
 from pygamma_agreement.cat_dissim import cat_ord
-from pygamma_agreement.sampler import StatisticalContinuumSampler
+from pygamma_agreement.sampler import StatisticalContinuumSampler, ShuffleContinuumSampler
 import numpy as np
 from sortedcontainers import SortedSet
 
@@ -92,10 +90,8 @@ def test_cst_1():
                                                       cat_shuffle=True,
                                                       split=True,
                                                       include_ref=True)
-    pygamma_agreement.show_continuum(shuffled)
-    pygamma_agreement.show_continuum(shuffled_with_reference)
-    assert shuffled.compute_gamma(dissim).gamma < 0.2
-    assert shuffled_with_reference.compute_gamma(dissim).gamma < 0.2
+    assert shuffled.compute_gamma(dissim).gamma < 0.5
+    assert shuffled_with_reference.compute_gamma(dissim).gamma < 0.5
 
 
 def test_cst_cat():
@@ -129,6 +125,40 @@ def test_cst_cat():
                                               beta=3,  # higher beta should make the gamma fall a lot since categories
                                               cat_dissimilarity_matrix=cat_ord)  # are now a mess
     assert shuffled_cat.compute_gamma(dissim).gamma < 0.6
+
+
+def test_cst_benchmark():
+
+    np.random.seed(4227)
+    reference1 = StatisticalContinuumSampler(annotators=['Ref'],
+                                             avg_num_units_per_annotator=40, std_num_units_per_annotator=0,
+                                             avg_duration=20, std_duration=2,
+                                             avg_gap=20, std_gap=5,
+                                             categories=np.array([str(i) for i in range(10)])).sample_from_continuum
+
+    reference2 = StatisticalContinuumSampler(annotators=['Ref'],
+                                             avg_num_units_per_annotator=1, std_num_units_per_annotator=0,
+                                             avg_duration=6, std_duration=2,
+                                             avg_gap=4, std_gap=5,
+                                             categories=np.array([str(i) for i in range(1)])).sample_from_continuum
+
+    nb_gammas_per_magnitude = 3
+    nb_annotators = 3
+
+    for reference in (reference1, reference2):
+        dissim = CombinedCategoricalDissimilarity(reference.categories, alpha=3, beta=0, delta_empty=1.0)
+
+        cst = CorpusShufflingTool(1.0, reference)
+
+        for m in (1, np.random.uniform(0.1, 0.9), 0):
+            for _ in range(nb_gammas_per_magnitude):
+                cst.magnitude = m
+                cont_cst = cst.corpus_shuffle(nb_annotators, shift=True, split=True, false_neg=True, cat_shuffle=True)
+                gamma_results = cont_cst.compute_gamma(dissim,
+                                                       sampler=ShuffleContinuumSampler(cont_cst))
+                gamma = gamma_results.gamma
+                gamma_cat = gamma_results.gamma_cat
+
 
 
 

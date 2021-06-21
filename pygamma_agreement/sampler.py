@@ -1,8 +1,8 @@
 #!usr/bin/env python
 from abc import ABCMeta, abstractmethod
-from typing import Optional, Iterable
+from typing import Optional, Iterable, List
 from typing_extensions import Literal
-from sortedcontainers import SortedSet
+from sortedcontainers import SortedSet, SortedList
 import numpy as np
 from pyannote.core import Segment
 from .continuum import Continuum, Unit
@@ -68,6 +68,35 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         super().__init__(reference_continuum, ground_truth_annotators)
         self._pivot_type = pivot_type
 
+    @staticmethod
+    def __remove_pivot_segment__(pivot: float, segments: List[Segment], dist: float) -> List[Segment]:
+        new_segments = []
+        while len(segments) > 0:
+            segment = segments.pop()
+            if segment.start > pivot - dist:
+                if segment.end < pivot + dist:
+                    continue
+                else:
+                    new_segments.append(Segment(pivot + dist, segment.end))
+            else:
+                if segment.end > pivot + dist:
+                    new_segments.append(Segment(segment.start, pivot - dist))
+                    new_segments.append(Segment(pivot + dist, segment.end))
+                else:
+                    new_segments.append(Segment(segment.start, pivot - dist))
+        return new_segments
+
+    def __random_from_segments__(self, segments: List[Segment]) -> float:
+        segments = np.array(segments)
+        weights = np.array(list(segment.end - segment.start for segment in segments))
+        weights /= np.sum(weights)
+        segment = np.random.choice(np.array(segments), p=weights)
+        if self._pivot_type == 'int_pivot':
+            return int(np.random.uniform(segment.start, segment.end))
+        else:
+            return np.random.uniform(segment.start, segment.end)
+
+
     @property
     def sample_from_continuum(self) -> Continuum:
         assert self._pivot_type in ('float_pivot', 'int_pivot')
@@ -76,24 +105,13 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         bound_inf, bound_sup = continuum.bounds
         new_continuum = Continuum()
         annotators = self._ground_truth_annotators
-        pivots = []
+        segments_available = [Segment(bound_inf, bound_sup)]
         for idx in range(len(annotators)):
-            if self._pivot_type == 'float_pivot':
-                pivot: float = np.random.uniform(bound_inf, bound_sup)
-                # While the pivot is closer than min_dist to a precedent pivot, pick another one
-                # (takes wrapping of continuum into consideration).
-                while any(map((lambda x: abs(x - pivot) < min_dist_between_pivots or
-                               abs(x - (pivot - bound_sup)) < min_dist_between_pivots),
-                              pivots)):
-                    pivot = np.random.uniform(bound_inf, bound_sup)
+            if len(segments_available) != 0:
+                pivot: float = self.__random_from_segments__(segments_available)
+                segments_available = self.__remove_pivot_segment__(pivot, segments_available, min_dist_between_pivots)
             else:
-                pivot: int = np.random.randint(np.floor(bound_inf), np.ceil(bound_sup))
-                while any(map((lambda x: abs(x - pivot) < min_dist_between_pivots or
-                               abs(x - (pivot - bound_sup)) < min_dist_between_pivots),
-                              pivots)):
-                    pivot = np.random.randint(np.floor(bound_inf), np.ceil(bound_sup))
-            pivots.append(pivot)
-
+                pivot = np.random.uniform(bound_inf, bound_sup)
             rnd_annotator = np.random.choice(annotators)
             units = continuum[rnd_annotator]
             new_annotator = f'Sampled_annotation {idx}'

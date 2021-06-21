@@ -43,7 +43,7 @@ class CorpusShufflingTool:
     (https://www.aclweb.org/anthology/J15-3003.pdf#page=30).
     """
     SHIFT_FACTOR = 2
-    SPLIT_FACTOR = 1
+    SPLIT_FACTOR = 5
     FALSE_POS_FACTOR = 1
 
     def __init__(self,
@@ -113,9 +113,10 @@ class CorpusShufflingTool:
         for annotator in continuum.annotators:
             security = np.random.choice(continuum[annotator])
             # security : if an annotator doesnt have any annotations gamma cant be computed.
-            for unit in list(continuum[annotator]):
-                if np.random.uniform(0, 1) < self.magnitude:
-                    continuum[annotator].remove(unit)
+            for unit in np.random.choice(list(continuum[annotator]),
+                                         int(self.magnitude * len(continuum[annotator])),
+                                         replace=False):
+                continuum[annotator].remove(unit)
             if len(continuum[annotator]) == 0:
                 continuum[annotator].add(security)
 

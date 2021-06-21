@@ -56,7 +56,7 @@ if TYPE_CHECKING:
     from .alignment import UnitaryAlignment, Alignment
     from .sampler import AbstractContinuumSampler, StatisticalContinuumSampler
 
-CHUNK_SIZE = (10**5) // os.cpu_count()
+CHUNK_SIZE = (10**6) // os.cpu_count()
 
 # defining Annotator type
 PivotType = Literal["float_pivot", "int_pivot"]
@@ -609,7 +609,6 @@ class Continuum:
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[SortedSet] = None,
                       sampler: 'AbstractContinuumSampler' = None,
-                      random_seed: Optional[int] = None,
                       ) -> 'GammaResults':
         """
 
@@ -631,10 +630,7 @@ class Continuum:
             against some ground truth annotation.
         sampler: AbstractContinuumSampler
             Sampler object, which implements a sampling strategy for creating random continuua used
-            to calculate the expected disorder. If not set, defaults to the same one as in the Gamma Software.
-        random_seed: optional int
-            random seed used to set up the random state before sampling the
-            random continuua
+            to calculate the expected disorder. If not set, defaults to the Statistical continuum sampler
         """
         from .dissimilarity import CombinedCategoricalDissimilarity
         if dissimilarity is None:
@@ -643,9 +639,6 @@ class Continuum:
         from .sampler import StatisticalContinuumSampler
         if sampler is None:
             sampler = StatisticalContinuumSampler(self, ground_truth_annotators)
-
-        if random_seed is not None:
-            np.random.seed(random_seed)
 
         # Multiprocessed computation of sample disorder
         p = Pool()

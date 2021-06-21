@@ -32,6 +32,8 @@ import csv
 import logging
 import os
 import time
+import json
+import numpy as np
 from argparse import RawTextHelpFormatter, ArgumentDefaultsHelpFormatter
 from pathlib import Path
 from typing import Dict, List
@@ -69,11 +71,19 @@ argparser.add_argument("input_csv", type=Path, nargs="+",
 argparser.add_argument("-s", "--separator",
                        default=",", type=str,
                        help="Column delimiter used for input and output csv")
+argparser.add_argument("--seed",
+                       default=None, type=int,
+                       help="random seed")
 argparser.add_argument("-f", "--format", type=str, choices=["rttm", "csv"],
                        default="csv",
                        help="Format of the input file")
-argparser.add_argument("-o", "--output-csv", type=Path,
-                       help="Path to the output csv report")
+
+output = argparser.add_mutually_exclusive_group()
+output.add_argument("-o", "--output-csv", type=Path,
+                    help="Path to the output csv report")
+output.add_argument("-j", "--output-json", type=Path,
+                    help="Path to the output json report")
+
 argparser.add_argument("-a", "--alpha",
                        default=1, type=float,
                        help="Alpha coefficient (positional dissimilarity ponderation)")
@@ -115,7 +125,7 @@ def pygamma_cmd():
     logging.getLogger().setLevel(logging.INFO if args.verbose else logging.ERROR)
 
     input_files: List[Path] = []
-    results: List[List[str]] = []
+    results: List = []
     for input_csv in args.input_csv:
         input_csv: Path
 
@@ -131,6 +141,10 @@ def pygamma_cmd():
             logging.error(f"Input CSV file or folder '{input_csv}' couldn't be found")
 
     logging.info(f"Found {len(input_files)} csv files.")
+
+    json_dict = {}
+    if args.seed is not None:
+        np.random.seed(args.seed)
 
     for file_path in input_files:
         start = time.time()
@@ -160,7 +174,7 @@ def pygamma_cmd():
         # start = time.time()
 
         result_list = [file_path]
-        if args.output_csv is None:
+        if args.output_csv is None and args.output_json is None:
             print(f"{file_path}")
             print(f"gamma={gamma.gamma}")
             if args.gamma_cat:
@@ -169,20 +183,27 @@ def pygamma_cmd():
                 for category in continuum.categories:
                     print(f"gamma-k('{category}')={gamma.gamma_k(category)}")
         else:
-            result_list.append(str(gamma.gamma))
+            result_list.append(gamma.gamma)
             if args.gamma_cat:
-                result_list.append(str(gamma.gamma_cat))
+                result_list.append(gamma.gamma_cat)
             if args.gamma_k:
-                result_list.append(str({category: gamma.gamma_k(category) for category in continuum.categories}))
+                result_list.append({category: gamma.gamma_k(category) for category in continuum.categories})
         results.append(result_list)
 
+    labels = ['filename', 'gamma']
+    if args.gamma_cat:
+        labels.append('gamma-cat')
+    if args.gamma_k:
+        labels.append("gamma-k")
     if args.output_csv is not None:
-        labels = ['filename', 'gamma']
-        if args.gamma_cat:
-            labels.append('gamma-cat')
-        if args.gamma_k:
-            labels.append("gamma-k's")
         with open(args.output_csv, "w") as output_csv:
             writer = csv.writer(output_csv, delimiter=args.separator)
             writer.writerow(labels)
             writer.writerows(results)
+    elif args.output_json is not None:
+        for result in results:
+            json_dict[str(result[0])] = {label: result for (label, result) in zip(labels[1:], result[1:])}
+        with open(args.output_json, "w") as output_json:
+            json.dump(json_dict, output_json, indent=4)
+
+

@@ -239,6 +239,7 @@ class Alignment(AbstractAlignment):
                             "non-combined dissimilarity.")
         total_disorder = 0
         total_weight = 0
+        noloop = True
         for unitary_alignment in self:
             nv = unitary_alignment.nb_units
             if nv < 2:
@@ -247,17 +248,25 @@ class Alignment(AbstractAlignment):
                 weight_base = 1 / (nv - 1)
             for i, (_, unit1) in enumerate(unitary_alignment.n_tuple):
                 for _, unit2 in unitary_alignment.n_tuple[i+1:]:
-                    if unit1 is None or unit2 is None:
-                        continue
                     # Case handler for gamma-k
-                    if category is not None and unit1.annotation != category and unit2.annotation != category:
+                    if category is not None and ((unit1 is None or unit1.annotation != category)
+                                                 and (unit2 is None or unit2.annotation != category)):
                         continue
+                    if unit1 is None or unit2 is None:
+                        # extra case for unaligned annotations, experimental
+                        """if unit1 is not None or unit2 is not None:
+                            total_disorder += dissimilarity.delta_empty * dissimilarity.delta_empty
+                            total_weight += dissimilarity.delta_empty"""
+                        continue
+                    noloop = False
                     pos_dissim = dissimilarity.alpha * dissimilarity.positional_dissim.d(unit1, unit2)
                     weight_confidence = max(0, 1 - pos_dissim)
                     cat_dissim = dissimilarity.categorical_dissim.d(unit1, unit2)
                     weight = weight_base * weight_confidence
                     total_disorder += cat_dissim * weight
                     total_weight += weight
+        if noloop:
+            return 1.0
         if total_weight == 0:
             return np.NaN
         return total_disorder / total_weight

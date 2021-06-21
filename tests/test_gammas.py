@@ -73,7 +73,7 @@ def test_gamma_alexpaulsuzan():
     # Gamma-k's
     gamma_ks = {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1}
     for i in range(1, 7):
-        assert gamma_ks[str(i)] == gamma_results.gamma_k(str(i))
+        assert gamma_ks[str(i)] - 0.01 <= gamma_results.gamma_k(str(i)) <= gamma_ks[str(i)] + 0.01
     # assert gamma_results.gamma_k('7') is np.NaN
 
 
