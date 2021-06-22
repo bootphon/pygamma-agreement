@@ -24,16 +24,16 @@
 # SOFTWARE.
 
 # AUTHORS
-# Rachid RIAD & Hadrien TITEUX
+# Rachid RIAD, Hadrien TITEUX, Léopold FAVRE
 
-import numpy.random
-
-from .continuum import Annotator, Continuum, Unit
-from typing import Union, Iterable, Callable, List, Tuple
-from sortedcontainers import SortedSet
-import numpy as np
-from pyannote.core import Segment
 import logging
+from typing import Union, Iterable, Callable
+import numpy as np
+import numpy.random
+from pyannote.core import Segment
+from sortedcontainers import SortedSet
+
+from .continuum import Annotator, Continuum
 
 
 class CorpusShufflingTool:
@@ -90,7 +90,7 @@ class CorpusShufflingTool:
         of bounds proportionnal to the magnitude of the CST and the length of the segment.
         """
         shift_max = self.magnitude * self.SHIFT_FACTOR * \
-            self._reference_continuum.avg_length_unit
+                    self._reference_continuum.avg_length_unit
         for annotator in continuum.annotators:
             for unit in continuum[annotator]:
                 continuum.remove(annotator, unit)
@@ -176,10 +176,10 @@ class CorpusShufflingTool:
                     overlapping_matrix[id1, id2] = elem
                 overlapping_matrix[id1] /= sum_line
             # this formula was also deduced from the graphs.
-            prob_matrix = prob_matrix * (1 - self.magnitude) \
-                + sec_matrix * self.magnitude ** 3 \
-                + overlapping_matrix * (self.magnitude - self.magnitude ** 3)
-
+            prob_matrix = (prob_matrix * (1 - self.magnitude)
+                           + sec_matrix * self.magnitude ** 3
+                           + overlapping_matrix * (self.magnitude - self.magnitude ** 3)
+                           )
         for annotator in continuum.annotators:
             for unit in list(continuum[annotator]):
                 continuum.remove(annotator, unit)
@@ -201,7 +201,7 @@ class CorpusShufflingTool:
             units = continuum._annotations[annotator]
             for _ in range(int(self.magnitude * self.SPLIT_FACTOR * len(units))):
                 to_split = units.pop(numpy.random.randint(0, len(units)))
-                security = (to_split.segment.end - to_split.segment.start)*0.01
+                security = (to_split.segment.end - to_split.segment.start) * 0.01
                 cut = numpy.random.uniform(to_split.segment.start + security, to_split.segment.end)
 
                 continuum.add(annotator, Segment(cut, to_split.segment.end), to_split.annotation)
@@ -210,8 +210,12 @@ class CorpusShufflingTool:
 
     def corpus_shuffle(self,
                        annotators: Union[int, Iterable[str]],
-                       shift: bool = False, false_pos: bool = False, false_neg: bool = False, split: bool = False,
-                       cat_shuffle: bool = False, include_ref: bool = False
+                       shift: bool = False,
+                       false_pos: bool = False,
+                       false_neg: bool = False,
+                       split: bool = False,
+                       cat_shuffle: bool = False,
+                       include_ref: bool = False
                        ) -> Continuum:
         """
         Generates a new shuffled corpus with the provided (or generated) reference annotation set,
@@ -230,9 +234,10 @@ class CorpusShufflingTool:
         if split:
             self.splits_shuffle(continuum)
         if include_ref:
-            assert self._reference_annotator not in continuum.annotators, "Reference annotator can't be included as " \
-                                                                          "an annotator with the same name is in the " \
-                                                                          "generated corpus."
-            for unit in self._reference_continuum._annotations[next(iter(self._reference_continuum.annotators))]:
+            assert (self._reference_annotator not in continuum.annotators,
+                    "Reference annotator can't be included as "
+                    "an annotator with the same name is in the "
+                    "generated corpus.")
+            for unit in self._reference_continuum.iter_annotator(next(iter(self._reference_continuum.annotators))):
                 continuum.add(self._reference_annotator, unit.segment, unit.annotation)
         return continuum
