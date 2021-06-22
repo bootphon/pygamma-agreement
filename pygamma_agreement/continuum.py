@@ -37,7 +37,7 @@ import os
 from copy import deepcopy
 from functools import total_ordering
 from pathlib import Path
-from typing import Optional, Tuple, List, Union, Set, Iterable, TYPE_CHECKING, Dict
+from typing import Optional, Tuple, List, Union, Set, Iterable, TYPE_CHECKING, Dict, Generator
 
 import cvxpy as cp
 import numpy as np
@@ -254,7 +254,7 @@ class Continuum:
 
     @property
     def bounds(self) -> Tuple[float, float]:
-        """Start of 'smallest' annotation and end of 'largest' annotation."""
+        """Bounds of the continuum. Initated as (0, 0), they grow as annotations are added."""
         return self.bound_inf, self.bound_sup
 
     @property
@@ -448,26 +448,9 @@ class Continuum:
         """
         return self.merge(other, in_place=False)
 
-    def __setitem__(self, annotator: Annotator, units: SortedSet):
-        """
-        Overwrites the annotators's set of units with the given one.
-
-        >>> units = SortedSet((Unit(segment=Segment(12.5, 13.0), annotation='Verb')))
-        >>> continuum['Victor'] = units
-        >>> continuum['Victor']
-        SortedSet([Unit(segment=<Segment(12.5, 13.0)>, annotation='Verb')]
-
-        Parameters
-        ----------
-        annotator: Annotator (str)
-            Any annotator, existing or not in the continuum.
-        units: SortedSet of Unit
-            A SortedSet of units, that will become the annotator's.
-        """
-        self._annotations[annotator] = units
-
     def __getitem__(self, keys: Union[str, Tuple[str, int]]) -> Union[SortedSet, Unit]:
-        """Get a set of annotations from an annotator or a specific annotation.
+        """Get the set of annotations from an annotator, or a specific annotation.
+        (Deep copies are returned to ensure some constraints cannot be violated)
 
         >>> continuum['Alex']
         SortedSet([Unit(segment=<Segment(2, 9)>, annotation='1'), Unit(segment=<Segment(11, 17)>, ...
@@ -485,20 +468,43 @@ class Continuum:
         """
         try:
             if isinstance(keys, str):
-                return self._annotations[keys]
+                return deepcopy(self._annotations[keys])
             else:
                 annotator, idx = keys
                 try:
-                    return self._annotations[annotator][idx]
+                    return deepcopy(self._annotations[annotator][idx])
                 except IndexError:
                     raise IndexError(f'index {idx} of annotations by {annotator} is out of range')
         except KeyError:
             raise KeyError('key must be either Annotator (from the continuum) or (Annotator, int)')
 
-    def __iter__(self) -> Iterable[Tuple[str, Unit]]:
+    def __iter__(self) -> Generator[Tuple[str, Unit], None, None]:
         for annotator, annotations in self._annotations.items():
             for unit in annotations:
                 yield annotator, unit
+
+    def iter_annotator(self, annotator: Annotator) -> Generator[Unit, None, None]:
+        """
+        Iterates over the annotations of the given annotator.
+        Raises
+        ------
+        KeyError
+            If the annotators is not on this continuum.
+        """
+        for unit in self._annotations[annotator]:
+            yield unit
+
+    def remove(self, annotator: Annotator, unit: Unit):
+        """
+        Removes the given unit from the given annotator's annotations.
+        Keeps the bounds of the continuum as they are.
+        Raises
+        ------
+        KeyError
+            if the unit is not from the annotator's annotations.
+        """
+        annotations: SortedSet = self._annotations[annotator]
+        annotations.remove(unit)
 
     @property
     def annotators(self) -> SortedSet:

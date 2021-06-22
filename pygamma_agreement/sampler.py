@@ -120,22 +120,19 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
             else:
                 pivot = np.random.uniform(bound_inf, bound_sup)
             rnd_annotator = np.random.choice(annotators)
-            units = continuum[rnd_annotator]
+            units = continuum._annotations[rnd_annotator]
             new_annotator = f'Sampled_annotation {idx}'
             for unit in units:
-                try:
-                    if unit.segment.start + pivot > bound_sup:
-                        new_continuum.add(new_annotator,
-                                          Segment(unit.segment.start + pivot + bound_inf - bound_sup,
-                                                  unit.segment.end + pivot + bound_inf - bound_sup),
-                                          unit.annotation)
-                    else:
-                        new_continuum.add(new_annotator,
-                                          Segment(unit.segment.start + pivot,
-                                                  unit.segment.end + pivot),
-                                          unit.annotation)
-                except ValueError:
-                    pass
+                if unit.segment.start + pivot > bound_sup:
+                    new_continuum.add(new_annotator,
+                                      Segment(unit.segment.start + pivot + bound_inf - bound_sup,
+                                              unit.segment.end + pivot + bound_inf - bound_sup),
+                                      unit.annotation)
+                else:
+                    new_continuum.add(new_annotator,
+                                      Segment(unit.segment.start + pivot,
+                                              unit.segment.end + pivot),
+                                      unit.annotation)
         return new_continuum
 
 

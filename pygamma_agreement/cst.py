@@ -29,8 +29,6 @@
 import numpy.random
 
 from .continuum import Annotator, Continuum, Unit
-from .dissimilarity import AbstractDissimilarity
-from .sampler import AbstractContinuumSampler
 from typing import Union, Iterable, Callable, List, Tuple
 from sortedcontainers import SortedSet
 import numpy as np
@@ -43,7 +41,7 @@ class CorpusShufflingTool:
     Corpus shuffling tool as detailed in section 6.3 of @gamma-paper
     (https://www.aclweb.org/anthology/J15-3003.pdf#page=30).
     """
-    SHIFT_FACTOR = 2
+    SHIFT_FACTOR = 7
     SPLIT_FACTOR = 5
     FALSE_POS_FACTOR = 1
 
@@ -78,10 +76,8 @@ class CorpusShufflingTool:
         continuum = Continuum()
         continuum.bound_inf, continuum.bound_sup = self._reference_continuum.bounds
         if isinstance(new_annotators, int):
-            new_annotators = SortedSet(f"annotator_{i}" for i in range(new_annotators))
-        else:
-            new_annotators = SortedSet(new_annotators)
-        for unit in self._reference_continuum[self._reference_annotator]:
+            new_annotators = [f"annotator_{i}" for i in range(new_annotators)]
+        for unit in self._reference_continuum.iter_annotator(self._reference_annotator):
             for new_annotator in new_annotators:
                 continuum.add(new_annotator,
                               Segment(unit.segment.start, unit.segment.end),
@@ -97,7 +93,7 @@ class CorpusShufflingTool:
             self._reference_continuum.avg_length_unit
         for annotator in continuum.annotators:
             for unit in continuum[annotator]:
-                continuum[annotator].remove(unit)
+                continuum.remove(annotator, unit)
                 start_seg, end_seg = 0.0, 0.0
                 while start_seg >= end_seg:
                     start_seg = unit.segment.start + np.random.uniform(-shift_max, shift_max)
@@ -111,14 +107,13 @@ class CorpusShufflingTool:
         If this probability is one, a single random unit (for each annotator) will be left alone.
         """
         for annotator in continuum.annotators:
-            security = np.random.choice(continuum[annotator])
+            security = np.random.choice(continuum._annotations[annotator])
             # security : if an annotator doesnt have any annotations gamma cant be computed.
-            for unit in np.random.choice(list(continuum[annotator]),
-                                         int(self.magnitude * len(continuum[annotator])),
-                                         replace=False):
-                continuum[annotator].remove(unit)
-            if len(continuum[annotator]) == 0:
-                continuum[annotator].add(security)
+            for unit in list(continuum[annotator]):
+                if np.random.random() < self.magnitude:
+                    continuum.remove(annotator, unit)
+            if len(continuum._annotations[annotator]) == 0:
+                continuum.add(annotator, security.segment, security.annotation)
 
     def false_pos_shuffle(self, continuum: Continuum) -> None:
         """
@@ -187,12 +182,12 @@ class CorpusShufflingTool:
 
         for annotator in continuum.annotators:
             for unit in list(continuum[annotator]):
-                continuum[annotator].remove(unit)
+                continuum.remove(annotator, unit)
                 try:
                     new_category = np.random.choice(categories, p=prob_matrix[category_weights.index(unit.annotation)])
                 except ValueError as e:
                     raise e
-                continuum.add(annotator, unit.segment, new_category)
+                continuum.add(annotator, Segment(unit.segment.start, unit.segment.end), new_category)
                 del unit
 
     def splits_shuffle(self, continuum: Continuum):
@@ -203,7 +198,7 @@ class CorpusShufflingTool:
         A splitted segment can be re-splitted.
         """
         for annotator in continuum.annotators:
-            units = continuum[annotator]
+            units = continuum._annotations[annotator]
             for _ in range(int(self.magnitude * self.SPLIT_FACTOR * len(units))):
                 to_split = units.pop(numpy.random.randint(0, len(units)))
                 security = (to_split.segment.end - to_split.segment.start)*0.01
@@ -238,6 +233,6 @@ class CorpusShufflingTool:
             assert self._reference_annotator not in continuum.annotators, "Reference annotator can't be included as " \
                                                                           "an annotator with the same name is in the " \
                                                                           "generated corpus."
-            for unit in self._reference_continuum[next(iter(self._reference_continuum.annotators))]:
+            for unit in self._reference_continuum._annotations[next(iter(self._reference_continuum.annotators))]:
                 continuum.add(self._reference_annotator, unit.segment, unit.annotation)
         return continuum

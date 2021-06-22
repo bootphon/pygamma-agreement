@@ -5,21 +5,20 @@ Issues
 Gamma Software issues
 ---------------------
 
+We observed early on in pygamma-agreement development that we weren't able to perfectly match [mathet2015]_'s results
+from their closed-source `Java implementation <https://gamma.greyc.fr/>`_ (the "Gamma Software"). In an effort to
+understand these discrepancies between our implementation of the gamma measure and theirs, we decompiled their
+application and carefully studied its code. This allowed us to find a number of small (yet significant) implementation
+details that were either undocumented or arbitrary.
 
-This section aims to explain the specificities of the ``pygamma-agreement`` library in comparison to the closed-source
-java implementation by the original authors of [mathet2015]_ & [mathet2018]_ ("Gamma Software"), which can be downloaded
-`here <https://gamma.greyc.fr/>`_.
-
-We have reversed-engineered their program in an effort to find why some of its results were different from
-``pygamma-agreement``'s. Although we found some undocumented implementations and bugs in there, it also helped
-fixing fatal errors that made ``pygamma-agreement``'s ouputs wrong.
+In this section, we list off all the details that might make our calculation of the gamma-agreement deviate from the
+Java implementation's calculation, and explain what our own implementation choice is.
 
 .. warning::
 
     What we call "undocumented" are choices of implementation found in the Gamma Software that are not mentionned
-    or explained in [mathet2015]_ or [mathet2018]_. We made the choice of replicating those in
-    pygamma-agreement as we suppose that Mathet et Al. being responsible for the theory behind the gamma agreement,
-    their choices must have been carefully thought.
+    or explained in [mathet2015]_ or [mathet2018]_. We made the choice of replicating some of those in
+    pygamma-agreement, and not others,
 
 1. Average number of annotations per annotator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -29,11 +28,20 @@ In [mathet2015]_, section 4.3, a value is defined as such:
 
     "let :math:`\bar{x}={\frac{\sum_{i=1}^{n}x_i}{n}}` be the average number of annotations per annotator"
 
-This value is involved in the computation of the disorder of an alignment. In the Gamma Software, an
-int-instead-of-float division transforms this value into :math:`\bar{x}=\lfloor{\frac{\sum_{i=1}^{n}x_i}{n}}\rfloor`.
+This value is involved in the computation of the disorder of an alignment.
+
+**In the Gamma Software:**
+an int-instead-of-float division transforms this value into
+:math:`\bar{x}=\lfloor{\frac{\sum_{i=1}^{n}x_i}{n}}\rfloor`.
+
+**In pygamma-agreement:**
+We chose not to replicate this small discrepancy as it seemed like a bug, and didn't
+weight too much on the value of the gamma agreement.
+
+
 Although it has no influence over which alignment will be considered the best alignment, it slighly changes the value
 of the disorders, which tweaks the gamma agreement for small continua.
-We chose not to replicate this as it seemed like a bug, and didn't weight too much on the value of the gamma agreement.
+
 
 2. Minimal distance between pivots
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -44,9 +52,12 @@ continuum using random shift positions; and they specify a constraint on those p
 
     "To limit this phenomenon, we do not allow the distance between two shifts to be less than the average length of units."
 
-It seems however that in the java implementation, this minimal distance is **half** the average length of units;
-``pygamma-agreement`` 's `ShuffleContinuumSampler`, which tries to mimic the sampling method described in the paper,
-takes the half average length of units just like the Gamma Software.
+**In the Gamma Software:**
+The value used for this minimal distance is actually **half** the average length of units.
+
+**In pygamma-agreement:**
+We decided to include this discrepancy in the `ShuffleContinuumSampler` as it is designed to
+mimic the java implementation's, as opposed to our `StatisticalContinuumSampler` used by default by ``pygamma-agreement``.
 
 3. Pairing confidence
 ^^^^^^^^^^^^^^^^^^^^^
@@ -56,16 +67,14 @@ In [mathet2018]_, section 4.2.3, the pairing confidence of a pair of annotations
 
     "for   :math:`pair_i = (u_j, u_k)`,  :math:`p_i = max(0, 1 - d_{pos}(u_j, u_k))`"
 
-However, their implementation of this formula uses a combined dissimilarity
+**In the Gamma Software:**
+Their implementation of this formula uses a combined dissimilarity
 :math:`d_{\alpha, \beta} = \alpha d_{pos} + \beta d_{cat}`, which transforms the formula for the pairing confidence this
-way:
+way: ":math:`pair_i = (u_j, u_k)`,  :math:`p_i = max(0, 1 - \alpha \times d_{pos}(u_j, u_k))`".
 
-
-    "for   :math:`pair_i = (u_j, u_k)`,  :math:`p_i = max(0, 1 - \alpha \times d_{pos}(u_j, u_k))`"
-
+**In pygamma-agreement:**
 Although it looked a lot like a bug, ignoring it makes the values of gamma-cat/k too different from those
-of the gamma software, so we chose to replicate this formula for ``pygamma-agreement``. Here's how to replicate the
-intended formula:
+of the gamma software. We chose to include the alpha factor, as setting it to `1.0` can remove the discrepancy :
 
 .. code-block:: python
 
@@ -94,15 +103,14 @@ statistical data about the input continuum (averages / standard deviation of sev
 annotations), used then to generate the samples. We made this choice because we felt that their sampler, which simply
 re-shuffles the input continuum, was unconvincing for the need of 'true' randomness.
 
-To re-activate their sampler, you can use the ``--mathet-sampler`` (or ``-m``) when using the command line, or
-set manually the sampler used for computing the gamma agreement in python :
+To re-activate their sampler, you can use the ``--mathet-sampler`` (or ``-m``) option when using the command line, or
+manually set the sampler used for computing the gamma agreement in python :
 
 .. code-block:: python
 
     from pygamma_agreement import ShuffleContinuumSampler
     ...
-    gamma_results = continuum.compute_gamma(dissim,
-                                            sampler=ShuffleContinuumSampler(new_continuum),
+    gamma_results = continuum.compute_gamma(sampler=ShuffleContinuumSampler(continuum),
                                             precision_level=0.01)
 
 Alpha value
@@ -116,14 +124,16 @@ In python, you need to manually create the combined categorical dissimilarity wi
 
     dissim = CombinedCategoricalDissimilarity(continuum.categories,
                                               alpha=3)
-    gamma_results = continuum.compute_gamma(dissim, precision_level=0.01)
+    gamma_results = continuum.compute_gamma(dissim,
+                                            sampler=ShuffleContinuumSampler(continuum),
+                                            precision_level=0.01)
 
 
 Bugs in former versions of pygamma-agreement
 --------------------------------------------
 
 This section adresses fatal errors in release `0.1.6` of ``pygamma-agreement``, whose consequences were a wrong
-output for gamma or other values. Those have been fixed in version `?`.
+output for gamma or other values. Those have been fixed in version `1.0.0`.
 
 1. Average number of annotations per annotator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -133,7 +143,7 @@ In [mathet2015]_, section 4.3, a value is defined as such:
     "let :math:`\bar{x}={\frac{\sum_{i=1}^{n}x_i}{n}}` be the average number of annotations per annotator"
 
 A misreading made us interpret this value as the ***total number of annotations*** in the continuum. Thus, the values
-calculated by ``pygamma-agreement`` were strongly impacted (a difference of sometimes *0.2* for smal continua) (fixed)
+calculated by ``pygamma-agreement`` were strongly impacted (a difference as big as *0.2* for small continua).
 
 2. Minimal distance between pivots
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
