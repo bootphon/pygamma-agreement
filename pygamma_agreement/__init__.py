@@ -24,7 +24,7 @@
 # SOFTWARE.
 
 # AUTHORS
-# Rachid RIAD & Hadrien TITEUX
+# Rachid RIAD, Hadrien TITEUX, Léopold FAVRE
 
 from .continuum import Continuum, GammaResults, Unit
 from .alignment import Alignment, UnitaryAlignment
