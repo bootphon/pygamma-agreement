@@ -41,7 +41,7 @@ class CorpusShufflingTool:
     Corpus shuffling tool as detailed in section 6.3 of @gamma-paper
     (https://www.aclweb.org/anthology/J15-3003.pdf#page=30).
     """
-    SHIFT_FACTOR = 7
+    SHIFT_FACTOR = 2
     SPLIT_FACTOR = 5
     FALSE_POS_FACTOR = 1
 
