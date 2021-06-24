@@ -503,6 +503,12 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         disorders /= (units_tuples_ids.shape[1] * (units_tuples_ids.shape[1] - 1) // 2)  # averaging by C^2_n = n(n-1)/2
         return disorders
 
+    def d(self, unit_a: 'Unit', unit_b: 'Unit') -> float:
+        if unit_a is None or unit_b is None:
+            return self.delta_empty
+        return (self.alpha * self.positional_dissim.d(unit_a, unit_b) +
+                self.beta * self.categorical_dissim.d(unit_a, unit_b))
+
     def __call__(self, units_tuples: np.ndarray,
                  units_positions: List[np.ndarray],
                  units_categories: List[np.ndarray]) -> np.ndarray:

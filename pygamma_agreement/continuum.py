@@ -525,14 +525,20 @@ class Continuum:
         """
         return iter(self._annotations[annotator])
 
-    def get_first_window(self, n: int) -> 'Continuum':
+    def get_first_window(self, dissimilarity: AbstractDissimilarity) -> 'Continuum':
         """
         Returns a continuum containing the n first annotations from each annotator.
         """
         window = Continuum()
         for annotator in self.annotators:
             window.add_annotator(annotator)
-            for unit in islice(self.iterunits(annotator), n):
+            if len(self._annotations[annotator]) == 0:
+                continue
+            first_unit = self._annotations[annotator][0]
+            window.add(annotator, first_unit.segment, first_unit.annotation)
+            for unit in self.iterunits(annotator):
+                if dissimilarity.d(unit, first_unit) >= self.num_units * dissimilarity.delta_empty:
+                    break
                 window.add(annotator, unit.segment, unit.annotation)
         return window
 
@@ -543,8 +549,14 @@ class Continuum:
         copy = self.copy()
         unitary_alignments = []
         disorders = []
+
+        nb_units = self.num_units
+        eliminated = 0
+
         while copy:
-            window = copy.get_first_window(10)  # Window contains each annotator's 10 first annotations
+            window = copy.get_first_window(dissimilarity)  # Window contains each annotator's first annotations
+            logging.info(f"Chosen window has complexity "
+                         f"{np.prod([len(annots) for annots in window._annotations.values()])}")
             # We retain only the leftmost unitary alignment in the best alignment of the window,
             # as it is the most likely to be in the global best alignment
             chosen = window.get_best_alignment(dissimilarity).leftmost
@@ -553,9 +565,12 @@ class Continuum:
             for annotator, unit in chosen.n_tuple:
                 if unit is not None:
                     copy.remove(annotator, unit)  # Now we remove the units from the chosen alignment.
+                    eliminated += 1
+            logging.info(f"eliminated {eliminated / nb_units * 100}% of units")
+
         return Alignment(unitary_alignments,
                          self,
-                         check_validity=False,
+                         check_validity=True,
                          disorder=np.sum(disorders) / self.avg_num_annotations_per_annotator)
 
     def get_best_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
@@ -650,7 +665,7 @@ class Continuum:
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[SortedSet] = None,
                       sampler: 'AbstractContinuumSampler' = None,
-                      fast = False
+                      fast = True
                       ) -> 'GammaResults':
         """
 
@@ -673,6 +688,8 @@ class Continuum:
         sampler: AbstractContinuumSampler
             Sampler object, which implements a sampling strategy for creating random continuua used
             to calculate the expected disorder. If not set, defaults to the Statistical continuum sampler
+        fast:
+            activate fast gamma
         """
         from .dissimilarity import CombinedCategoricalDissimilarity
         if dissimilarity is None:
@@ -773,7 +790,7 @@ class GammaResults:
     """
     best_alignment: 'Alignment'
     chance_alignments: List['Alignment']
-    dissimilarity: AbstractDissimilarity
+    dissimilarity: AbstractDissimilaritytasks_template
     precision_level: Optional[float] = None
 
     @property
