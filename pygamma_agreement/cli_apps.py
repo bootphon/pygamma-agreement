@@ -38,7 +38,8 @@ from argparse import RawTextHelpFormatter, ArgumentDefaultsHelpFormatter
 from pathlib import Path
 from typing import Dict, List
 
-from pygamma_agreement import Continuum, CombinedCategoricalDissimilarity, cat_dissim, ShuffleContinuumSampler
+from pygamma_agreement import Continuum, CombinedCategoricalDissimilarity, ShuffleContinuumSampler
+from pygamma_agreement.dissimilarity import cat_arguments
 
 
 class RawAndDefaultArgumentFormatter(RawTextHelpFormatter,
@@ -100,7 +101,7 @@ argparser.add_argument("-n", "--n-samples",
                        help="Number of random continuua to be sampled for the \n"
                             "gamma computation. Warning : additionnal continuua \n"
                             "will be sampled if precision level is not satisfied.\n")
-argparser.add_argument("-d", "--cat-dissim", type=str, choices=cat_dissim.arguments,
+argparser.add_argument("-d", "--cat-dissim", type=str, choices=cat_arguments,
                        default="default",
                        help="Categorical dissimilarity to use for measuring \n"
                             "inter-annotation disorder. The default one gives 1.0\n"
@@ -158,7 +159,7 @@ def pygamma_cmd():
         dissim = CombinedCategoricalDissimilarity(continuum.categories,
                                                   alpha=args.alpha,
                                                   beta=args.beta,
-                                                  cat_dissimilarity_matrix=cat_dissim.arguments[args.cat_dissim])
+                                                  cat_dissimilarity_matrix=cat_arguments[args.cat_dissim])
         logging.info(f"Finished loading dissimilarity object in {(time.time() - start) * 1000} ms")
         start = time.time()
 

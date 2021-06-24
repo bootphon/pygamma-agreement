@@ -1,9 +1,8 @@
 """Tests for the CST & random reference generation"""
 from pathlib import Path
 from pygamma_agreement.continuum import Continuum
-from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity
+from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity, cat_ord
 from pygamma_agreement.cst import CorpusShufflingTool
-from pygamma_agreement.cat_dissim import cat_ord
 from pygamma_agreement.sampler import StatisticalContinuumSampler, ShuffleContinuumSampler
 import numpy as np
 from sortedcontainers import SortedSet

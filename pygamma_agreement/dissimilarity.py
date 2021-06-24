@@ -37,7 +37,6 @@ import numba as nb
 import numpy as np
 from matplotlib import pyplot as plt
 from sortedcontainers import SortedSet
-from .cat_dissim import cat_default
 
 if TYPE_CHECKING:
     from .continuum import Continuum
@@ -53,6 +52,33 @@ def positional_dissim(unit_a: np.ndarray,
     # unit[2] is the duration
     distance_pos = (starts_diff + ends_diff) / (unit_a[2] + unit_b[2])
     return distance_pos * distance_pos * delta_empty
+
+
+cat_arguments = {}
+try:
+    def cat_levenshtein(cat1: str, cat2: str) -> float:
+        import Levenshtein
+        return Levenshtein.distance(cat1, cat2) / max(len(cat1), len(cat2))
+    cat_arguments["levenshtein"] = cat_levenshtein
+except ImportError:
+    pass
+
+
+def cat_default(cat1: str, cat2: str) -> float:
+    return float(cat1 != cat2)
+
+
+cat_arguments["default"] = cat_default
+
+
+def cat_ord(cat1: str, cat2: str) -> float:
+    if not (cat1.isnumeric() and cat2.isnumeric()):
+        raise ValueError("Error : tried to compute ordinal categorical dissimilarity"
+                         f"but categories are non-numeric (category {cat1} or {cat2})")
+    return abs(float(int(cat1) - int(cat2)))
+
+
+cat_arguments["ordinal"] = cat_ord
 
 
 class AbstractDissimilarity:
@@ -122,8 +148,7 @@ class CategoricalDissimilarity(AbstractDissimilarity):
 
     def __init__(self,
                  categories: SortedSet,
-                 cat_dissimilarity_matrix: Union[Callable[[str, str], float], np.ndarray] = (
-                         lambda cat1, cat2: float(cat1 != cat2)),
+                 cat_dissimilarity_matrix: Union[Callable[[str, str], float], np.ndarray] = cat_default,
                  delta_empty: float = 1):
         super().__init__(delta_empty)
 
