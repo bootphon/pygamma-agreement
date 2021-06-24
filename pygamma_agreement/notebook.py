@@ -302,7 +302,7 @@ class Notebook:
 
     def plot_continuum(self, continuum: Continuum, ax=None,  # time=True,
                        legend=True, labelled=True):
-        self.crop = Timeline([unit.segment for (_, unit) in continuum]).extent()
+        self.crop = Segment(continuum.bound_inf, continuum.bound_sup)
         self.setup(ax, ylim=(0, continuum.num_annotators))
         y_annotator_unit = {}
         for annot_id, annotator in enumerate(continuum.annotators):

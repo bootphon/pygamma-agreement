@@ -90,6 +90,17 @@ class UnitaryAlignment:
     def n_tuple(self):
         return self._n_tuple
 
+    @property
+    def bounds(self):
+        """Start of leftmost unit and end of rightmost unit"""
+        inf, sup = np.inf, -np.inf
+        for _, unit in self.n_tuple:
+            if unit is not None:
+                inf = min(inf, unit.segment.start)
+                sup = max(sup, unit.segment.end)
+        return inf, sup
+
+
     @n_tuple.setter
     def n_tuple(self, n_tuple: UnitsTuple):
         self._n_tuple = n_tuple
@@ -173,6 +184,12 @@ class Alignment(AbstractAlignment):
 
     def __iter__(self) -> Iterator[UnitaryAlignment]:
         return iter(self.unitary_alignments)
+
+    @property
+    def leftmost(self):
+        """Return the (or one of the) leftmost unitary alignments."""
+        return min(self.unitary_alignments, key=(lambda unitary_alignment: unitary_alignment.bounds[0]))
+
 
     @property
     def annotators(self):
