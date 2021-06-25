@@ -35,19 +35,18 @@ import csv
 import logging
 import os
 from copy import deepcopy
+from dataclasses import dataclass
 from functools import total_ordering
+from multiprocessing import Pool
 from pathlib import Path
-from typing import Optional, Tuple, List, Union, Set, Iterable, TYPE_CHECKING, Dict
+from typing import Optional, Tuple, List, Union, Iterable, TYPE_CHECKING
 
 import cvxpy as cp
 import numpy as np
-from dataclasses import dataclass
 from pyannote.core import Annotation, Segment, Timeline
 from pyannote.database.util import load_rttm
 from sortedcontainers import SortedDict, SortedSet
-
 from typing_extensions import Literal
-from multiprocessing import Pool
 
 from .dissimilarity import AbstractDissimilarity
 from .numba_utils import chunked_cartesian_product
@@ -631,7 +630,8 @@ class Continuum:
             against some ground truth annotation.
         sampler: AbstractContinuumSampler
             Sampler object, which implements a sampling strategy for creating random continuua used
-            to calculate the expected disorder. If not set, defaults to the Statistical continuum sampler
+            to calculate the expected disorder.
+            If not set, defaults to `pygamma_agreement.StatisticalContinuumSampler`
         """
         from .dissimilarity import CombinedCategoricalDissimilarity
         if dissimilarity is None:
@@ -643,11 +643,13 @@ class Continuum:
 
         # Multiprocessed computation of sample disorder
         p = Pool()
+        # Step one : computing the disorders of a batch of random samples
+        # from the continuum (done in parallel)
         result_pool = [
-            # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
             p.apply_async(__compute_best_alignment_job__,
                           (sampler.sample_from_continuum, dissimilarity,))
-            for _ in range(n_samples)]
+            for _ in range(n_samples)
+        ]
         chance_best_alignments: List[Alignment] = []
         chance_disorders: List[float] = []
         logging.info(f"Starting computation for a batch of {n_samples} random samples...")
@@ -682,7 +684,8 @@ class Continuum:
                 logging.info("done.")
 
         p.close()
-        # Step 2: find the best alignment of the continuum from there, gamma is rapidly calculed (cf GammaResults class)
+        # Step 2: find the best alignment of the continuum from there,
+        # gamma is rapidly computed (cf GammaResults class)
         best_alignment = self.get_best_alignment(dissimilarity)
 
         return GammaResults(
@@ -716,7 +719,7 @@ class Continuum:
 @dataclass
 class GammaResults:
     """
-    Gamma results object. Stores the informations about a gamma measure computation,
+    Gamma results object. Stores the information about a gamma measure computation,
     used for getting the values of measures from the gamma family (gamma, gamma-cat and gamma-k).
     """
     best_alignment: 'Alignment'
@@ -758,7 +761,8 @@ class GammaResults:
     @property
     def expected_cat_disorder(self) -> float:
         """
-        Returns the expected disagreement (as defined for gamma-cat) using the same random samples' best alignments
+        Returns the expected disagreement (as defined for gamma-cat)
+        using the same random samples' best alignments
         as for gamma (the mean of the sampled continuua's gamma-cat disorders)
         """
         return float(np.mean(list(filter((lambda x: x is not np.NaN),
@@ -767,7 +771,8 @@ class GammaResults:
 
     def expected_k_disorder(self, category: str) -> float:
         """
-        Returns the expected disagreement (as defined for gamma-k) using the same random samples' best alignments
+        Returns the expected disagreement (as defined for gamma-k)
+        using the same random samples' best alignments
         as for gamma (the mean of the sampled continuua's gamma-k disorders)
         """
         return float(np.mean(list(filter((lambda x: x is not np.NaN),

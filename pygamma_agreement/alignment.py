@@ -235,8 +235,10 @@ class Alignment(AbstractAlignment):
             Leave it unset to compute the gamma-cat disorder.
         """
         if not isinstance(dissimilarity, CombinedCategoricalDissimilarity):
-            raise TypeError("Cannot compute gamma-k or gamma-cat with a best alignment computed with a "
-                            "non-combined dissimilarity.")
+            raise TypeError("Gamma-k and Gamma-cat can only be computed using "
+                            f"the {CombinedCategoricalDissimilarity} "
+                            f"dissimilarity.")
+
         total_disorder = 0
         total_weight = 0
         noloop = True

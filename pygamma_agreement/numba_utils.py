@@ -1,13 +1,38 @@
-from typing import List, Callable
+from typing import List
 
 import numba as nb
 import numpy as np
+
 
 @nb.njit(nb.types.Tuple((nb.int32[:, :],
                          nb.int32[:]))(nb.int32[:],
                                        nb.int32[:],
                                        nb.int64, nb.int64))
 def cproduct(sizes: np.ndarray, current_tuple: np.ndarray, start_idx: int, end_idx: int):
+    """
+    A numba njitted function that builds chunks of the cartesian product.
+    It works by enumerating all possible combinations of the indices of
+    each input sets, starting at the `current_tuple` element, and stopping
+    after enumerating `start_idx - end_idx` elements.
+
+    Parameters
+    ----------
+    sizes: np.ndarray of shape (N,)
+        Cardinals of the sets
+    current_tuple: np.ndarray of shape (N,)
+        First cartesian combination to be enumerated
+    start_idx:
+        Index of `current_tuple` in the global cartesian product
+    end_idx
+        Index of last cartesian combination to be enumerated (not included in
+        the returned tuples)
+
+    Returns
+    -------
+    np.ndarray of shape (end_ix - start_idx, N)
+    np.ndarray of shape (N,)
+
+    """
     assert len(sizes) >= 2
     assert start_idx < end_idx
 
@@ -31,6 +56,22 @@ def cproduct(sizes: np.ndarray, current_tuple: np.ndarray, start_idx: int, end_i
 
 
 def chunked_cartesian_product(sizes: List[int], chunk_size: int):
+    """Computes (fast) the cartesian product for the all the possible
+    indices for the sets sets whose cardinals are defined in the list `sizes`,
+    in chunks of size `chunk_size`.
+
+    Parameters
+    ----------
+    sizes: List[int]D
+        List of cardinals for the sets for which the function will produce the
+        cartesian product
+    chunk_size: int
+        Size of the cartesian product chunks
+
+    Returns
+    -------
+    np.ndarray of shape (chunk_size, len(sizes))
+    """
     prod = np.prod(sizes)
 
     # putting the largest number at the front to more efficiently make use
@@ -53,4 +94,5 @@ def chunked_cartesian_product(sizes: List[int], chunk_size: int):
 
 
 def cartesian_product(sizes: List[int]):
+    """Regular cartesian product"""
     return next(chunked_cartesian_product(sizes, np.prod(sizes)))

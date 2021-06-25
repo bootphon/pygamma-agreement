@@ -94,9 +94,7 @@ class AbstractDissimilarity:
 
     @staticmethod
     def alignments_disorders(*args, **kwargs):
-        """
-        Creates the args (numpy arrays representations, values & other)
-        """
+        """Computes the disorder for a batch of unitary alignments."""
         raise NotImplemented()
 
     def __call__(self, *args) -> np.ndarray:

@@ -74,6 +74,7 @@ class CorpusShufflingTool:
                 self._categories.add(category)
 
     def corpus_from_reference(self, new_annotators: Union[int, Iterable[Annotator]]):
+        # TODO: add docstring
         continuum = Continuum()
         continuum.bound_inf, continuum.bound_sup = self._reference_continuum.bounds
         if isinstance(new_annotators, int):
@@ -238,10 +239,10 @@ class CorpusShufflingTool:
         if split:
             self.splits_shuffle(continuum)
         if include_ref:
-            assert (self._reference_annotator not in continuum.annotators,
-                    "Reference annotator can't be included as "
-                    "an annotator with the same name is in the "
-                    "generated corpus.")
+            assert self._reference_annotator not in continuum.annotators, \
+                "Reference annotator can't be included as " \
+                "an annotator with the same name is in the " \
+                "generated corpus."
             for unit in self._reference_continuum[next(iter(self._reference_continuum.annotators))]:
                 continuum.add(self._reference_annotator, unit.segment, unit.annotation)
         return continuum

@@ -285,7 +285,7 @@ class Notebook:
             self.draw_legend_from_labels(ax)
 
     def plot_alignment_continuum(self, alignment: Alignment, ax=None, time=True, legend=True, labelled=True):
-        assert(alignment.continuum is not None)
+        assert alignment.continuum is not None
         y_annotator_unit = self.plot_continuum(alignment.continuum, ax=ax, legend=legend, labelled=labelled)
         for unitary_alignment in alignment:
             annotations = iter(unitary_alignment.n_tuple)
