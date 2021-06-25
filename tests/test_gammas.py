@@ -7,8 +7,8 @@ import pytest
 from pygamma_agreement.continuum import Continuum
 from pygamma_agreement.dissimilarity import (CombinedCategoricalDissimilarity,
                                              PositionalDissimilarity,
-                                             CategoricalDissimilarity)
-from pygamma_agreement.cat_dissim import cat_ord
+                                             CategoricalDissimilarity,
+                                             cat_ord)
 from pygamma_agreement.sampler import ShuffleContinuumSampler
 
 

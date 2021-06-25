@@ -29,8 +29,6 @@ Thus, for instance:
 
 .. code-block::
 
-    E.G.:
-
     annotator_1, Marvin, 11.3, 15.6
     annotator_1, Maureen, 20, 25.7
     annotator_2, Marvin, 10, 26.3
@@ -51,12 +49,20 @@ containing several files. Thus, all these commands will work:
 
 The gamma value for each file will be printed out in the console's stdout.
 If you wish to easily save the tool's output in a file, you can use the ``--output-csv`` (or ``-o``)
-option to save it to a CSV that will contain each file's gamma value.
+option to save it to a CSV that will contain each file's gamma value. You can then visualize the
+results with tools like ``tabview`` or other spreadsheet software alike.
 
 .. code-block:: bash
 
     pygamma-agreement data/*.csv --output-csv gamma_results.csv
     pygamma-agreement data/*.csv -o gamma_results.csv
+
+There is also the option of saving the values in the JSON format with the ``--output-json`` (or ``-j``) option.
+
+.. code-block:: bash
+
+    pygamma-agreement data/*.csv --output-json gamma_results.json
+    pygamma-agreement data/*.csv -j gamma_results.json
 
 
 Optionally, you can also configure the alpha and beta coefficients used in
@@ -74,8 +80,10 @@ both.
 .. code-block:: bash
 
     pygamma-agreement -k -g tests/data/*.csv -o test.csv
+    OR
+    pygamma-agreement -k -g tests/data/*.csv -j test.csv
 
-You can then visualize the results with tools like ``tabview`` or other spreadsheet software alike.
+
 
 
 

@@ -39,7 +39,8 @@ from dataclasses import dataclass
 from functools import total_ordering
 from multiprocessing import Pool
 from pathlib import Path
-from typing import Optional, Tuple, List, Union, Iterable, TYPE_CHECKING
+from itertools import islice
+from typing import Optional, Tuple, List, Union, Set, Iterable, TYPE_CHECKING, Dict, Generator
 
 import cvxpy as cp
 import numpy as np
@@ -215,7 +216,7 @@ class Continuum:
         ... else:
         ...    # continuum is empty
         """
-        return all(len(annotations) > 0 for annotations in self._annotations.values())
+        return not all(len(annotations) == 0 for annotations in self._annotations.values())
 
     def __len__(self):
         return len(self._annotations)
@@ -253,7 +254,7 @@ class Continuum:
 
     @property
     def bounds(self) -> Tuple[float, float]:
-        """Start of 'smallest' annotation and end of 'largest' annotation."""
+        """Bounds of the continuum. Initated as (0, 0), they grow as annotations are added."""
         return self.bound_inf, self.bound_sup
 
     @property
@@ -447,26 +448,9 @@ class Continuum:
         """
         return self.merge(other, in_place=False)
 
-    def __setitem__(self, annotator: Annotator, units: SortedSet):
-        """
-        Overwrites the annotators's set of units with the given one.
-
-        >>> units = SortedSet((Unit(segment=Segment(12.5, 13.0), annotation='Verb')))
-        >>> continuum['Victor'] = units
-        >>> continuum['Victor']
-        SortedSet([Unit(segment=<Segment(12.5, 13.0)>, annotation='Verb')]
-
-        Parameters
-        ----------
-        annotator: Annotator (str)
-            Any annotator, existing or not in the continuum.
-        units: SortedSet of Unit
-            A SortedSet of units, that will become the annotator's.
-        """
-        self._annotations[annotator] = units
-
     def __getitem__(self, keys: Union[str, Tuple[str, int]]) -> Union[SortedSet, Unit]:
-        """Get a set of annotations from an annotator or a specific annotation.
+        """Get the set of annotations from an annotator, or a specific annotation.
+        (Deep copies are returned to ensure some constraints cannot be violated)
 
         >>> continuum['Alex']
         SortedSet([Unit(segment=<Segment(2, 9)>, annotation='1'), Unit(segment=<Segment(11, 17)>, ...
@@ -484,20 +468,43 @@ class Continuum:
         """
         try:
             if isinstance(keys, str):
-                return self._annotations[keys]
+                return deepcopy(self._annotations[keys])
             else:
                 annotator, idx = keys
                 try:
-                    return self._annotations[annotator][idx]
+                    return deepcopy(self._annotations[annotator][idx])
                 except IndexError:
                     raise IndexError(f'index {idx} of annotations by {annotator} is out of range')
         except KeyError:
             raise KeyError('key must be either Annotator (from the continuum) or (Annotator, int)')
 
-    def __iter__(self) -> Iterable[Tuple[str, Unit]]:
+    def __iter__(self) -> Generator[Tuple[str, Unit], None, None]:
         for annotator, annotations in self._annotations.items():
             for unit in annotations:
                 yield annotator, unit
+
+    def iter_annotator(self, annotator: Annotator) -> Generator[Unit, None, None]:
+        """
+        Iterates over the annotations of the given annotator.
+        Raises
+        ------
+        KeyError
+            If the annotators is not on this continuum.
+        """
+        for unit in self._annotations[annotator]:
+            yield unit
+
+    def remove(self, annotator: Annotator, unit: Unit):
+        """
+        Removes the given unit from the given annotator's annotations.
+        Keeps the bounds of the continuum as they are.
+        Raises
+        ------
+        KeyError
+            if the unit is not from the annotator's annotations.
+        """
+        annotations: SortedSet = self._annotations[annotator]
+        annotations.remove(unit)
 
     @property
     def annotators(self) -> SortedSet:
@@ -516,6 +523,54 @@ class Continuum:
         ...     # do something with the unit
         """
         return iter(self._annotations[annotator])
+
+    def get_first_window(self, dissimilarity: AbstractDissimilarity) -> 'Continuum':
+        """
+        Returns a continuum containing the n first annotations from each annotator.
+        """
+        window = Continuum()
+        for annotator in self.annotators:
+            window.add_annotator(annotator)
+            if len(self._annotations[annotator]) == 0:
+                continue
+            first_unit = self._annotations[annotator][0]
+            window.add(annotator, first_unit.segment, first_unit.annotation)
+            for unit in self.iterunits(annotator):
+                if dissimilarity.d(unit, first_unit) > self.num_annotators * dissimilarity.delta_empty:
+                    break
+                window.add(annotator, unit.segment, unit.annotation)
+        return window
+
+    def get_good_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
+        """Returns an 'approximation' of the best alignment (Very likely to be the actual best alignment for
+         continua with limited overlapping)"""
+        from .alignment import Alignment
+        copy = self.copy()
+        unitary_alignments = []
+        disorders = []
+
+        nb_units = self.num_units
+        eliminated = 0
+
+        while copy:
+            window = copy.get_first_window(dissimilarity)  # Window contains each annotator's first annotations
+            logging.info(f"Chosen window has complexity "
+                         f"{np.prod([len(annots) for annots in window._annotations.values()])}")
+            # We retain only the leftmost unitary alignment in the best alignment of the window,
+            # as it is the most likely to be in the global best alignment
+            chosen = window.get_best_alignment(dissimilarity).leftmost
+            unitary_alignments.append(chosen)
+            disorders.append(chosen.disorder)
+            for annotator, unit in chosen.n_tuple:
+                if unit is not None:
+                    copy.remove(annotator, unit)  # Now we remove the units from the chosen alignment.
+                    eliminated += 1
+            logging.info(f"eliminated {eliminated / nb_units * 100}% of units")
+
+        return Alignment(unitary_alignments,
+                         self,
+                         check_validity=True,
+                         disorder=np.sum(disorders) / self.avg_num_annotations_per_annotator)
 
     def get_best_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
         """
@@ -536,16 +591,16 @@ class Continuum:
 
         nb_unit_per_annot = []
         for annotator, arr in self._annotations.items():
-            assert len(arr) > 0, f"Disorder cannot be computed because annotator {annotator} has no annotations."
+            # assert len(arr) > 0, f"Disorder cannot be computed because annotator {annotator} has no annotations."
             nb_unit_per_annot.append(len(arr) + 1)
 
         all_disorders = []
         all_valid_tuples = []
         for tuples_batch in chunked_cartesian_product(nb_unit_per_annot, CHUNK_SIZE):
             batch_disorders = dissimilarity(tuples_batch, *disorder_args)
-
             # Property section 5.1.1 to reduce initial complexity
-            valid_disorders_ids, = np.where(batch_disorders < self.num_annotators * dissimilarity.delta_empty)
+            valid_disorders_ids, = np.where(batch_disorders <= self.num_annotators * dissimilarity.delta_empty)
+
             all_disorders.append(batch_disorders[valid_disorders_ids])
             all_valid_tuples.append(tuples_batch[valid_disorders_ids])
 
@@ -576,9 +631,12 @@ class Continuum:
 
         # we don't actually care about the optimal loss value
         prob.solve()
+        assert x.value is not None, "The linear solver couldn't find an alignment with minimal disorder " \
+                                    "(likely because the amount of possible unitary alignments was too high)"
 
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
         chosen_alignments_ids, = np.where(x.value > 0.9)
+
         chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
         alignments_disorders: np.ndarray = disorders[chosen_alignments_ids]
 
@@ -609,6 +667,7 @@ class Continuum:
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[SortedSet] = None,
                       sampler: 'AbstractContinuumSampler' = None,
+                      fast: bool = True
                       ) -> 'GammaResults':
         """
 
@@ -630,8 +689,9 @@ class Continuum:
             against some ground truth annotation.
         sampler: AbstractContinuumSampler
             Sampler object, which implements a sampling strategy for creating random continuua used
-            to calculate the expected disorder.
-            If not set, defaults to `pygamma_agreement.StatisticalContinuumSampler`
+            to calculate the expected disorder. If not set, defaults to the Statistical continuum sampler
+        fast:
+            activate fast gamma
         """
         from .dissimilarity import CombinedCategoricalDissimilarity
         if dissimilarity is None:
@@ -643,15 +703,27 @@ class Continuum:
 
         # Multiprocessed computation of sample disorder
         p = Pool()
-        # Step one : computing the disorders of a batch of random samples
-        # from the continuum (done in parallel)
+
+        if fast:
+            job = __compute_good_alignment_job__
+        else:
+            job = __compute_best_alignment_job__
+
+        # computation of best alignment in advance
+        best_alignment_task = p.apply_async(job,
+                                            (self, dissimilarity,))
         result_pool = [
-            p.apply_async(__compute_best_alignment_job__,
+            # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
+            p.apply_async(job,
                           (sampler.sample_from_continuum, dissimilarity,))
             for _ in range(n_samples)
         ]
         chance_best_alignments: List[Alignment] = []
         chance_disorders: List[float] = []
+
+        best_alignment = best_alignment_task.get()
+        logging.info("Best alignment obtained...")
+
         logging.info(f"Starting computation for a batch of {n_samples} random samples...")
         for i, result in enumerate(result_pool):
             chance_best_alignments.append(result.get())
@@ -670,13 +742,13 @@ class Continuum:
             confidence = 1.96
             required_samples = np.ceil((variation_coeff * confidence / precision_level) ** 2).astype(np.int32)
             if required_samples > n_samples:
+                logging.info(f"Computing second batch of {required_samples - n_samples} "
+                             f"because variation was too high.")
                 result_pool = [
-                    p.apply_async(__compute_best_alignment_job__,
+                    p.apply_async(job,
                                   (sampler.sample_from_continuum, dissimilarity,))
                     for _ in range(required_samples - n_samples)
                 ]
-                logging.info(f"Computing second batch of {required_samples - n_samples} "
-                             f"because variation was too high.")
                 for i, result in enumerate(result_pool):
                     chance_best_alignments.append(result.get())
                     logging.info(f"finished computation of additionnal random sample dissimilarity "
@@ -684,9 +756,6 @@ class Continuum:
                 logging.info("done.")
 
         p.close()
-        # Step 2: find the best alignment of the continuum from there,
-        # gamma is rapidly computed (cf GammaResults class)
-        best_alignment = self.get_best_alignment(dissimilarity)
 
         return GammaResults(
             best_alignment=best_alignment,
@@ -821,3 +890,7 @@ def __compute_best_alignment_job__(continuum: Continuum, dissimilarity: Abstract
     using the given dissimilarity.
     """
     return continuum.get_best_alignment(dissimilarity)
+
+
+def __compute_good_alignment_job__(continuum: Continuum, dissimilarity: AbstractDissimilarity):
+    return continuum.get_good_alignment(dissimilarity)
