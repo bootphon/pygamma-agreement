@@ -34,6 +34,7 @@ Continuum and corpus
 import csv
 import logging
 import os
+import time
 from copy import deepcopy
 from functools import total_ordering
 from pathlib import Path
@@ -525,54 +526,6 @@ class Continuum:
         """
         return iter(self._annotations[annotator])
 
-    def get_first_window(self, dissimilarity: AbstractDissimilarity) -> 'Continuum':
-        """
-        Returns a continuum containing the n first annotations from each annotator.
-        """
-        window = Continuum()
-        for annotator in self.annotators:
-            window.add_annotator(annotator)
-            if len(self._annotations[annotator]) == 0:
-                continue
-            first_unit = self._annotations[annotator][0]
-            window.add(annotator, first_unit.segment, first_unit.annotation)
-            for unit in self.iterunits(annotator):
-                if dissimilarity.d(unit, first_unit) > self.num_annotators * dissimilarity.delta_empty:
-                    break
-                window.add(annotator, unit.segment, unit.annotation)
-        return window
-
-    def get_good_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
-        """Returns an 'approximation' of the best alignment (Very likely to be the actual best alignment for
-         continua with limited overlapping)"""
-        from .alignment import Alignment
-        copy = self.copy()
-        unitary_alignments = []
-        disorders = []
-
-        nb_units = self.num_units
-        eliminated = 0
-
-        while copy:
-            window = copy.get_first_window(dissimilarity)  # Window contains each annotator's first annotations
-            logging.info(f"Chosen window has complexity "
-                         f"{np.prod([len(annots) for annots in window._annotations.values()])}")
-            # We retain only the leftmost unitary alignment in the best alignment of the window,
-            # as it is the most likely to be in the global best alignment
-            chosen = window.get_best_alignment(dissimilarity).leftmost
-            unitary_alignments.append(chosen)
-            disorders.append(chosen.disorder)
-            for annotator, unit in chosen.n_tuple:
-                if unit is not None:
-                    copy.remove(annotator, unit)  # Now we remove the units from the chosen alignment.
-                    eliminated += 1
-            logging.info(f"eliminated {eliminated / nb_units * 100}% of units")
-
-        return Alignment(unitary_alignments,
-                         self,
-                         check_validity=True,
-                         disorder=np.sum(disorders) / self.avg_num_annotations_per_annotator)
-
     def get_best_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
         """
         Returns the best alignment of the continuum for the given dissimilarity. This alignment comes
@@ -668,7 +621,6 @@ class Continuum:
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[SortedSet] = None,
                       sampler: 'AbstractContinuumSampler' = None,
-                      fast: bool = True
                       ) -> 'GammaResults':
         """
 
@@ -704,18 +656,12 @@ class Continuum:
 
         # Multiprocessed computation of sample disorder
         p = Pool()
-
-        if fast:
-            job = __compute_good_alignment_job__
-        else:
-            job = __compute_best_alignment_job__
-
         # computation of best alignment in advance
-        best_alignment_task = p.apply_async(job,
+        best_alignment_task = p.apply_async(__compute_best_alignment_job__,
                                             (self, dissimilarity,))
         result_pool = [
             # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
-            p.apply_async(job,
+            p.apply_async(__compute_best_alignment_job__,
                           (sampler.sample_from_continuum, dissimilarity,))
             for _ in range(n_samples)]
         chance_best_alignments: List[Alignment] = []
@@ -745,7 +691,7 @@ class Continuum:
                 logging.info(f"Computing second batch of {required_samples - n_samples} "
                              f"because variation was too high.")
                 result_pool = [
-                    p.apply_async(job,
+                    p.apply_async(__compute_best_alignment_job__,
                                   (sampler.sample_from_continuum, dissimilarity,))
                     for _ in range(required_samples - n_samples)
                 ]
@@ -888,7 +834,3 @@ def __compute_best_alignment_job__(continuum: Continuum, dissimilarity: Abstract
     using the given dissimilarity.
     """
     return continuum.get_best_alignment(dissimilarity)
-
-
-def __compute_good_alignment_job__(continuum: Continuum, dissimilarity: AbstractDissimilarity):
-    return continuum.get_good_alignment(dissimilarity)
