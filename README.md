@@ -1,6 +1,8 @@
 Pygamma-agreement
 =============
 
+[![Package Version](https://img.shields.io/pypi/v/pygamma-agreement)](https://pypi.org/project/pygamma-agreement/)
+[![Supported Python Version](https://img.shields.io/pypi/pyversions/pygamma-agreement)](https://pypi.org/project/pygamma-agreement/)
 [![Build Status](https://travis-ci.com/bootphon/pygamma-agreement.svg?branch=master?token=RBFAQCRfvbxdpaEByTFc&branch=master)](https://travis-ci.com/bootphon/pygamma-agreement/)
 [![Documentation Status](https://readthedocs.org/projects/pygamma-agreement/badge/?version=latest)](https://pygamma-agreement.readthedocs.io/en/latest/?badge=latest)
 [![status](https://joss.theoj.org/papers/d54271e471b25775e95ebcfc9bcf2493/status.svg)](https://joss.theoj.org/papers/d54271e471b25775e95ebcfc9bcf2493)
@@ -54,6 +56,26 @@ The package comes with a unit-tests suit. To run it, first install *pytest* on y
 
 Please read `CONTRIBUTING.md` before submitting and issue or writing some contribution 
 to this package.
+
+## Citing Pygamma
+
+If you're using pygamma in your work, please cite our package using the following bibtex entry:
+
+```
+@article{Titeux2021,
+  doi = {10.21105/joss.02989},
+  url = {https://doi.org/10.21105/joss.02989},
+  year = {2021},
+  publisher = {The Open Journal},
+  volume = {6},
+  number = {62},
+  pages = {2989},
+  author = {Hadrien Titeux and Rachid Riad},
+  title = {pygamma-agreement: Gamma $\gamma$ measure for inter/intra-annotator agreement in Python},
+  journal = {Journal of Open Source Software}
+}
+
+```
 
 ## References
 
