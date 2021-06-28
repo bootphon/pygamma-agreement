@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
-# Copyright (c) 2020 CoML
+# Copyright (c) 2020-2021 CoML
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -656,11 +653,11 @@ class Continuum:
         # Multiprocessed computation of sample disorder
         p = Pool()
         # computation of best alignment in advance
-        best_alignment_task = p.apply_async(__compute_best_alignment_job__,
+        best_alignment_task = p.apply_async(_compute_best_alignment_job,
                                             (self, dissimilarity,))
         result_pool = [
             # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
-            p.apply_async(__compute_best_alignment_job__,
+            p.apply_async(_compute_best_alignment_job,
                           (sampler.sample_from_continuum, dissimilarity,))
             for _ in range(n_samples)
         ]
@@ -691,7 +688,7 @@ class Continuum:
                 logging.info(f"Computing second batch of {required_samples - n_samples} "
                              f"because variation was too high.")
                 result_pool = [
-                    p.apply_async(__compute_best_alignment_job__,
+                    p.apply_async(_compute_best_alignment_job,
                                   (sampler.sample_from_continuum, dissimilarity,))
                     for _ in range(required_samples - n_samples)
                 ]
@@ -830,7 +827,7 @@ class GammaResults:
         return 1 - observed_k_disorder / self.expected_k_disorder(category)
 
 
-def __compute_best_alignment_job__(continuum: Continuum, dissimilarity: AbstractDissimilarity):
+def _compute_best_alignment_job(continuum: Continuum, dissimilarity: AbstractDissimilarity):
     """
     Function used to launch a multiprocessed job for calculating the best aligment of a continuum
     using the given dissimilarity.

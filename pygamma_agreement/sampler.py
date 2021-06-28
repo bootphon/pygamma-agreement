@@ -1,11 +1,37 @@
-#!usr/bin/env python
+# The MIT License (MIT)
+
+# Copyright (c) 2020-2021 CoML
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# AUTHORS
+# Rachid RIAD, Hadrien TITEUX, Léopold FAVRE
+
 from abc import ABCMeta, abstractmethod
 from typing import Optional, Iterable, List
-from typing_extensions import Literal
-from sortedcontainers import SortedSet, SortedList
+
 import numpy as np
 from pyannote.core import Segment
-from .continuum import Continuum, Unit
+from sortedcontainers import SortedSet
+from typing_extensions import Literal
+
+from .continuum import Continuum, Annotator
 
 PivotType = Literal["float_pivot", "int_pivot"]
 
@@ -20,14 +46,22 @@ class AbstractContinuumSampler(metaclass=ABCMeta):
     _ground_truth_annotators: SortedSet
 
     def __init__(self, reference_continuum: Continuum,
-                 ground_truth_annotators: Optional[SortedSet] = None):
+                 ground_truth_annotators: Optional[Iterable['Annotator']] = None):
+        """
+        Parameters
+        ----------
+        reference_continuum: Continuum
+            the continuum that will be shuffled into the samples
+        ground_truth_annotators: iterable of str, optional
+            the set of annotators (from the reference) that will be considered for sampling
+        """
         self._reference_continuum = reference_continuum
         if ground_truth_annotators is None:
             self._ground_truth_annotators = self._reference_continuum.annotators
         else:
-            assert self._reference_continuum.annotators.issuperset(ground_truth_annotators),\
-                   "Can't sample from ground truth annotators not in the reference continuum."
-            self._ground_truth_annotators = ground_truth_annotators
+            assert self._reference_continuum.annotators.issuperset(ground_truth_annotators), \
+                "Can't sample from ground truth annotators not in the reference continuum."
+            self._ground_truth_annotators = SortedSet(ground_truth_annotators)
 
     @property
     @abstractmethod
@@ -52,14 +86,14 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
     _min_dist_between_pivots: bool
 
     def __init__(self, reference_continuum: Continuum,
-                 ground_truth_annotators: Optional[SortedSet] = None,
+                 ground_truth_annotators: Optional[Iterable['Annotator']] = None,
                  pivot_type: PivotType = 'int_pivot'):
         """
         Parameters
         ----------
         reference_continuum: Continuum
             the continuum that will be shuffled into the samples
-        ground_truth_annotators: SortedSet of str, optional
+        ground_truth_annotators: iterable of str, optional
             the set of annotators (from the reference) that will be considered for sampling
         pivot_type: 'int_pivot' or 'float_pivot'
             the java implementation by Mathet et Al. uses a integer pivoting for shuffling, we judged it unclear that
@@ -69,7 +103,7 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         self._pivot_type = pivot_type
 
     @staticmethod
-    def __remove_pivot_segment__(pivot: float, segments: List[Segment], dist: float) -> List[Segment]:
+    def _remove_pivot_segment(pivot: float, segments: List[Segment], dist: float) -> List[Segment]:
         """
         Returns a copy of the given list of segments, minus the segment delimited by [pivot - dist, pivot + dist].
         """
@@ -89,7 +123,7 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
                     new_segments.append(Segment(segment.start, pivot - dist))
         return new_segments
 
-    def __random_from_segments__(self, segments: List[Segment]) -> float:
+    def _random_from_segments(self, segments: List[Segment]) -> float:
         """
         Returns a random value from the provided list of segments, by randomly choosing
         a segment (weighted by its length) and then using uniform distribution in it.
@@ -103,7 +137,6 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         else:
             return np.random.uniform(segment.start, segment.end)
 
-
     @property
     def sample_from_continuum(self) -> Continuum:
         assert self._pivot_type in ('float_pivot', 'int_pivot')
@@ -115,8 +148,8 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         segments_available = [Segment(bound_inf, bound_sup)]
         for idx in range(len(annotators)):
             if len(segments_available) != 0:
-                pivot: float = self.__random_from_segments__(segments_available)
-                segments_available = self.__remove_pivot_segment__(pivot, segments_available, min_dist_between_pivots)
+                pivot: float = self._random_from_segments(segments_available)
+                segments_available = self._remove_pivot_segment(pivot, segments_available, min_dist_between_pivots)
             else:
                 pivot = np.random.uniform(bound_inf, bound_sup)
             rnd_annotator = np.random.choice(annotators)
@@ -263,6 +296,3 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
                 new_continnum.add(annotator, Segment(start, end), category)
                 last_point = end
         return new_continnum
-
-
-

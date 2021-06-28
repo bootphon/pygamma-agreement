@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
-# Copyright (c) 2020 CoML
+# Copyright (c) 2020-2021 CoML
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -400,7 +397,8 @@ class PositionalDissimilarity(AbstractDissimilarity):
                         distance_pos = positional_dissim(unit_a, unit_b, delta_empty)
                         disorders[tuple_id] += distance_pos
 
-        disorders /= (units_tuples_ids.shape[1] * (units_tuples_ids.shape[1] - 1) // 2)  # averaging by C^2_n = n(n-1)/2
+        # averaging by C^2_n = n(n-1)/2
+        disorders /= (units_tuples_ids.shape[1] * (units_tuples_ids.shape[1] - 1) // 2)
 
         return disorders
 
