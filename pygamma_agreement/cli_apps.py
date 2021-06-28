@@ -162,7 +162,7 @@ def pygamma_cmd():
 
         sampler = None
         if args.mathet_sampler:
-            sampler = ShuffleContinuumSampler(continuum)
+            sampler = ShuffleContinuumSampler()
 
         gamma = continuum.compute_gamma(dissimilarity=dissim,
                                         precision_level=args.precision_level,

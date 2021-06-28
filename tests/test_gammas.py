@@ -61,7 +61,7 @@ def test_gamma_alexpaulsuzan():
                                               delta_empty=1,
                                               alpha=3,
                                               beta=1)
-    sampler = ShuffleContinuumSampler(continuum)
+    sampler = ShuffleContinuumSampler()
     gamma_results = continuum.compute_gamma(dissim, sampler=sampler, precision_level=0.01)
     assert len(gamma_results.best_alignment.unitary_alignments) == 7
 

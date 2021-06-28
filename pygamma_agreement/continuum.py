@@ -646,9 +646,10 @@ class Continuum:
         if dissimilarity is None:
             dissimilarity = CombinedCategoricalDissimilarity(self.categories)
 
-        from .sampler import StatisticalContinuumSampler
         if sampler is None:
-            sampler = StatisticalContinuumSampler(self, ground_truth_annotators)
+            from .sampler import StatisticalContinuumSampler
+            sampler = StatisticalContinuumSampler()
+        sampler.init_sampling(self, ground_truth_annotators)
 
         # Multiprocessed computation of sample disorder
         p = Pool()
