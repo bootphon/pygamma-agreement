@@ -537,9 +537,13 @@ class Continuum:
                 continue
             first_unit = self._annotations[annotator][0]
             window.add(annotator, first_unit.segment, first_unit.annotation)
+            unreachable_unit = False
             for unit in self.iterunits(annotator):
-                if dissimilarity.d(unit, first_unit) > self.num_annotators * dissimilarity.delta_empty * 2:
-                    break
+                if dissimilarity.d(unit, first_unit) > self.num_annotators * dissimilarity.delta_empty:
+                    if unreachable_unit:     # Instead of stopping at the first unreachable unit of the first unit,
+                        break                # we stop at the first unreachable unit of the first unreachable unit
+                    unreachable_unit = True  # of the first unit (more secure)
+                    first_unit = unit
                 window.add(annotator, unit.segment, unit.annotation)
         return window
 
