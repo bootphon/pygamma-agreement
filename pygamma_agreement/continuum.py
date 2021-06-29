@@ -575,12 +575,14 @@ class Continuum:
                 if unit_id != len(true_units_ids[annotator_id]):
                     A[true_units_ids[annotator_id][unit_id], p_id] = 1
 
-        obj = cp.Minimize(disorders.T @ x)
-        constraints = [cp.matmul(A, x) == 1]
-        prob = cp.Problem(obj, constraints)
-
         # we don't actually care about the optimal loss value
-        prob.solve(solver=cp.ECOS_BB)
+        try:
+            import cylp
+            cp.Problem(cp.Minimize(disorders.T @ x), [cp.matmul(A, x) == 1]).solve(solver=cp.CBC)
+        except ImportError:
+            logging.warn("CBC solver not installed. Using GLPK.")
+            matmul = A @ x
+            cp.Problem(cp.Minimize(disorders.T @ x), [1 <= matmul, matmul <= 1]).solve(solver=cp.GLPK_MI)
         assert x.value is not None, "The linear solver couldn't find an alignment with minimal disorder " \
                                     "(likely because the amount of possible unitary alignments was too high)"
 

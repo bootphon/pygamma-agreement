@@ -43,6 +43,23 @@ pygamma-agreement can be easily installed using pip
   pip install pygamma-agreement
 ```
 
+Pygamma-agreement uses the [GNU Linear Programming Kit](https://www.gnu.org/software/glpk/) as its default mixed integer
+problem solver (critical step of the gamma-agreement algorithm). Since it is a bit slow, you can install the 
+[CBC](https://projects.coin-or.org/Cbc) solver and its [python API](https://mpy.github.io/CyLPdoc/). 
+To use those in `pygamma-agreement`, simply install them:
+
+- Ubuntu/Debian  ```sudo apt install coinor-cbc```
+- Fedora: ```sudo yum install coin-or-Cbc```
+- Arch Linux: ```sudo pacman -S coin-or-cbc```
+- Mac OS X:
+    - ```brew tap coin-or-tools/coinor```
+    - ```brew install coin-or-tools/coinor/cbc```
+
+then:
+```shell script
+  pip install cylp
+```
+
 
 ## Tests
 
