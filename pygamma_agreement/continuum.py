@@ -606,8 +606,7 @@ class Continuum:
         possible_unitary_alignments = np.concatenate(all_valid_tuples)
 
         # Definition of the integer linear program
-        num_possible_unitary_alignements, = len(disorders)
-        x = cp.Variable(shape=num_possible_unitary_alignements, boolean=True)
+        num_possible_unitary_alignements = len(disorders)
 
         true_units_ids = []
         num_units = 0
@@ -617,47 +616,18 @@ class Continuum:
 
         # Constraints matrix
         A = np.zeros((num_units, num_possible_unitary_alignements))
-
         for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
             for annotator_id, unit_id in enumerate(unit_ids_tuple):
                 if unit_id != len(true_units_ids[annotator_id]):
                     A[true_units_ids[annotator_id][unit_id], p_id] = 1
 
-        """d = disorders.T
-
-        print(f"d.shape = {d.shape}")
-        print(f"A.shape = {A.shape}")
-
-        bp = time.time()
-        model = mip.Model("disorders")
-        model.verbose = 0
-        print(f"instanciated problem in {time.time() - bp}"); bp = time.time()
-        x = model.add_var_tensor(shape=(len(d),), name="x", var_type=mip.BINARY)
-        print(f"created variable in {time.time() - bp}"); bp = time.time()
-        model.objective = mip.minimize(x.T @ d)
-        print(f"specified problem in {time.time() - bp}"); bp = time.time()
-
-        obj = mip.LinExpr()
-        for i in range(len(d)):
-            xi = model.add_var(f"x_{i}", var_type=mip.BINARY)
-            obj.add_var(xi, d[i])
-            model.add_constr(obj == 1, f"constraint{i}")
-
-
-        print(f"added constraint of problem in {time.time() - bp}s"); bp = time.time()
-        status = model.optimize()
-        print(f"finished calculating solution in {time.time() - bp}s"); bp = time.time()"""
-
-        obj = cp.Minimize(disorders.T @ x)
-        constraints = [cp.matmul(A, x) == 1]
-        prob = cp.Problem(obj, constraints)
-
-        # we don't actually care about the optimal loss value
-        prob.solve()
+        x = cp.Variable(shape=num_possible_unitary_alignements, boolean=True)
+        prob = cp.Problem(cp.Minimize(disorders.T @ x), [A @ x == 1])
+        prob.solve(solver=cp.ECOS_BB)
         assert x.value is not None, "The linear solver couldn't find an alignment with minimal disorder " \
                                     "(likely because the amount of possible unitary alignments was too high)"
-        # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
-        chosen_alignments_ids, = np.where(x.value > 0.9)
+        # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14"""
+        chosen_alignments_ids = np.where(x.value > 0.9)
 
         chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
         alignments_disorders: np.ndarray = disorders[chosen_alignments_ids]
