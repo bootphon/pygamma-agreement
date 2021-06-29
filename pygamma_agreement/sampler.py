@@ -67,6 +67,11 @@ class AbstractContinuumSampler(metaclass=ABCMeta):
                 "Can't sample from ground truth annotators not in the reference continuum."
             self._ground_truth_annotators = SortedSet(ground_truth_annotators)
 
+    def _has_been_init(self):
+        assert self._reference_continuum is not None, \
+            "Sampler hasnt been initialized. Call 'sampler.init_sampling' before 'sampler.sample_from_continuum'."
+
+
     @property
     @abstractmethod
     def sample_from_continuum(self) -> Continuum:
@@ -93,7 +98,7 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         self._pivot_type = pivot_type
 
     def init_sampling(self, reference_continuum: Continuum,
-                 ground_truth_annotators: Optional[Iterable['Annotator']] = None):
+                      ground_truth_annotators: Optional[Iterable['Annotator']] = None):
         """
         Parameters
         ----------
@@ -144,6 +149,7 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
 
     @property
     def sample_from_continuum(self) -> Continuum:
+        self._has_been_init()
         assert self._pivot_type in ('float_pivot', 'int_pivot')
         continuum = self._reference_continuum
         min_dist_between_pivots = continuum.avg_length_unit / 2
@@ -281,6 +287,7 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
 
     @property
     def sample_from_continuum(self) -> Continuum:
+        self._has_been_init()
         new_continnum = Continuum()
         for annotator in self._ground_truth_annotators:
             last_point = 0

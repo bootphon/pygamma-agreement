@@ -580,7 +580,7 @@ class Continuum:
         prob = cp.Problem(obj, constraints)
 
         # we don't actually care about the optimal loss value
-        prob.solve()
+        prob.solve(solver=cp.ECOS_BB)
         assert x.value is not None, "The linear solver couldn't find an alignment with minimal disorder " \
                                     "(likely because the amount of possible unitary alignments was too high)"
 
@@ -639,8 +639,6 @@ class Continuum:
         sampler: AbstractContinuumSampler
             Sampler object, which implements a sampling strategy for creating random continuua used
             to calculate the expected disorder. If not set, defaults to the Statistical continuum sampler
-        fast:
-            activate fast gamma
         """
         from .dissimilarity import CombinedCategoricalDissimilarity
         if dissimilarity is None:
@@ -655,11 +653,11 @@ class Continuum:
         p = Pool()
         # computation of best alignment in advance
         best_alignment_task = p.apply_async(_compute_best_alignment_job,
-                                            (self, dissimilarity,))
+                                            (dissimilarity, self, None))
         result_pool = [
             # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
             p.apply_async(_compute_best_alignment_job,
-                          (sampler.sample_from_continuum, dissimilarity,))
+                          (dissimilarity, None, sampler))
             for _ in range(n_samples)
         ]
         chance_best_alignments: List[Alignment] = []
@@ -690,7 +688,7 @@ class Continuum:
                              f"because variation was too high.")
                 result_pool = [
                     p.apply_async(_compute_best_alignment_job,
-                                  (sampler.sample_from_continuum, dissimilarity,))
+                                  (dissimilarity, None, sampler))
                     for _ in range(required_samples - n_samples)
                 ]
                 for i, result in enumerate(result_pool):
@@ -828,9 +826,17 @@ class GammaResults:
         return 1 - observed_k_disorder / self.expected_k_disorder(category)
 
 
-def _compute_best_alignment_job(continuum: Continuum, dissimilarity: AbstractDissimilarity):
+def _compute_best_alignment_job(dissimilarity: AbstractDissimilarity,
+                                continuum: Continuum = None,
+                                sampler: Optional['AbstractContinuumSampler'] = None):
     """
     Function used to launch a multiprocessed job for calculating the best aligment of a continuum
-    using the given dissimilarity.
+    using the given dissimilarity, or a sample from the using the given sampler.
     """
-    return continuum.get_best_alignment(dissimilarity)
+    if sampler is not None and continuum is not None:
+        raise ValueError("_compute_best_alignment_job requires either a continuum or a sampler.")
+    if sampler is not None:
+        sample = sampler.sample_from_continuum
+        return sample.get_best_alignment(dissimilarity)
+    if continuum is not None:
+        return continuum.get_best_alignment(dissimilarity)

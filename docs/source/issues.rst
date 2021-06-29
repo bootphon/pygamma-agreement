@@ -110,7 +110,7 @@ manually set the sampler used for computing the gamma agreement in python :
 
     from pygamma_agreement import ShuffleContinuumSampler
     ...
-    gamma_results = continuum.compute_gamma(sampler=ShuffleContinuumSampler(continuum),
+    gamma_results = continuum.compute_gamma(sampler=ShuffleContinuumSampler(),
                                             precision_level=0.01)
 
 Alpha value
@@ -125,7 +125,7 @@ In python, you need to manually create the combined categorical dissimilarity wi
     dissim = CombinedCategoricalDissimilarity(continuum.categories,
                                               alpha=3)
     gamma_results = continuum.compute_gamma(dissim,
-                                            sampler=ShuffleContinuumSampler(continuum),
+                                            sampler=ShuffleContinuumSampler(),
                                             precision_level=0.01)
 
 
