@@ -43,6 +43,7 @@ from itertools import islice
 from typing import Optional, Tuple, List, Union, Set, Iterable, TYPE_CHECKING, Dict, Generator
 
 import cvxpy as cp
+import pulp as pl
 import numpy as np
 from dataclasses import dataclass
 from pyannote.core import Annotation, Segment, Timeline
@@ -621,13 +622,30 @@ class Continuum:
                 if unit_id != len(true_units_ids[annotator_id]):
                     A[true_units_ids[annotator_id][unit_id], p_id] = 1
 
+
+        bp = time.time()
+        x = [pl.LpVariable(name=f'x_{i}', cat=pl.LpBinary) for i in range(disorders)]
+        prob = pl.LpProblem("disorders", pl.LpMinimize)
+        for Ai in A:
+            prob += pl.LpAffineExpression(zip(x, Ai)) == 1
+        print(f"problem modelized with pulp in {time.time() - bp}")
+        bp = time.time()
+        prob.solve()
+        chosen_alignments_ids = np.where(np.array([xi.value() for xi in x]) > 0.9)
+        print(f"solution computed with pulp in {time.time() - bp}")
+
+
+        bp = time.time()
         x = cp.Variable(shape=num_possible_unitary_alignements, boolean=True)
         prob = cp.Problem(cp.Minimize(disorders.T @ x), [A @ x == 1])
+        print(f"problem modelized with cvxpy in {time.time() - bp}")
+        bp = time.time()
         prob.solve(solver=cp.ECOS_BB)
         assert x.value is not None, "The linear solver couldn't find an alignment with minimal disorder " \
                                     "(likely because the amount of possible unitary alignments was too high)"
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14"""
         chosen_alignments_ids = np.where(x.value > 0.9)
+        print(f"solution computed with cvxpy in {time.time() - bp}")
 
         chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
         alignments_disorders: np.ndarray = disorders[chosen_alignments_ids]
