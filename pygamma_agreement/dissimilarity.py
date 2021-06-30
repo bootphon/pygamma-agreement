@@ -98,15 +98,15 @@ class AbstractDissimilarity:
     def d(self, unit_a: 'Unit', unit_b: 'Unit') -> float:
         """
         Returns the disorder between two unit objects, Depending on the type of dissimilaty.
-        If unit_a or unit_b is the empty unit, delta_empty is returned and
-        d(unit_a, unit_b) = d(unit_b, unit_a).
+        If unit_a or unit_b is the empty unit, delta_empty is returned.
+        d(unit_a, unit_b) = d(unit_b, unit_a) is always True.
         """
 
     def build_args(self, resource: Union['Alignment', 'Continuum']) -> Tuple:
         """
         Computes a compact, array-shaped representation of units
         needed for fast computation of inter-units disorders
-        computed and set when compute_disorder is called
+        computed, and set when compute_disorder is called.
         """
         from .continuum import Continuum
         from .alignment import Alignment

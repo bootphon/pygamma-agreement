@@ -16,6 +16,16 @@ Data structures
     :special-members:
     :exclude-members: __weakref__
 
+.. autoclass:: pygamma_agreement.UnitaryAlignment
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. autoclass:: pygamma_agreement.Alignment
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
 
 .. autoclass:: pygamma_agreement.GammaResults
     :members:
@@ -39,17 +49,32 @@ Dissimilarities
     :exclude-members: __weakref__
 
 
-.. _alignments:
+.. _sampler:
 
-Alignments
+Samplers
 ----------
 
-.. autoclass:: pygamma_agreement.UnitaryAlignment
+.. autoclass:: pygamma_agreement.AbstractContinuumSampler
     :members:
     :special-members:
     :exclude-members: __weakref__
 
-.. autoclass:: pygamma_agreement.Alignment
+.. autoclass:: pygamma_agreement.ShuffleContinuumSampler
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. autoclass:: pygamma_agreement.StatisticalContinuumSampler
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. corpus_shuffling_tool:
+
+Corpus Shuffling Tool
+---------------------
+
+.. autoclass:: pygamma_agreement.CorpusShufflingTool
     :members:
     :special-members:
     :exclude-members: __weakref__

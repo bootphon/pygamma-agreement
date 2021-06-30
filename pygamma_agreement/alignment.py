@@ -97,7 +97,6 @@ class UnitaryAlignment:
                 sup = max(sup, unit.segment.end)
         return inf, sup
 
-
     @n_tuple.setter
     def n_tuple(self, n_tuple: UnitsTuple):
         self._n_tuple = n_tuple
@@ -236,8 +235,8 @@ class Alignment(AbstractAlignment):
 
     def gamma_k_disorder(self, dissimilarity: 'AbstractDissimilarity', category: Optional[str]) -> float:
         """
-        Returns the gamma-k or gamma-cat metric disorder (detailed in https://hal.archives-ouvertes.fr/hal-01712281)
-        of the alignment.
+        Returns the gamma-k or gamma-cat metric disorder.
+        (Exact implementation of the algorithm from section 4.2.5 of https://hal.archives-ouvertes.fr/hal-01712281)
 
         Parameters
         ----------
@@ -280,9 +279,9 @@ class Alignment(AbstractAlignment):
                     pos_dissim = dissimilarity.alpha * dissimilarity.positional_dissim.d(unit1, unit2)
                     weight_confidence = max(0, 1 - pos_dissim)
                     cat_dissim = dissimilarity.categorical_dissim.d(unit1, unit2)
-                    weight = weight_base * weight_confidence
-                    total_disorder += cat_dissim * weight
-                    total_weight += weight
+                    weight = weight_base * weight_confidence  # Each categorical dissimilarity is weighted by both
+                    total_disorder += cat_dissim * weight     # a positional "confidence" and the # of alignments
+                    total_weight += weight                    # in the unitary alignment
         if no_loop:
             return 1.0 if no_cat else 0.0
         return 0 if total_disorder == 0 else total_disorder / total_weight

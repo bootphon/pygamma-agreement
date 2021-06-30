@@ -35,7 +35,7 @@ from .continuum import Annotator, Continuum
 
 class CorpusShufflingTool:
     """
-    Corpus shuffling tool as detailed in section 6.3 of @gamma-paper
+    Corpus shuffling tool as detailed in section 6.3 of the gamma paper
     (https://www.aclweb.org/anthology/J15-3003.pdf#page=30).
     """
     SHIFT_FACTOR = 2
@@ -50,7 +50,7 @@ class CorpusShufflingTool:
         Parameters
         ----------
         magnitude:
-            magnitude m of the cst (cf @gamma-paper)
+            magnitude m of the cst (cf gamma paper)
         reference_continuum:
             this continuum will serve as reference for the tweaks made by the corpus shuffling tool.
         categories:
@@ -217,8 +217,8 @@ class CorpusShufflingTool:
                        ) -> Continuum:
         """
         Generates a new shuffled corpus with the provided (or generated) reference annotation set,
-        using the method described in 6.3 of @gamma-paper, https://www.aclweb.org/anthology/J15-3003.pdf#page=30,
-        and missing elements described in another article : https://hal.archives-ouvertes.fr/hal-00769639/
+        using the method described in 6.3 of the gamma paper, https://www.aclweb.org/anthology/J15-3003.pdf#page=30
+        (and missing elements described in another article : https://hal.archives-ouvertes.fr/hal-00769639/).
         """
         continuum = self.corpus_from_reference(annotators)
         if shift:

@@ -40,36 +40,39 @@ pygamma-agreement does not work with Python 2.7.
 
 pygamma-agreement can be easily installed using pip
 
-```shell script
-  pip install pygamma-agreement
-```
+  $ pip install pygamma-agreement
 
-Pygamma-agreement uses the [GNU Linear Programming Kit](https://www.gnu.org/software/glpk/) as its default mixed integer
-problem solver (critical step of the gamma-agreement algorithm). Since it is a bit slow, you can install the 
-[CBC](https://projects.coin-or.org/Cbc) solver and its [python API](https://mpy.github.io/CyLPdoc/). 
+
+Pygamma-agreement uses the [GNU Linear Programming Kit](https://www.gnu.org/software/glpk/) as its default Mixed Integer
+Programming solver (critical step of the gamma-agreement algorithm). Since it is quite slow, you can install the 
+[CBC](https://projects.coin-or.org/Cbc) solver and its official [python API](https://mpy.github.io/CyLPdoc/). 
 To use those in `pygamma-agreement`, simply install them:
 
-- Ubuntu/Debian  ```sudo apt install coinor-libcbc-dev```
-- Fedora: ```sudo yum install coin-or-Cbc-devel```
-- Arch Linux: ```sudo pacman -S coin-or-cbc```
-- Mac OS X:
-    - ```brew tap coin-or-tools/coinor```
-    - ```brew install coin-or-tools/coinor/cbc pkg-config```
+- Ubuntu/Debian :  ```$ sudo apt install coinor-libcbc-dev```
+- Fedora : ```$ sudo yum install coin-or-Cbc-devel```
+- Arch Linux : ```$ sudo pacman -S coin-or-cbc```
+- Mac OS X :
+    - ```$ brew tap coin-or-tools/coinor```
+    - ```$ brew install coin-or-tools/coinor/cbc pkg-config```
 
 then:
-```shell script
-  pip install cylp
-```
+
+    $ pip install cylp
+
 
 If you have trouble during the two last steps, pygamma-agreement should work anyway,
 although significantly slower for larger input.
+
+
+| ⚠️   |  Warning : A bug in GLPK causes the standart ouput to be polluted by non-deactivable messages. |
+|-----|----------------------------------------------------------------------------------|
 
 ## Tests
 
 The package comes with a unit-tests suit. To run it, first install *pytest* on your Python environment:
 
-    pip install pytest
-    pytest test/
+    $ pip install pytest
+    $ pytest test/
 
 ## Submitting and issue or contributing
 

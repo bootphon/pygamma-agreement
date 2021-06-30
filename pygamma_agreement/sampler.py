@@ -41,11 +41,14 @@ class AbstractContinuumSampler(metaclass=ABCMeta):
     Tool for generating sampled continuua from a reference continuum.
     Used to compute the "expected disorder" when calculating the gamma,
     using particular sampling techniques.
+    Must be initalized (with self.init_sampling for instance)
     """
-    _reference_continuum: Continuum
-    _ground_truth_annotators: SortedSet
+    _reference_continuum: Optional[Continuum]
+    _ground_truth_annotators: Optional[SortedSet]
 
     def __init__(self):
+        """Super constructor, sets everything to None since a call to init_sampling to set
+         parameters is mandatory."""
         self._reference_continuum = None
         self._ground_truth_annotators = None
 
@@ -77,7 +80,12 @@ class AbstractContinuumSampler(metaclass=ABCMeta):
     def sample_from_continuum(self) -> Continuum:
         """
         Returns a shuffled continuum based on the reference.
-        Every data in the generated sample must be a new object.
+        Everything in the generated sample is at least a copy.
+
+        Raises
+        ------
+        ValueError:
+            if `init_sampling` or another initalization method hasn't been called before.
         """
         pass
 
@@ -87,13 +95,12 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
     This continuum sampler uses the methods used in gamma-software, ie those described in
     gamma-paper : https://www.aclweb.org/anthology/J15-3003.pdf, section 5.2.
     and implemented in the GammaSoftware.
-    We found some unexplained specificities, such as a minimum distance between pivots, and chose
-    to add them to our implementation so our results correspond to their program's. They can be disabled
-    at construction.
     """
     _pivot_type: PivotType
 
     def __init__(self, pivot_type: PivotType = 'int_pivot'):
+        """This constructor allows to set the pivot type to int or float. Defaults to
+        int to match the java implementation."""
         super().__init__()
         self._pivot_type = pivot_type
 
@@ -106,9 +113,6 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
             the continuum that will be shuffled into the samples
         ground_truth_annotators: iterable of str, optional
             the set of annotators (from the reference) that will be considered for sampling
-        pivot_type: 'int_pivot' or 'float_pivot'
-            the java implementation by Mathet et Al. uses a integer pivoting for shuffling, we judged it unclear that
-            the method descibed in the paper was typed this way so we left the option to generate pivots using floats.
         """
         super().init_sampling(reference_continuum, ground_truth_annotators)
 
@@ -184,12 +188,13 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
     """
     This sampler creates continua using the average and standard deviation of :
 
-    * The number of annotations per annotator
-    * The gap between two of an annotator's annotations
-    * The duration of the annotations' segments
+    - The number of annotations per annotator
+    - The gap between two of an annotator's annotations
+    - The duration of the annotations' segments
     The sample is thus created by computing normal distributions using these parameters.
 
-    It also requires the probability of occurence of each annotations category.
+    It also requires the probability of occurence of each annotations category. You can either initalize sampling with
+    custom values or with a reference continuum.
     """
 
     _avg_nb_units_per_annotator: float
@@ -260,9 +265,9 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
             standard deviation of the duration of an annotation
         categories: np.array[str, 1d]
             The possible categories of the annotations
-        categories_weight: np.array[float, 1d]
+        categories_weight: np.array[float, 1d], optional
             The probability of occurence of each category. Can raise errors if len(categories) != len(category_weights)
-            and category_weights.sum() != 1.0.
+            and category_weights.sum() != 1.0. If not set, every category is equiprobable.
         """
         reference_dummy = Continuum()
         for annotator in annotators:
@@ -279,6 +284,16 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
 
     def init_sampling(self, reference_continuum: Continuum,
                       ground_truth_annotators: Optional[Iterable['Annotator']] = None):
+        """
+        Sets the sampling parameters using statistical values obtained from the reference continuum.
+
+        Parameters
+        ----------
+        reference_continuum: Continuum
+            the continuum that will be shuffled into the samples
+        ground_truth_annotators: iterable of str, optional
+            the set of annotators (from the reference) that will be considered for sampling
+        """
         super().init_sampling(reference_continuum, ground_truth_annotators)
         self._set_gap_information()
         self._set_duration_information()
