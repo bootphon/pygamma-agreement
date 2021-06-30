@@ -10,6 +10,9 @@ python:
 install:
   - pip install --upgrade pip
   - pip install .[testing]
+# CBC dependancies
+  - sudo apt install coinor-libcbc-dev
+  - pip install cylp
 
 script:
     - pytest tests/

@@ -49,12 +49,12 @@ problem solver (critical step of the gamma-agreement algorithm). Since it is a b
 [CBC](https://projects.coin-or.org/Cbc) solver and its [python API](https://mpy.github.io/CyLPdoc/). 
 To use those in `pygamma-agreement`, simply install them:
 
-- Ubuntu/Debian  ```sudo apt install coinor-cbc```
-- Fedora: ```sudo yum install coin-or-Cbc```
+- Ubuntu/Debian  ```sudo apt install coinor-libcbc-dev```
+- Fedora: ```sudo yum install coin-or-Cbc-devel```
 - Arch Linux: ```sudo pacman -S coin-or-cbc```
 - Mac OS X:
     - ```brew tap coin-or-tools/coinor```
-    - ```brew install coin-or-tools/coinor/cbc```
+    - ```brew install coin-or-tools/coinor/cbc pkg-config```
 
 then:
 ```shell script
@@ -71,8 +71,8 @@ The package comes with a unit-tests suit. To run it, first install *pytest* on y
     pip install pytest
     pytest test/
 
-| ⚠️  Tests are meant to pass with the CBC solver installed|
-|---------------------------------------------------------|
+| ⚠️  Tests are meant to pass with the CBC solver installed only|
+|--------------------------------------------------------------|
 ## Submitting and issue or contributing
 
 Please read `CONTRIBUTING.md` before submitting and issue or writing some contribution 
