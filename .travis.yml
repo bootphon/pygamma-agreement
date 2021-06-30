@@ -11,6 +11,7 @@ python:
 before_install:
 # CBC dependency
   - sudo apt-get update
+  - sudo apt-get -y install coinor-cbc
   - sudo apt-get -y install coinor-libcbc-dev
 install:
   - pip install --upgrade pip
