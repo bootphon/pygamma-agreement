@@ -52,7 +52,7 @@ def test_statistical_sampler():
 
     gamma_results = continuum.compute_gamma(dissim, sampler=sampler, precision_level=0.01)
     # Gamma:
-    assert 0.39 <= gamma_results.gamma <= 0.42
+    assert 0.42 <= gamma_results.gamma <= 0.43
     # Gamma-cat:
     assert 0.61 <= gamma_results.gamma_cat <= 0.64
 

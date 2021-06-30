@@ -580,8 +580,8 @@ class Continuum:
         try:
             import cylp
             cp.Problem(cp.Minimize(disorders.T @ x), [A @ x == 1]).solve(solver=cp.CBC)
-        except ImportError:
-            logging.warn("CBC solver not installed. Using GLPK.")
+        except (ImportError, cp.SolverError):
+            logging.warning("CBC solver not installed. Using GLPK.")
             matmul = A @ x
             cp.Problem(cp.Minimize(disorders.T @ x), [1 <= matmul, matmul <= 1]).solve(solver=cp.GLPK_MI)
         assert x.value is not None, "The linear solver couldn't find an alignment with minimal disorder " \
@@ -654,11 +654,12 @@ class Continuum:
         p = Pool()
         # computation of best alignment in advance
         best_alignment_task = p.apply_async(_compute_best_alignment_job,
-                                            (dissimilarity, self, None))
+                                            (dissimilarity, self,))
         result_pool = [
             # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
+            # (we pass a random seed to the job, as to ensure subprocess are also seeded
             p.apply_async(_compute_best_alignment_job,
-                          (dissimilarity, None, sampler))
+                          (dissimilarity, sampler.sample_from_continuum,))
             for _ in range(n_samples)
         ]
         chance_best_alignments: List[Alignment] = []
@@ -689,7 +690,7 @@ class Continuum:
                              f"because variation was too high.")
                 result_pool = [
                     p.apply_async(_compute_best_alignment_job,
-                                  (dissimilarity, None, sampler))
+                                  (dissimilarity, sampler.sample_from_continuum,))
                     for _ in range(required_samples - n_samples)
                 ]
                 for i, result in enumerate(result_pool):
@@ -828,16 +829,9 @@ class GammaResults:
 
 
 def _compute_best_alignment_job(dissimilarity: AbstractDissimilarity,
-                                continuum: Continuum = None,
-                                sampler: Optional['AbstractContinuumSampler'] = None):
+                                continuum: Continuum):
     """
     Function used to launch a multiprocessed job for calculating the best aligment of a continuum
-    using the given dissimilarity, or a sample from the using the given sampler.
+    using the given dissimilarity.
     """
-    if sampler is not None and continuum is not None:
-        raise ValueError("_compute_best_alignment_job requires either a continuum or a sampler.")
-    if sampler is not None:
-        sample = sampler.sample_from_continuum
-        return sample.get_best_alignment(dissimilarity)
-    if continuum is not None:
-        return continuum.get_best_alignment(dissimilarity)
+    return continuum.get_best_alignment(dissimilarity)
