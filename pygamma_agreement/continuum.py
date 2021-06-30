@@ -568,9 +568,8 @@ class Continuum:
             true_units_ids.append(np.arange(num_units, num_units + len(units)).astype(np.int32))
             num_units += len(units)
 
-        # Constraints matrix
+        # Constraints matrix ("every unit must appear once and only once")
         A = np.zeros((num_units, num_possible_unitary_alignements))
-
         for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
             for annotator_id, unit_id in enumerate(unit_ids_tuple):
                 if unit_id != len(true_units_ids[annotator_id]):

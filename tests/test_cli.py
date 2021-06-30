@@ -15,7 +15,8 @@ def test_cli_print():
     with tf.NamedTemporaryFile('w+', delete=True) as f:
         assert os.system(f"{pygamma_cmd} {input_file} {input_file} --seed 4772"
                          f" -k -c --alpha 3 -m -p 0.05 > {f.name}") == 0
-        lines = iter(f.read().splitlines())
+        lines = filter(lambda line: line != "Long-step dual simplex will be used",  # Necessity bc of GLPK bug
+                       f.read().splitlines())
         for _ in range(2):
             filename = next(lines)
             assert filename == input_file

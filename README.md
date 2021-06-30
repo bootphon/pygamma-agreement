@@ -71,8 +71,6 @@ The package comes with a unit-tests suit. To run it, first install *pytest* on y
     pip install pytest
     pytest test/
 
-| ⚠️  Tests are meant to pass with the CBC solver installed only|
-|--------------------------------------------------------------|
 ## Submitting and issue or contributing
 
 Please read `CONTRIBUTING.md` before submitting and issue or writing some contribution 
