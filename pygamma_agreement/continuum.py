@@ -550,7 +550,7 @@ class Continuum:
         for tuples_batch in chunked_cartesian_product(nb_unit_per_annot, CHUNK_SIZE):
             batch_disorders = dissimilarity(tuples_batch, *disorder_args)
             # Property section 5.1.1 to reduce initial complexity
-            valid_disorders_ids, = np.where(batch_disorders < self.num_annotators * dissimilarity.delta_empty)
+            valid_disorders_ids, = np.where(batch_disorders <= self.num_annotators * dissimilarity.delta_empty)
 
             all_disorders.append(batch_disorders[valid_disorders_ids])
             all_valid_tuples.append(tuples_batch[valid_disorders_ids])

@@ -68,7 +68,7 @@ def test_cli_json():
         assert len(json_data) == 1
         for file, data in json_data.items():
             assert file == input_file
-            assert 0.47 <= data['gamma'] <= 0.49
+            assert 0.46 <= data['gamma'] <= 0.49
             assert 0.69 <= data['gamma-cat'] <= 0.71
             for category, gk in {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1, '7': 0}.items():
                 if gk != 0:

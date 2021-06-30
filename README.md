@@ -19,10 +19,11 @@ Python 3 and based mostly on NumPy, Numba and pyannote.core. For a full list of
 
 The main dependencies of pygamma-agreement are :
 
-* [NumPy](https://numpy.org/>) (>= 1.10)
-* [sortedcontainers](http://www.grantjenks.com/docs/sortedcontainers/>) (>=2.0.4)
-* [pyannote.core](http://pyannote.github.io/pyannote-core/>) (>= 4.1)
-* [CVXPY](https://www.cvxpy.org/>) (== 1.0.25)
+* [NumPy](https://numpy.org/) (>= 1.10)
+* [sortedcontainers](http://www.grantjenks.com/docs/sortedcontainers/) (>=2.0.4)
+* [pyannote.core](http://pyannote.github.io/pyannote-core/) (>= 4.1)
+* [CVXPY](https://www.cvxpy.org/) (>= 1.0.25)
+* [CVXOPT](http://cvxopt.org/) (>= 1.2.6)
 * [Numba](https://numba.pydata.org/) (>= 0.48.0)
 * [TextGrid](https://github.com/kylebgorman/textgrid) (>= 1.5)
 * [Pympi-ling](https://github.com/dopefishh/pympi) (>= 1.69)
@@ -60,6 +61,8 @@ then:
   pip install cylp
 ```
 
+If you have trouble during the two last steps, pygamma-agreement should work anyway,
+although significantly slower for larger input.
 
 ## Tests
 
@@ -68,7 +71,8 @@ The package comes with a unit-tests suit. To run it, first install *pytest* on y
     pip install pytest
     pytest test/
 
-
+| ⚠️  Tests are meant to pass with the CBC solver installed|
+|---------------------------------------------------------|
 ## Submitting and issue or contributing
 
 Please read `CONTRIBUTING.md` before submitting and issue or writing some contribution 
