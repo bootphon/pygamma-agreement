@@ -21,15 +21,18 @@ def test_cli_print():
             assert filename == input_file
             gamma = next(lines).split(sep='=')
             assert gamma[0] == 'gamma'
-            assert 0.43 <= float(gamma[1]) <= 0.47
+            assert 0.46 <= float(gamma[1]) <= 0.49
             gamma_cat = next(lines).split('=')
             assert gamma_cat[0] == 'gamma-cat'
-            assert 0.67 <= float(gamma_cat[1]) <= 0.70
+            assert 0.69 <= float(gamma_cat[1]) <= 0.71
             for category, gk in {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1, '7': 0}.items():
                 gamma_k = re.split("\\('|'\\)=", next(lines))
                 assert gamma_k[0] == 'gamma-k'
                 assert gamma_k[1] == category
-                assert float(gamma_k[2]) - 0.2 <= gk <= float(gamma_k[2]) + 0.2
+                if gk != 0:
+                    assert float(gamma_k[2]) - 0.2 <= gk <= float(gamma_k[2]) + 0.2
+                else:
+                    assert gk <= 0
 
 
 def test_cli_csv():
@@ -46,10 +49,13 @@ def test_cli_csv():
             gamma, gamma_cat = float(gamma), float(gamma_cat)
             gamma_k = ast.literal_eval(gamma_k)
 
-            assert 0.43 <= gamma <= 0.47
-            assert 0.67 <= gamma_cat <= 0.70
+            assert 0.46 <= gamma <= 0.49
+            assert 0.69 <= gamma_cat <= 0.71
             for category, gk in {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1, '7': 0}.items():
-                assert gk - 0.2 <= gamma_k[category] <= gk + 0.2
+                if gk != 0:
+                    assert gk - 0.2 <= gamma_k[category] <= gk + 0.2
+                else:
+                    assert gk <= 0
 
 
 def test_cli_json():
@@ -62,10 +68,13 @@ def test_cli_json():
         assert len(json_data) == 1
         for file, data in json_data.items():
             assert file == input_file
-            assert 0.43 <= data['gamma'] <= 0.47
-            assert 0.67 <= data['gamma-cat'] <= 0.70
+            assert 0.47 <= data['gamma'] <= 0.49
+            assert 0.69 <= data['gamma-cat'] <= 0.71
             for category, gk in {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1, '7': 0}.items():
-                assert gk - 0.2 <= data['gamma-k'][category] <= gk + 0.2
+                if gk != 0:
+                    assert gk - 0.2 <= data['gamma-k'][category] <= gk + 0.2
+                else:
+                    assert gk <= 0
 
 
 

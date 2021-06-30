@@ -31,6 +31,7 @@ Continuum and corpus
 import csv
 import logging
 import os
+import sys
 import time
 from copy import deepcopy
 from dataclasses import dataclass
@@ -549,7 +550,7 @@ class Continuum:
         for tuples_batch in chunked_cartesian_product(nb_unit_per_annot, CHUNK_SIZE):
             batch_disorders = dissimilarity(tuples_batch, *disorder_args)
             # Property section 5.1.1 to reduce initial complexity
-            valid_disorders_ids, = np.where(batch_disorders <= self.num_annotators * dissimilarity.delta_empty)
+            valid_disorders_ids, = np.where(batch_disorders < self.num_annotators * dissimilarity.delta_empty)
 
             all_disorders.append(batch_disorders[valid_disorders_ids])
             all_valid_tuples.append(tuples_batch[valid_disorders_ids])
@@ -578,14 +579,13 @@ class Continuum:
         # we don't actually care about the optimal loss value
         try:
             import cylp
-            cp.Problem(cp.Minimize(disorders.T @ x), [cp.matmul(A, x) == 1]).solve(solver=cp.CBC)
+            cp.Problem(cp.Minimize(disorders.T @ x), [A @ x == 1]).solve(solver=cp.CBC)
         except ImportError:
             logging.warn("CBC solver not installed. Using GLPK.")
             matmul = A @ x
             cp.Problem(cp.Minimize(disorders.T @ x), [1 <= matmul, matmul <= 1]).solve(solver=cp.GLPK_MI)
         assert x.value is not None, "The linear solver couldn't find an alignment with minimal disorder " \
                                     "(likely because the amount of possible unitary alignments was too high)"
-
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
         chosen_alignments_ids, = np.where(x.value > 0.9)
 
@@ -618,8 +618,7 @@ class Continuum:
                       n_samples: int = 30,
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[SortedSet] = None,
-                      sampler: 'AbstractContinuumSampler' = None,
-                      ) -> 'GammaResults':
+                      sampler: 'AbstractContinuumSampler' = None) -> 'GammaResults':
         """
 
         Parameters
