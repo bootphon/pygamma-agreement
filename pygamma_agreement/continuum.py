@@ -693,8 +693,8 @@ class Continuum:
 
         if fast is not None:
             if fast:
-                logging.warning("Fast-gamma is activated. It might be inaccurate for continua with lots over overlapping, "
-                                "and slower for small continuua (< 3 annotators).")
+                logging.warning("Fast-gamma is activated. It might be inaccurate for continua with lots of "
+                                "overlapping, and slower for small continuua (< 3 annotators).")
                 job = _compute_good_alignment_job
             else:
                 job = _compute_best_alignment_job

@@ -20,7 +20,7 @@ def test_gamma_2by1000():
                                               alpha=3,
                                               beta=1)
 
-    gamma_results = continuum.compute_gamma(dissim, precision_level=0.5)
+    gamma_results = continuum.compute_gamma(dissim, fast=False)
     assert len(gamma_results.best_alignment.unitary_alignments) == 1085
 
     # Gamma:
@@ -42,7 +42,7 @@ def test_gamma_3by100():
                                               alpha=3,
                                               beta=1)
 
-    gamma_results = continuum.compute_gamma(dissim, precision_level=0.5)
+    gamma_results = continuum.compute_gamma(dissim, fast=False)
     assert len(gamma_results.best_alignment.unitary_alignments) == 127
     # Gamma
     assert 0.79 <= gamma_results.gamma <= 0.81
@@ -63,7 +63,7 @@ def test_gamma_alexpaulsuzan():
                                               alpha=3,
                                               beta=1)
     sampler = ShuffleContinuumSampler()
-    gamma_results = continuum.compute_gamma(dissim, sampler=sampler, precision_level=0.01)
+    gamma_results = continuum.compute_gamma(dissim, sampler=sampler, precision_level=0.05, fast=False)
     assert len(gamma_results.best_alignment.unitary_alignments) == 6
 
     assert gamma_results.best_alignment.disorder == pytest.approx(0.96, 0.01)
@@ -86,7 +86,7 @@ def test_gamma_alexpaulsuzan_otherdissims():
     continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
     dissimilarity = PositionalDissimilarity()
 
-    gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.01)
+    gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.05, fast=False)
 
     gamma = gamma_results.gamma
     try:
@@ -98,7 +98,7 @@ def test_gamma_alexpaulsuzan_otherdissims():
     dissimilarity = CategoricalDissimilarity(categories=continuum.categories,
                                              cat_dissimilarity_matrix=cat_ord)
 
-    gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.01)
+    gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.05, fast=False)
 
     gamma = gamma_results.gamma
     try:
