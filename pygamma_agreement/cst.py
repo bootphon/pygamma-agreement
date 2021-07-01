@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
-# Copyright (c) 2020 CoML
+# Copyright (c) 2020-2021 CoML
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +35,7 @@ from .continuum import Annotator, Continuum
 
 class CorpusShufflingTool:
     """
-    Corpus shuffling tool as detailed in section 6.3 of @gamma-paper
+    Corpus shuffling tool as detailed in section 6.3 of the gamma paper
     (https://www.aclweb.org/anthology/J15-3003.pdf#page=30).
     """
     SHIFT_FACTOR = 2
@@ -53,7 +50,7 @@ class CorpusShufflingTool:
         Parameters
         ----------
         magnitude:
-            magnitude m of the cst (cf @gamma-paper)
+            magnitude m of the cst (cf gamma paper)
         reference_continuum:
             this continuum will serve as reference for the tweaks made by the corpus shuffling tool.
         categories:
@@ -73,6 +70,7 @@ class CorpusShufflingTool:
                 self._categories.add(category)
 
     def corpus_from_reference(self, new_annotators: Union[int, Iterable[Annotator]]):
+        # TODO: add docstring
         continuum = Continuum()
         continuum.bound_inf, continuum.bound_sup = self._reference_continuum.bounds
         if isinstance(new_annotators, int):
@@ -219,8 +217,8 @@ class CorpusShufflingTool:
                        ) -> Continuum:
         """
         Generates a new shuffled corpus with the provided (or generated) reference annotation set,
-        using the method described in 6.3 of @gamma-paper, https://www.aclweb.org/anthology/J15-3003.pdf#page=30,
-        and missing elements described in another article : https://hal.archives-ouvertes.fr/hal-00769639/
+        using the method described in 6.3 of the gamma paper, https://www.aclweb.org/anthology/J15-3003.pdf#page=30
+        (and missing elements described in another article : https://hal.archives-ouvertes.fr/hal-00769639/).
         """
         continuum = self.corpus_from_reference(annotators)
         if shift:
@@ -234,10 +232,10 @@ class CorpusShufflingTool:
         if split:
             self.splits_shuffle(continuum)
         if include_ref:
-            assert (self._reference_annotator not in continuum.annotators,
-                    "Reference annotator can't be included as "
-                    "an annotator with the same name is in the "
-                    "generated corpus.")
-            for unit in self._reference_continuum.iter_annotator(next(iter(self._reference_continuum.annotators))):
+            assert self._reference_annotator not in continuum.annotators, \
+                "Reference annotator can't be included as " \
+                "an annotator with the same name is in the " \
+                "generated corpus."
+            for unit in self._reference_continuum[next(iter(self._reference_continuum.annotators))]:
                 continuum.add(self._reference_annotator, unit.segment, unit.annotation)
         return continuum

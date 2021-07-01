@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2020 CoML
+# Copyright (c) 2020-2021 CoML
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -39,8 +39,7 @@ setup(
     # package
     packages=find_packages(),
     install_requires=requirements,
-    extras_require={'test': ['pytest']},
-    version='0.1.6',
+    version='0.2.0',
 
     # PyPI
     name='pygamma-agreement',
@@ -50,7 +49,7 @@ setup(
     long_description_content_type="text/markdown",
     author='Rachid RIAD',
     author_email='rachid.riad@ens.fr',
-    url='http://pygamme.readthedocs.io/',
+    url='https://pygamma-agreement.readthedocs.io/en/latest/',
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
@@ -60,11 +59,25 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
-        "Topic :: Scientific/Engineering"
+        "Programming Language :: Python :: 3.9",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Text Processing :: Linguistic",
+        "Topic :: Multimedia :: Sound/Audio :: Speech"
     ],
     entry_points={
         'console_scripts': [
             'pygamma-agreement = pygamma_agreement.cli_apps:pygamma_cmd',
         ]
+    },
+    extras_requires={
+        "notebook": [
+            "matplotlib",
+        ],
+        "testing": [
+            "pytest"
+        ],
+        "docs": ["sphinx",
+                 "sphinx_rtd_theme"]
     }
+
 )

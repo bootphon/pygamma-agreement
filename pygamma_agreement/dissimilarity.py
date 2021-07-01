@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
-# Copyright (c) 2020 CoML
+# Copyright (c) 2020-2021 CoML
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -101,15 +98,15 @@ class AbstractDissimilarity:
     def d(self, unit_a: 'Unit', unit_b: 'Unit') -> float:
         """
         Returns the disorder between two unit objects, Depending on the type of dissimilaty.
-        If unit_a or unit_b is the empty unit, delta_empty is returned and
-        d(unit_a, unit_b) = d(unit_b, unit_a).
+        If unit_a or unit_b is the empty unit, delta_empty is returned.
+        d(unit_a, unit_b) = d(unit_b, unit_a) is always True.
         """
 
     def build_args(self, resource: Union['Alignment', 'Continuum']) -> Tuple:
         """
         Computes a compact, array-shaped representation of units
         needed for fast computation of inter-units disorders
-        computed and set when compute_disorder is called
+        computed, and set when compute_disorder is called.
         """
         from .continuum import Continuum
         from .alignment import Alignment
@@ -120,9 +117,7 @@ class AbstractDissimilarity:
 
     @staticmethod
     def alignments_disorders(*args, **kwargs):
-        """
-        Creates the args (numpy arrays representations, values & other)
-        """
+        """Computes the disorder for a batch of unitary alignments."""
         raise NotImplemented()
 
     def __call__(self, *args) -> np.ndarray:
@@ -402,7 +397,8 @@ class PositionalDissimilarity(AbstractDissimilarity):
                         distance_pos = positional_dissim(unit_a, unit_b, delta_empty)
                         disorders[tuple_id] += distance_pos
 
-        disorders /= (units_tuples_ids.shape[1] * (units_tuples_ids.shape[1] - 1) // 2)  # averaging by C^2_n = n(n-1)/2
+        # averaging by C^2_n = n(n-1)/2
+        disorders /= (units_tuples_ids.shape[1] * (units_tuples_ids.shape[1] - 1) // 2)
 
         return disorders
 

@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
-# Copyright (c) 2020 CoML
+# Copyright (c) 2020-2021 CoML
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -165,7 +162,7 @@ def pygamma_cmd():
 
         sampler = None
         if args.mathet_sampler:
-            sampler = ShuffleContinuumSampler(continuum)
+            sampler = ShuffleContinuumSampler()
 
         gamma = continuum.compute_gamma(dissimilarity=dissim,
                                         precision_level=args.precision_level,

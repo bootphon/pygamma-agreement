@@ -1,11 +1,37 @@
-#!usr/bin/env python
+# The MIT License (MIT)
+
+# Copyright (c) 2020-2021 CoML
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# AUTHORS
+# Rachid RIAD, Hadrien TITEUX, Léopold FAVRE
+
 from abc import ABCMeta, abstractmethod
 from typing import Optional, Iterable, List
-from typing_extensions import Literal
-from sortedcontainers import SortedSet, SortedList
+
 import numpy as np
 from pyannote.core import Segment
-from .continuum import Continuum, Unit
+from sortedcontainers import SortedSet
+from typing_extensions import Literal
+
+from .continuum import Continuum, Annotator
 
 PivotType = Literal["float_pivot", "int_pivot"]
 
@@ -15,26 +41,51 @@ class AbstractContinuumSampler(metaclass=ABCMeta):
     Tool for generating sampled continuua from a reference continuum.
     Used to compute the "expected disorder" when calculating the gamma,
     using particular sampling techniques.
+    Must be initalized (with self.init_sampling for instance)
     """
-    _reference_continuum: Continuum
-    _ground_truth_annotators: SortedSet
+    _reference_continuum: Optional[Continuum]
+    _ground_truth_annotators: Optional[SortedSet]
 
-    def __init__(self, reference_continuum: Continuum,
-                 ground_truth_annotators: Optional[SortedSet] = None):
+    def __init__(self):
+        """Super constructor, sets everything to None since a call to init_sampling to set
+         parameters is mandatory."""
+        self._reference_continuum = None
+        self._ground_truth_annotators = None
+
+    def init_sampling(self, reference_continuum: Continuum,
+                      ground_truth_annotators: Optional[Iterable['Annotator']] = None):
+        """
+        Parameters
+        ----------
+        reference_continuum: Continuum
+            the continuum that will be shuffled into the samples
+        ground_truth_annotators: iterable of str, optional
+            the set of annotators (from the reference) that will be considered for sampling
+        """
         self._reference_continuum = reference_continuum
         if ground_truth_annotators is None:
             self._ground_truth_annotators = self._reference_continuum.annotators
         else:
-            assert self._reference_continuum.annotators.issuperset(ground_truth_annotators),\
-                   "Can't sample from ground truth annotators not in the reference continuum."
-            self._ground_truth_annotators = ground_truth_annotators
+            assert self._reference_continuum.annotators.issuperset(ground_truth_annotators), \
+                "Can't sample from ground truth annotators not in the reference continuum."
+            self._ground_truth_annotators = SortedSet(ground_truth_annotators)
+
+    def _has_been_init(self):
+        assert self._reference_continuum is not None, \
+            "Sampler hasnt been initialized. Call 'sampler.init_sampling' before 'sampler.sample_from_continuum'."
+
 
     @property
     @abstractmethod
     def sample_from_continuum(self) -> Continuum:
         """
         Returns a shuffled continuum based on the reference.
-        Every data in the generated sample must be a new object.
+        Everything in the generated sample is at least a copy.
+
+        Raises
+        ------
+        ValueError:
+            if `init_sampling` or another initalization method hasn't been called before.
         """
         pass
 
@@ -44,32 +95,29 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
     This continuum sampler uses the methods used in gamma-software, ie those described in
     gamma-paper : https://www.aclweb.org/anthology/J15-3003.pdf, section 5.2.
     and implemented in the GammaSoftware.
-    We found some unexplained specificities, such as a minimum distance between pivots, and chose
-    to add them to our implementation so our results correspond to their program's. They can be disabled
-    at construction.
     """
     _pivot_type: PivotType
-    _min_dist_between_pivots: bool
 
-    def __init__(self, reference_continuum: Continuum,
-                 ground_truth_annotators: Optional[SortedSet] = None,
-                 pivot_type: PivotType = 'int_pivot'):
+    def __init__(self, pivot_type: PivotType = 'int_pivot'):
+        """This constructor allows to set the pivot type to int or float. Defaults to
+        int to match the java implementation."""
+        super().__init__()
+        self._pivot_type = pivot_type
+
+    def init_sampling(self, reference_continuum: Continuum,
+                      ground_truth_annotators: Optional[Iterable['Annotator']] = None):
         """
         Parameters
         ----------
         reference_continuum: Continuum
             the continuum that will be shuffled into the samples
-        ground_truth_annotators: SortedSet of str, optional
+        ground_truth_annotators: iterable of str, optional
             the set of annotators (from the reference) that will be considered for sampling
-        pivot_type: 'int_pivot' or 'float_pivot'
-            the java implementation by Mathet et Al. uses a integer pivoting for shuffling, we judged it unclear that
-            the method descibed in the paper was typed this way so we left the option to generate pivots using floats.
         """
-        super().__init__(reference_continuum, ground_truth_annotators)
-        self._pivot_type = pivot_type
+        super().init_sampling(reference_continuum, ground_truth_annotators)
 
     @staticmethod
-    def __remove_pivot_segment__(pivot: float, segments: List[Segment], dist: float) -> List[Segment]:
+    def _remove_pivot_segment(pivot: float, segments: List[Segment], dist: float) -> List[Segment]:
         """
         Returns a copy of the given list of segments, minus the segment delimited by [pivot - dist, pivot + dist].
         """
@@ -89,7 +137,7 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
                     new_segments.append(Segment(segment.start, pivot - dist))
         return new_segments
 
-    def __random_from_segments__(self, segments: List[Segment]) -> float:
+    def _random_from_segments(self, segments: List[Segment]) -> float:
         """
         Returns a random value from the provided list of segments, by randomly choosing
         a segment (weighted by its length) and then using uniform distribution in it.
@@ -103,9 +151,9 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         else:
             return np.random.uniform(segment.start, segment.end)
 
-
     @property
     def sample_from_continuum(self) -> Continuum:
+        self._has_been_init()
         assert self._pivot_type in ('float_pivot', 'int_pivot')
         continuum = self._reference_continuum
         min_dist_between_pivots = continuum.avg_length_unit / 2
@@ -115,14 +163,13 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         segments_available = [Segment(bound_inf, bound_sup)]
         for idx in range(len(annotators)):
             if len(segments_available) != 0:
-                pivot: float = self.__random_from_segments__(segments_available)
-                segments_available = self.__remove_pivot_segment__(pivot, segments_available, min_dist_between_pivots)
+                pivot: float = self._random_from_segments(segments_available)
+                segments_available = self._remove_pivot_segment(pivot, segments_available, min_dist_between_pivots)
             else:
                 pivot = np.random.uniform(bound_inf, bound_sup)
             rnd_annotator = np.random.choice(annotators)
-            units = continuum._annotations[rnd_annotator]
             new_annotator = f'Sampled_annotation {idx}'
-            for unit in units:
+            for unit in continuum.iter_annotator(rnd_annotator):
                 if unit.segment.start + pivot > bound_sup:
                     new_continuum.add(new_annotator,
                                       Segment(unit.segment.start + pivot + bound_inf - bound_sup,
@@ -140,12 +187,13 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
     """
     This sampler creates continua using the average and standard deviation of :
 
-    * The number of annotations per annotator
-    * The gap between two of an annotator's annotations
-    * The duration of the annotations' segments
+    - The number of annotations per annotator
+    - The gap between two of an annotator's annotations
+    - The duration of the annotations' segments
     The sample is thus created by computing normal distributions using these parameters.
 
-    It also requires the probability of occurence of each annotations category.
+    It also requires the probability of occurence of each annotations category. You can either initalize sampling with
+    custom values or with a reference continuum.
     """
 
     _avg_nb_units_per_annotator: float
@@ -191,21 +239,15 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
             self._categories_weight[categories_set.index(unit.annotation)] += 1
         self._categories_weight /= self._reference_continuum.num_units
 
-    def __init__(self, continuum: Continuum = None,
-                 annotators: Iterable[str] = None,
-                 avg_num_units_per_annotator: float = None, std_num_units_per_annotator: float = None,
-                 avg_gap: float = None, std_gap: float = None,
-                 avg_duration: float = None, std_duration: float = None,
-                 categories: np.ndarray = None, categories_weight: np.ndarray = None
-                 ):
+    def init_sampling_custom(self, annotators: Iterable[str],
+                             avg_num_units_per_annotator: float, std_num_units_per_annotator: float,
+                             avg_gap: float, std_gap: float,
+                             avg_duration: float, std_duration: float,
+                             categories: np.ndarray, categories_weight: np.ndarray = None):
         """
 
         Parameters
         ----------
-        continuum: Continuum, optional
-            The continuum that will be analysed to obtain all statistical values needed for sample generation.
-            If not set, it is required that all the parameters are provided. If set, the other parameters will be
-            ignored.
         annotators:
             the annotators that will be involved in the samples
         avg_num_units_per_annotator: float, optional
@@ -222,32 +264,44 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
             standard deviation of the duration of an annotation
         categories: np.array[str, 1d]
             The possible categories of the annotations
-        categories_weight: np.array[float, 1d]
+        categories_weight: np.array[float, 1d], optional
             The probability of occurence of each category. Can raise errors if len(categories) != len(category_weights)
-            and category_weights.sum() != 1.0.
+            and category_weights.sum() != 1.0. If not set, every category is equiprobable.
         """
-        if continuum is None:
-            reference_dummy = Continuum()
-            for annotator in annotators:
-                reference_dummy.add_annotator(annotator)
-            super().__init__(reference_dummy)
-            self._avg_nb_units_per_annotator = avg_num_units_per_annotator
-            self._std_nb_units_per_annotator = std_num_units_per_annotator
-            self._avg_gap = avg_gap
-            self._std_gap = std_gap
-            self._categories = categories
-            self._categories_weight = categories_weight
-            self._avg_unit_duration = avg_duration
-            self._std_unit_duration = std_duration
-        else:
-            super().__init__(continuum)
-            self._set_gap_information()
-            self._set_duration_information()
-            self._set_categories_information()
-            self._set_nb_units_information()
+        reference_dummy = Continuum()
+        for annotator in annotators:
+            reference_dummy.add_annotator(annotator)
+        super().init_sampling(reference_dummy)
+        self._avg_nb_units_per_annotator = avg_num_units_per_annotator
+        self._std_nb_units_per_annotator = std_num_units_per_annotator
+        self._avg_gap = avg_gap
+        self._std_gap = std_gap
+        self._categories = categories
+        self._categories_weight = categories_weight
+        self._avg_unit_duration = avg_duration
+        self._std_unit_duration = std_duration
+
+    def init_sampling(self, reference_continuum: Continuum,
+                      ground_truth_annotators: Optional[Iterable['Annotator']] = None):
+        """
+        Sets the sampling parameters using statistical values obtained from the reference continuum.
+
+        Parameters
+        ----------
+        reference_continuum: Continuum
+            the continuum that will be shuffled into the samples
+        ground_truth_annotators: iterable of str, optional
+            the set of annotators (from the reference) that will be considered for sampling
+        """
+        super().init_sampling(reference_continuum, ground_truth_annotators)
+        self._set_gap_information()
+        self._set_duration_information()
+        self._set_categories_information()
+        self._set_nb_units_information()
 
     @property
     def sample_from_continuum(self) -> Continuum:
+        self._has_been_init()
         new_continnum = Continuum()
         for annotator in self._ground_truth_annotators:
             last_point = 0
@@ -263,6 +317,3 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
                 new_continnum.add(annotator, Segment(start, end), category)
                 last_point = end
         return new_continnum
-
-
-

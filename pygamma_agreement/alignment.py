@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
-# Copyright (c) 2020 CoML
+# Copyright (c) 2020-2021 CoML
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -99,7 +96,6 @@ class UnitaryAlignment:
                 inf = min(inf, unit.segment.start)
                 sup = max(sup, unit.segment.end)
         return inf, sup
-
 
     @n_tuple.setter
     def n_tuple(self, n_tuple: UnitsTuple):
@@ -239,8 +235,8 @@ class Alignment(AbstractAlignment):
 
     def gamma_k_disorder(self, dissimilarity: 'AbstractDissimilarity', category: Optional[str]) -> float:
         """
-        Returns the gamma-k or gamma-cat metric disorder (detailed in https://hal.archives-ouvertes.fr/hal-01712281)
-        of the alignment.
+        Returns the gamma-k or gamma-cat metric disorder.
+        (Exact implementation of the algorithm from section 4.2.5 of https://hal.archives-ouvertes.fr/hal-01712281)
 
         Parameters
         ----------
@@ -252,11 +248,14 @@ class Alignment(AbstractAlignment):
             Leave it unset to compute the gamma-cat disorder.
         """
         if not isinstance(dissimilarity, CombinedCategoricalDissimilarity):
-            raise TypeError("Cannot compute gamma-k or gamma-cat with a best alignment computed with a "
-                            "non-combined dissimilarity.")
+            raise TypeError("Gamma-k and Gamma-cat can only be computed using "
+                            f"the {CombinedCategoricalDissimilarity} "
+                            f"dissimilarity.")
+
         total_disorder = 0
         total_weight = 0
-        noloop = True
+        no_cat = True
+        no_loop = True
         for unitary_alignment in self:
             nv = unitary_alignment.nb_units
             if nv < 2:
@@ -269,24 +268,23 @@ class Alignment(AbstractAlignment):
                     if category is not None and ((unit1 is None or unit1.annotation != category)
                                                  and (unit2 is None or unit2.annotation != category)):
                         continue
+                    no_cat = False
                     if unit1 is None or unit2 is None:
                         # extra case for unaligned annotations, experimental
-                        """if unit1 is not None or unit2 is not None:
-                            total_disorder += dissimilarity.delta_empty * dissimilarity.delta_empty
-                            total_weight += dissimilarity.delta_empty"""
+                        # if unit1 is not None or unit2 is not None:
+                        #    total_disorder += dissimilarity.delta_empty * dissimilarity.delta_empty
+                        #    total_weight += dissimilarity.delta_empty
                         continue
-                    noloop = False
+                    no_loop = False
                     pos_dissim = dissimilarity.alpha * dissimilarity.positional_dissim.d(unit1, unit2)
                     weight_confidence = max(0, 1 - pos_dissim)
                     cat_dissim = dissimilarity.categorical_dissim.d(unit1, unit2)
-                    weight = weight_base * weight_confidence
-                    total_disorder += cat_dissim * weight
-                    total_weight += weight
-        if noloop:
-            return 1.0
-        if total_weight == 0:
-            return np.NaN
-        return total_disorder / total_weight
+                    weight = weight_base * weight_confidence  # Each categorical dissimilarity is weighted by both
+                    total_disorder += cat_dissim * weight     # a positional "confidence" and the # of alignments
+                    total_weight += weight                    # in the unitary alignment
+        if no_loop:
+            return 1.0 if no_cat else 0.0
+        return 0 if total_disorder == 0 else total_disorder / total_weight
 
     def check(self, continuum: Optional[Continuum] = None):
         """

@@ -89,6 +89,21 @@ of the gamma software. We chose to include the alpha factor, as setting it to `1
     print(f"gamma-cat is {gamma_results.gamma_cat}")  # Gamma-k can also be influenced by alpha
     dissimilarity.alpha = 3.0  # Add this line if you want to reuse the dissimilarity with alpha = 3
 
+4. Best alignment
+^^^^^^^^^^^^^^^^^
+
+The Mixed Integer Programming solvers used in `pygamma-agreement` not being the same as the one used by the
+Gamma-Software, it is possible that the best alignments found by both software are different if multiple best
+alignments with the same disorder exist.
+
+**In the Gamma Software:**
+The MIP solver used is ``liblpsolve``
+
+**In pygamma-agreement:**
+The MIP solver used is ``GLPK``, or the faster ``CBC`` if it is installed.
+
+Although this doesn't weight on the value of gamma, it slightly does on gamma-cat and gamma-k's.
+
 
 How to obtain the results from the Gamma Software
 -------------------------------------------------
@@ -110,7 +125,7 @@ manually set the sampler used for computing the gamma agreement in python :
 
     from pygamma_agreement import ShuffleContinuumSampler
     ...
-    gamma_results = continuum.compute_gamma(sampler=ShuffleContinuumSampler(continuum),
+    gamma_results = continuum.compute_gamma(sampler=ShuffleContinuumSampler(),
                                             precision_level=0.01)
 
 Alpha value
@@ -125,7 +140,7 @@ In python, you need to manually create the combined categorical dissimilarity wi
     dissim = CombinedCategoricalDissimilarity(continuum.categories,
                                               alpha=3)
     gamma_results = continuum.compute_gamma(dissim,
-                                            sampler=ShuffleContinuumSampler(continuum),
+                                            sampler=ShuffleContinuumSampler(),
                                             precision_level=0.01)
 
 
@@ -142,7 +157,7 @@ In [mathet2015]_, section 4.3, a value is defined as such:
 
     "let :math:`\bar{x}={\frac{\sum_{i=1}^{n}x_i}{n}}` be the average number of annotations per annotator"
 
-A misreading made us interpret this value as the ***total number of annotations*** in the continuum. Thus, the values
+A misreading made us interpret this value as the **total number of annotations** in the continuum. Thus, the values
 calculated by ``pygamma-agreement`` were strongly impacted (a difference as big as *0.2* for small continua).
 
 2. Minimal distance between pivots

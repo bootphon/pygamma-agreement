@@ -12,11 +12,14 @@ def test_random_reference():
     np.random.seed(4772)
     categories = np.array(["aa", "ab", "ba", "bb"])
     for _ in range(10):  # we do it a certain number of time to be sure no chance happened
-        continuum = StatisticalContinuumSampler(annotators=['Martino'], avg_num_units_per_annotator=40,
-                                                std_num_units_per_annotator=0,
-                                                avg_gap=0, std_gap=5,
-                                                avg_duration=10, std_duration=1,
-                                                categories=categories).sample_from_continuum
+        sampler = StatisticalContinuumSampler()
+
+        sampler.init_sampling_custom(annotators=['Martino'], avg_num_units_per_annotator=40,
+                                     std_num_units_per_annotator=0,
+                                     avg_gap=0, std_gap=5,
+                                     avg_duration=10, std_duration=1,
+                                     categories=categories)
+        continuum = sampler.sample_from_continuum
 
         assert continuum.categories == SortedSet(categories)
         assert continuum.num_annotators == 1
@@ -68,7 +71,7 @@ def test_cst_0():
 
 def test_cst_1():
     np.random.seed(4772)
-    continuum = Continuum.from_csv(Path("/home/leopold/PycharmProjects/pygamma-agreement/tests/data/annotation_paul_suzann_alex.csv"))
+    continuum = Continuum.from_csv(Path("tests/data/annotation_paul_suzann_alex.csv"))
     categories = continuum.categories
     dissim = CombinedCategoricalDissimilarity(categories,
                                               delta_empty=1,
@@ -110,12 +113,14 @@ def test_cst_cat():
     assert shuffled_cat.compute_gamma(dissim).gamma < 0.81
 
     # Now we generate a reference with A LOT of categories and close segments:
-    continuum_martino = StatisticalContinuumSampler(annotators=['Martino'], avg_num_units_per_annotator=40,
-                                                    std_num_units_per_annotator=0,
-                                                    avg_gap=0, std_gap=5,
-                                                    avg_duration=10, std_duration=1,
-                                                    categories=np.array([str(i) for i in range(1000)]))\
-        .sample_from_continuum
+    sampler = StatisticalContinuumSampler()
+    sampler.init_sampling_custom(annotators=['Martino'],
+                                 avg_num_units_per_annotator=40,
+                                 std_num_units_per_annotator=0,
+                                 avg_gap=0, std_gap=5,
+                                 avg_duration=10, std_duration=1,
+                                 categories=np.array([str(i) for i in range(1000)]))
+    continuum_martino = sampler.sample_from_continuum
     cst_lots_of_cat = CorpusShufflingTool(1.0, continuum_martino)
     shuffled_cat = cst_lots_of_cat.corpus_from_reference(["martino", "Martingale", "Martine"])
     cst_lots_of_cat.category_shuffle(shuffled_cat, overlapping_fun=cat_ord, prevalence=True)
@@ -130,17 +135,20 @@ def test_cst_cat():
 def test_cst_benchmark():
 
     np.random.seed(4227)
-    reference1 = StatisticalContinuumSampler(annotators=['Ref'],
-                                             avg_num_units_per_annotator=40, std_num_units_per_annotator=0,
-                                             avg_duration=20, std_duration=2,
-                                             avg_gap=20, std_gap=5,
-                                             categories=np.array([str(i) for i in range(10)])).sample_from_continuum
-
-    reference2 = StatisticalContinuumSampler(annotators=['Ref'],
-                                             avg_num_units_per_annotator=1, std_num_units_per_annotator=0,
-                                             avg_duration=6, std_duration=2,
-                                             avg_gap=4, std_gap=5,
-                                             categories=np.array([str(i) for i in range(1)])).sample_from_continuum
+    sampler1 = StatisticalContinuumSampler()
+    sampler1.init_sampling_custom(annotators=['Ref'],
+                                  avg_num_units_per_annotator=40, std_num_units_per_annotator=0,
+                                  avg_duration=20, std_duration=2,
+                                  avg_gap=20, std_gap=5,
+                                  categories=np.array([str(i) for i in range(10)]))
+    reference1 = sampler1.sample_from_continuum
+    sampler2 = StatisticalContinuumSampler()
+    sampler2.init_sampling_custom(annotators=['Ref'],
+                                  avg_num_units_per_annotator=1, std_num_units_per_annotator=0,
+                                  avg_duration=6, std_duration=2,
+                                  avg_gap=4, std_gap=5,
+                                  categories=np.array([str(i) for i in range(1)]))
+    reference2 = sampler2.sample_from_continuum
 
     nb_gammas_per_magnitude = 3
     nb_annotators = 3
@@ -155,7 +163,7 @@ def test_cst_benchmark():
                 cst.magnitude = m
                 cont_cst = cst.corpus_shuffle(nb_annotators, shift=True, split=True, false_neg=True, cat_shuffle=True)
                 gamma_results = cont_cst.compute_gamma(dissim,
-                                                       sampler=ShuffleContinuumSampler(cont_cst))
+                                                       sampler=ShuffleContinuumSampler())
                 gamma = gamma_results.gamma
                 gamma_cat = gamma_results.gamma_cat
 

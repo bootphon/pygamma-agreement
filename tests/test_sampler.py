@@ -12,9 +12,9 @@ def test_mathet_sampler():
     np.random.seed(4778)
     continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
 
-    sampler = ShuffleContinuumSampler(continuum,
-                                      ground_truth_annotators=SortedSet(("Paul", "Suzan")),
-                                      pivot_type='float_pivot')
+    sampler = ShuffleContinuumSampler(pivot_type='float_pivot')
+    sampler.init_sampling(continuum,
+                          ground_truth_annotators=SortedSet(("Paul", "Suzan")))
     new_continuum = sampler.sample_from_continuum
     assert new_continuum.categories.issubset(continuum.categories)
     assert len(new_continuum.annotators) == 2
@@ -23,7 +23,7 @@ def test_mathet_sampler():
                                               alpha=3,
                                               beta=1)
     gamma_results = new_continuum.compute_gamma(dissim,
-                                                sampler=ShuffleContinuumSampler(new_continuum),
+                                                sampler=ShuffleContinuumSampler(),
                                                 precision_level=0.01)
     assert gamma_results.gamma < 0.2
     assert gamma_results.gamma_cat < 0.2
@@ -32,7 +32,8 @@ def test_mathet_sampler():
 def test_statistical_sampler():
     np.random.seed(4778)
     continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
-    sampler = StatisticalContinuumSampler(continuum)
+    sampler = StatisticalContinuumSampler()
+    sampler.init_sampling(continuum)
 
     new_continuum = sampler.sample_from_continuum
     assert len(new_continuum.annotators) == 3
@@ -51,18 +52,19 @@ def test_statistical_sampler():
 
     gamma_results = continuum.compute_gamma(dissim, sampler=sampler, precision_level=0.01)
     # Gamma:
-    assert 0.41 <= gamma_results.gamma <= 0.44
+    assert 0.42 <= gamma_results.gamma <= 0.43
     # Gamma-cat:
     assert 0.61 <= gamma_results.gamma_cat <= 0.64
 
 
 def test_statistical_sampler_manual():
     np.random.seed(7455)
-    sampler = StatisticalContinuumSampler(avg_duration=10, avg_gap=5, avg_num_units_per_annotator=30,
-                                          annotators=['Martin', 'Martino', 'Martine'],
-                                          std_duration=3, std_gap=5, std_num_units_per_annotator=5,
-                                          categories=np.array(['Verb', 'Noun', 'Prep', 'Adj']),
-                                          categories_weight=np.array([0.1, 0.4, 0.2, 0.3]))
+    sampler = StatisticalContinuumSampler()
+    sampler.init_sampling_custom(avg_duration=10, avg_gap=5, avg_num_units_per_annotator=30,
+                                 annotators=['Martin', 'Martino', 'Martine'],
+                                 std_duration=3, std_gap=5, std_num_units_per_annotator=5,
+                                 categories=np.array(['Verb', 'Noun', 'Prep', 'Adj']),
+                                 categories_weight=np.array([0.1, 0.4, 0.2, 0.3]))
     continuum = sampler.sample_from_continuum
     gamma_results = continuum.compute_gamma()
     gamma = gamma_results.gamma

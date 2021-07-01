@@ -24,14 +24,15 @@ def test_gamma_2by1000():
     assert len(gamma_results.best_alignment.unitary_alignments) == 1085
 
     # Gamma:
-    assert 0.38 <= gamma_results.gamma <= 0.41
+    assert 0.39 <= gamma_results.gamma <= 0.42
     # Gamma-cat:
     assert 0.38 <= gamma_results.gamma_cat <= 0.42
     # Gamma_k's
     assert 0.21 <= gamma_results.gamma_k('Adj') <= 0.25
-    assert 0.33 <= gamma_results.gamma_k('Noun') <= 0.37
+    assert 0.36 <= gamma_results.gamma_k('Noun') <= 0.39
     assert 0.31 <= gamma_results.gamma_k('Prep') <= 0.35
     assert 0.11 <= gamma_results.gamma_k('Verb') <= 0.15
+
 
 def test_gamma_3by100():
     np.random.seed(4772)
@@ -61,9 +62,9 @@ def test_gamma_alexpaulsuzan():
                                               delta_empty=1,
                                               alpha=3,
                                               beta=1)
-    sampler = ShuffleContinuumSampler(continuum)
+    sampler = ShuffleContinuumSampler()
     gamma_results = continuum.compute_gamma(dissim, sampler=sampler, precision_level=0.01)
-    assert len(gamma_results.best_alignment.unitary_alignments) == 7
+    assert len(gamma_results.best_alignment.unitary_alignments) == 6
 
     assert gamma_results.best_alignment.disorder == pytest.approx(0.96, 0.01)
     # Gamma:
@@ -71,9 +72,12 @@ def test_gamma_alexpaulsuzan():
     # Gamma-cat:
     assert 0.67 <= gamma_results.gamma_cat <= 0.70
     # Gamma-k's
-    gamma_ks = {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1}
-    for i in range(1, 7):
-        assert gamma_ks[str(i)] - 0.01 <= gamma_results.gamma_k(str(i)) <= gamma_ks[str(i)] + 0.01
+    gamma_ks = {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1, '7': 1}
+    for category, gk in gamma_ks.items():
+        if gk != 0:
+            assert gk - 0.01 <= gamma_results.gamma_k(category) <= gk + 0.01
+        else:
+            assert gamma_results.gamma_k(category) <= 0
     # assert gamma_results.gamma_k('7') is np.NaN
 
 

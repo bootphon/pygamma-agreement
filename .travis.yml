@@ -2,12 +2,22 @@ sudo: false
 
 language: python
 
+dist: bionic
+
 python:
   - "3.6"
+  - "3.7"
+  - "3.8"
+  - "3.9"
 
+before_install:
+# CBC dependency
+  - sudo apt-get update
+  - sudo apt-get -y install coinor-libcbc-dev
 install:
   - pip install --upgrade pip
-  - pip install .[test]
+  - pip install .[testing]
+  - pip install cylp
 
 script:
     - pytest tests/

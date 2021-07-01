@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
-# Copyright (c) 2020 CoML
+# Copyright (c) 2020-2021 CoML
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -34,24 +31,19 @@ Continuum and corpus
 import csv
 import logging
 import os
-import time
-import mip
 from copy import deepcopy
+from dataclasses import dataclass
 from functools import total_ordering
+from multiprocessing import Pool
 from pathlib import Path
-from itertools import islice
-from typing import Optional, Tuple, List, Union, Set, Iterable, TYPE_CHECKING, Dict, Generator
+from typing import Optional, Tuple, List, Union, TYPE_CHECKING, Generator
 
 import cvxpy as cp
-import pulp as pl
 import numpy as np
-from dataclasses import dataclass
 from pyannote.core import Annotation, Segment, Timeline
 from pyannote.database.util import load_rttm
 from sortedcontainers import SortedDict, SortedSet
-
 from typing_extensions import Literal
-from multiprocessing import Pool
 
 from .dissimilarity import AbstractDissimilarity
 from .numba_utils import chunked_cartesian_product
@@ -232,9 +224,7 @@ class Continuum:
 
     @property
     def categories(self) -> SortedSet:
-        """
-        Returns the (alphabetically) sorted set of all the continuum's annotations's categories.
-        """
+        """Returns the (alphabetically) sorted set of all the continuum's annotations's categories."""
         return SortedSet(unit.annotation for _, unit in self
                          if unit.annotation is not None)
 
@@ -608,6 +598,7 @@ class Continuum:
 
         # Definition of the integer linear program
         num_possible_unitary_alignements = len(disorders)
+        x = cp.Variable(shape=num_possible_unitary_alignements, boolean=True)
 
         true_units_ids = []
         num_units = 0
@@ -615,37 +606,25 @@ class Continuum:
             true_units_ids.append(np.arange(num_units, num_units + len(units)).astype(np.int32))
             num_units += len(units)
 
-        # Constraints matrix
+        # Constraints matrix ("every unit must appear once and only once")
         A = np.zeros((num_units, num_possible_unitary_alignements))
         for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
             for annotator_id, unit_id in enumerate(unit_ids_tuple):
                 if unit_id != len(true_units_ids[annotator_id]):
                     A[true_units_ids[annotator_id][unit_id], p_id] = 1
 
-
-        bp = time.time()
-        x = [pl.LpVariable(name=f'x_{i}', cat=pl.LpBinary) for i in range(disorders)]
-        prob = pl.LpProblem("disorders", pl.LpMinimize)
-        for Ai in A:
-            prob += pl.LpAffineExpression(zip(x, Ai)) == 1
-        print(f"problem modelized with pulp in {time.time() - bp}")
-        bp = time.time()
-        prob.solve()
-        chosen_alignments_ids = np.where(np.array([xi.value() for xi in x]) > 0.9)
-        print(f"solution computed with pulp in {time.time() - bp}")
-
-
-        bp = time.time()
-        x = cp.Variable(shape=num_possible_unitary_alignements, boolean=True)
-        prob = cp.Problem(cp.Minimize(disorders.T @ x), [A @ x == 1])
-        print(f"problem modelized with cvxpy in {time.time() - bp}")
-        bp = time.time()
-        prob.solve(solver=cp.ECOS_BB)
+        # we don't actually care about the optimal loss value
+        try:
+            import cylp
+            cp.Problem(cp.Minimize(disorders.T @ x), [A @ x == 1]).solve(solver=cp.CBC)
+        except (ImportError, cp.SolverError):
+            logging.warning("CBC solver not installed. Using GLPK.")
+            matmul = A @ x
+            cp.Problem(cp.Minimize(disorders.T @ x), [1 <= matmul, matmul <= 1]).solve(solver=cp.GLPK_MI)
         assert x.value is not None, "The linear solver couldn't find an alignment with minimal disorder " \
                                     "(likely because the amount of possible unitary alignments was too high)"
-        # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14"""
-        chosen_alignments_ids = np.where(x.value > 0.9)
-        print(f"solution computed with cvxpy in {time.time() - bp}")
+        # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
+        chosen_alignments_ids, = np.where(x.value > 0.9)
 
         chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
         alignments_disorders: np.ndarray = disorders[chosen_alignments_ids]
@@ -677,8 +656,7 @@ class Continuum:
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[SortedSet] = None,
                       sampler: 'AbstractContinuumSampler' = None,
-                      fast: bool = True
-                      ) -> 'GammaResults':
+                      fast: Optional[bool] = None) -> 'GammaResults':
         """
 
         Parameters
@@ -701,32 +679,40 @@ class Continuum:
             Sampler object, which implements a sampling strategy for creating random continuua used
             to calculate the expected disorder. If not set, defaults to the Statistical continuum sampler
         fast:
-            activate fast gamma
+            If set, activates or not fast-gamma. If not, determines automatically which is faster an uses it.
+            Might not be faster for small continua (2 annotators - 8000 annotations for instance)
         """
         from .dissimilarity import CombinedCategoricalDissimilarity
         if dissimilarity is None:
             dissimilarity = CombinedCategoricalDissimilarity(self.categories)
 
-        from .sampler import StatisticalContinuumSampler
         if sampler is None:
-            sampler = StatisticalContinuumSampler(self, ground_truth_annotators)
+            from .sampler import StatisticalContinuumSampler
+            sampler = StatisticalContinuumSampler()
+        sampler.init_sampling(self, ground_truth_annotators)
 
+        if fast is not None:
+            if fast:
+                logging.warning("Fast-gamma is activated. It might be inaccurate for continua with lots over overlapping, "
+                                "and slower for small continuua (< 3 annotators).")
+                job = _compute_good_alignment_job
+            else:
+                job = _compute_best_alignment_job
+        else:
+            if self.num_annotators > 2:
+                job = _compute_good_alignment_job
+            else:
+                job = _compute_best_alignment_job
         # Multiprocessed computation of sample disorder
         p = Pool()
-
-        if fast:
-            job = __compute_good_alignment_job__
-        else:
-            job = __compute_best_alignment_job__
-
         # computation of best alignment in advance
         best_alignment_task = p.apply_async(job,
-                                            (self, dissimilarity,))
+                                            (dissimilarity, self,))
         result_pool = [
-            # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
             p.apply_async(job,
-                          (sampler.sample_from_continuum, dissimilarity,))
-            for _ in range(n_samples)]
+                          (dissimilarity, sampler.sample_from_continuum,))
+            for _ in range(n_samples)
+        ]
         chance_best_alignments: List[Alignment] = []
         chance_disorders: List[float] = []
 
@@ -755,7 +741,7 @@ class Continuum:
                              f"because variation was too high.")
                 result_pool = [
                     p.apply_async(job,
-                                  (sampler.sample_from_continuum, dissimilarity,))
+                                  (dissimilarity, sampler.sample_from_continuum,))
                     for _ in range(required_samples - n_samples)
                 ]
                 for i, result in enumerate(result_pool):
@@ -797,7 +783,7 @@ class Continuum:
 @dataclass
 class GammaResults:
     """
-    Gamma results object. Stores the informations about a gamma measure computation,
+    Gamma results object. Stores the information about a gamma measure computation,
     used for getting the values of measures from the gamma family (gamma, gamma-cat and gamma-k).
     """
     best_alignment: 'Alignment'
@@ -839,7 +825,8 @@ class GammaResults:
     @property
     def expected_cat_disorder(self) -> float:
         """
-        Returns the expected disagreement (as defined for gamma-cat) using the same random samples' best alignments
+        Returns the expected disagreement (as defined for gamma-cat)
+        using the same random samples' best alignments
         as for gamma (the mean of the sampled continuua's gamma-cat disorders)
         """
         return float(np.mean(list(filter((lambda x: x is not np.NaN),
@@ -848,7 +835,8 @@ class GammaResults:
 
     def expected_k_disorder(self, category: str) -> float:
         """
-        Returns the expected disagreement (as defined for gamma-k) using the same random samples' best alignments
+        Returns the expected disagreement (as defined for gamma-k)
+        using the same random samples' best alignments
         as for gamma (the mean of the sampled continuua's gamma-k disorders)
         """
         return float(np.mean(list(filter((lambda x: x is not np.NaN),
@@ -891,7 +879,8 @@ class GammaResults:
         return 1 - observed_k_disorder / self.expected_k_disorder(category)
 
 
-def __compute_best_alignment_job__(continuum: Continuum, dissimilarity: AbstractDissimilarity):
+def _compute_best_alignment_job(dissimilarity: AbstractDissimilarity,
+                                continuum: Continuum):
     """
     Function used to launch a multiprocessed job for calculating the best aligment of a continuum
     using the given dissimilarity.
@@ -899,5 +888,10 @@ def __compute_best_alignment_job__(continuum: Continuum, dissimilarity: Abstract
     return continuum.get_best_alignment(dissimilarity)
 
 
-def __compute_good_alignment_job__(continuum: Continuum, dissimilarity: AbstractDissimilarity):
+def _compute_good_alignment_job(dissimilarity: AbstractDissimilarity,
+                                continuum: Continuum):
+    """
+    Function used to launch a multiprocessed job for calculating an approximation of
+    the best aligment of a continuum, using the given dissimilarity.
+    """
     return continuum.get_good_alignment(dissimilarity)
