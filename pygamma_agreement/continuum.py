@@ -227,9 +227,7 @@ class Continuum:
 
     @property
     def categories(self) -> SortedSet:
-        """
-        Returns the (alphabetically) sorted set of all the continuum's annotations's categories.
-        """
+        """Returns the (alphabetically) sorted set of all the continuum's annotations's categories."""
         return SortedSet(unit.annotation for _, unit in self
                          if unit.annotation is not None)
 
