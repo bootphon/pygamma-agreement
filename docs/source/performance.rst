@@ -38,7 +38,8 @@ Fast option
 
 The ``Continuum.compute_gamma()`` method allows to set the *"fast"* option, which uses a different algorithm
 for determining the best alignment of a disorder. Although there is no theory to back the precision of the algorithm,
-we have found out that it gives the **exact** results for the best alignments, for real data.
+we have found out that it gives the **exact** results for the best alignments for real data, and a good approximation
+with continua generated specifically to mess with the algorithm.
 
 It uses the fact that alignments are made using locality of annotations, so it is only precise with a positional
 dissimilarity or a combined dissimilarity with :math:`\alpha > 2 \times \beta`.
@@ -46,20 +47,50 @@ dissimilarity or a combined dissimilarity with :math:`\alpha > 2 \times \beta`.
 Here are the performance comparisons between the two algorithms :
 
 .. figure:: images/time2annotators.png
-  :scale: 49%
+  :scale: 70%
   :alt: time to compute gamma (8 CPUs, 2 annotators)
   :align: right
 
   **2 annotators**
 
-
 .. figure:: images/time3annotators.png
-  :scale: 49%
+  :scale: 70%
   :alt: time to compute gamma (8 CPUs, 3 annotators)
   :align: left
 
   **3 annotators**
 
 based on these graphs, we have decided that if unspecified, fast-gamma will be enabled by default when the number of
-annotators is more than **3**, because otherwise,
+annotators is **3** or more, because otherwise the time of computation explodes quickly.
+Based on intuition and the graphes, we have conjectured that the complexity of this algorithm is bounded by:
+
+.. math::
+
+    O(N \times s'^p \times n) \leq C(N, n, p) \leq O(N \times s'^p \times np)
+
+Which becomes a lot more interesting with a higher number of annotators.
+
+
+As for the precision of the fast gamma, we have not yet found a proof of its
+accuracy, but we have reasons to believe that if the overlapping of the annotations from
+a single annotator is limited, the fast-gamma has the exact same value as the gamma.
+
+This is confirmed in some extent by measures :
+
+.. figure:: images/precisionoverlapping.png
+  :scale: 80%
+  :alt: time to compute gamma (8 CPUs, 3 annotators)
+  :align: left
+
+Here's an explanation of what the overlapping value means on average :
+
+- **-1**: two consecutive annotations from the same annotator are completely overlapped.
+- **0**: there is no gap between two consecutive annotations from the same annotator.
+- **1**: the gap between two consecutive annotations from the same annotator is equal to their
+  length.
+
+
+
+
+
 
