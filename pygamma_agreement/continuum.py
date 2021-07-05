@@ -534,7 +534,8 @@ class Continuum:
         dissimilarity: AbstractDissimilarity
             the dissimilarity that will be used to compute unit-to-unit disorder.
         """
-        assert len(self.annotators) >= 2, "Disorder cannot be computed with less than two annotators."
+        assert len(self.annotators) >= 2 and self, "Disorder cannot be computed with less than two annotators, or " \
+                                                   "without annotations."
 
         disorder_args = dissimilarity.build_args(self)
 

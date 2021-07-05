@@ -62,6 +62,7 @@ class AbstractContinuumSampler(metaclass=ABCMeta):
         ground_truth_annotators: iterable of str, optional
             the set of annotators (from the reference) that will be considered for sampling
         """
+        assert reference_continuum, "Cannot initialize sampling with an empty reference continuum."
         self._reference_continuum = reference_continuum
         if ground_truth_annotators is None:
             self._ground_truth_annotators = self._reference_continuum.annotators
@@ -124,8 +125,8 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         new_segments = []
         while len(segments) > 0:
             segment = segments.pop()
-            if segment.start > pivot - dist:
-                if segment.end < pivot + dist:
+            if segment.start >= pivot - dist:
+                if segment.end <= pivot + dist:
                     continue
                 else:
                     new_segments.append(Segment(pivot + dist, segment.end))
@@ -145,7 +146,10 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         segments = np.array(segments)
         weights = np.array(list(segment.end - segment.start for segment in segments))
         weights /= np.sum(weights)
-        segment = np.random.choice(np.array(segments), p=weights)
+        try:
+            segment = np.random.choice(np.array(segments), p=weights)
+        except ValueError:
+            return 1
         if self._pivot_type == 'int_pivot':
             return int(np.random.uniform(segment.start, segment.end))
         else:
@@ -160,26 +164,29 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         bound_inf, bound_sup = continuum.bounds
         new_continuum = Continuum()
         annotators = self._ground_truth_annotators
-        segments_available = [Segment(bound_inf, bound_sup)]
-        for idx in range(len(annotators)):
-            if len(segments_available) != 0:
-                pivot: float = self._random_from_segments(segments_available)
-                segments_available = self._remove_pivot_segment(pivot, segments_available, min_dist_between_pivots)
-            else:
-                pivot = np.random.uniform(bound_inf, bound_sup)
-            rnd_annotator = np.random.choice(annotators)
-            new_annotator = f'Sampled_annotation {idx}'
-            for unit in continuum.iter_annotator(rnd_annotator):
-                if unit.segment.start + pivot > bound_sup:
-                    new_continuum.add(new_annotator,
-                                      Segment(unit.segment.start + pivot + bound_inf - bound_sup,
-                                              unit.segment.end + pivot + bound_inf - bound_sup),
-                                      unit.annotation)
+        while not new_continuum:  # Simple check to prevent returning an empty continuum.
+            segments_available = [Segment(bound_inf, bound_sup)]
+            for idx in range(len(annotators)):
+                if len(segments_available) != 0:
+                    pivot: float = self._random_from_segments(segments_available)
+                    segments_available = self._remove_pivot_segment(pivot, segments_available, min_dist_between_pivots)
                 else:
-                    new_continuum.add(new_annotator,
-                                      Segment(unit.segment.start + pivot,
-                                              unit.segment.end + pivot),
-                                      unit.annotation)
+                    pivot = np.random.uniform(bound_inf, bound_sup)
+                rnd_annotator = np.random.choice(annotators)
+                new_annotator = f'Sampled_annotation {idx}'
+                new_continuum.add_annotator(new_annotator)
+                for unit in continuum.iter_annotator(rnd_annotator):
+                    if unit.segment.start + pivot > bound_sup:
+                        new_continuum.add(new_annotator,
+                                          Segment(unit.segment.start + pivot + bound_inf - bound_sup,
+                                                  unit.segment.end + pivot + bound_inf - bound_sup),
+                                          unit.annotation)
+                    else:
+                        new_continuum.add(new_annotator,
+                                          Segment(unit.segment.start + pivot,
+                                                  unit.segment.end + pivot),
+                                          unit.annotation)
+
         return new_continuum
 
 
@@ -206,7 +213,8 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
     _categories_weight: np.ndarray
 
     def _set_gap_information(self):
-        gaps = []
+        # To prevent glitching continua with 1 unit
+        gaps = [0]
         current_annotator = None
         last_unit = None
         for annotator, unit in self._reference_continuum:
@@ -216,6 +224,8 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
                 gaps.append(unit.segment.start - last_unit.segment.end)
             last_unit = unit
         for annotation_set in self._reference_continuum._annotations.values():
+            if len(annotation_set) == 0:
+                continue
             if annotation_set[0].segment.start > 0:
                 gaps.append(annotation_set[0].segment.start)
         self._avg_gap = float(np.mean(gaps))
@@ -270,7 +280,7 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
         """
         reference_dummy = Continuum()
         for annotator in annotators:
-            reference_dummy.add_annotator(annotator)
+            reference_dummy.add(annotator, Segment(0, 10), "Dummy")
         super().init_sampling(reference_dummy)
         self._avg_nb_units_per_annotator = avg_num_units_per_annotator
         self._std_nb_units_per_annotator = std_num_units_per_annotator
@@ -304,12 +314,15 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
         self._has_been_init()
         new_continnum = Continuum()
         for annotator in self._ground_truth_annotators:
+            new_continnum.add_annotator(annotator)
             last_point = 0
-            nb_units = max(1, int(np.random.normal(self._avg_nb_units_per_annotator, self._std_nb_units_per_annotator)))
+            nb_units = abs(int(np.random.normal(self._avg_nb_units_per_annotator, self._std_nb_units_per_annotator)))
+            if not new_continnum:
+                nb_units = max(1, nb_units)
             for _ in range(nb_units):
                 gap = np.random.normal(self._avg_gap, self._std_gap)
                 length = abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
-                while length <= 0:
+                while length < 0:
                     length = abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
                 category = np.random.choice(self._categories, p=self._categories_weight)
                 start = last_point + gap
