@@ -75,6 +75,10 @@ As for the precision of the fast gamma, we have not yet found a proof of its
 accuracy, but we have reasons to believe that if the overlapping of the annotations from
 a single annotator is limited, the fast-gamma has the exact same value as the gamma.
 
+The algorithm used by fast-gamma assumes that for three annotation segments :math:`A`, :math:`B` and :math:`C`,
+if :math:`A < B < C` (alphanumerical order), then :math:`d_{pos}(A, B) < d_pos(A, C)`. It is however not true in
+general, and especially not when units overlap a lot.
+
 This is confirmed in some extent by measures :
 
 .. figure:: images/precisionoverlapping.png
@@ -90,7 +94,14 @@ Here's an explanation of what the overlapping value means on average :
   length.
 
 
+Memory usage
+~~~~~~~~~~~~
 
+Additionnaly to computing time, the memory usage's growth of the classical gamma algorithm can be problematic. For
+instance, with 2 annotators each with 7000 annotations, a 8GB memory has trouble handling it.
 
+It is advised to use fast-gamma, whose memory usage is very low in comparison, when memory starts to overflow.
+As memory usage is very difficult to measure & predict, we have unfortunately not found a way to automatically
+handle this.
 
 

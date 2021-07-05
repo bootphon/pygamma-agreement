@@ -186,11 +186,10 @@ class Alignment(AbstractAlignment):
         """Return the (or one of the) leftmost unitary alignments."""
         return min(self.unitary_alignments, key=(lambda unitary_alignment: unitary_alignment.bounds[0]))
 
-
     @property
     def annotators(self):
         return SortedSet([annotator for annotator, _
-                in self.unitary_alignments[0].n_tuple])
+                          in self.unitary_alignments[0].n_tuple])
 
     @property
     def avg_num_annotations_per_annotator(self):
@@ -208,8 +207,14 @@ class Alignment(AbstractAlignment):
         return len(self.unitary_alignments[0].n_tuple)
 
     @property
-    def disorder(self):
-        # TODO : doc
+    def disorder(self) -> float:
+        """
+
+        Returns
+        -------
+        float:
+            The disorder of the alignment.
+        """
         if self._disorder is None:
             self._disorder = (sum(u_align.disorder for u_align
                                   in self.unitary_alignments)
