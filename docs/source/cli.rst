@@ -71,7 +71,7 @@ if you want your gamma's estimation to be more or less precise:
 
 .. code-block:: bash
 
-    pygamma-agreement data/my_annotation_file.csv --alpha 3 --beta 1 --precision_level 0.02
+    pygamma-agreement data/my_annotation_file.csv --alpha 3 --beta 1 --precision-level 0.02
 
 In addition the gamma agreement, ``pygamma-agreement`` also gives you the option to output the gamma-cat & gamma-k(s)
 alternate inter-annotator agreements, with the ``--gamma-cat`` (or ``-g``) and ``--gamma-k`` (or ``-k``) options, or
