@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2020 CoML
+# Copyright (c) 2020-2021 CoML
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -39,8 +39,7 @@ setup(
     # package
     packages=find_packages(),
     install_requires=requirements,
-    extras_require={'test': ['pytest']},
-    version='0.1.6',
+    version='0.2.0',
 
     # PyPI
     name='pygamma-agreement',
@@ -69,5 +68,16 @@ setup(
         'console_scripts': [
             'pygamma-agreement = pygamma_agreement.cli_apps:pygamma_cmd',
         ]
+    },
+    extras_requires={
+        "notebook": [
+            "matplotlib",
+        ],
+        "testing": [
+            "pytest"
+        ],
+        "docs": ["sphinx",
+                 "sphinx_rtd_theme"]
     }
+
 )

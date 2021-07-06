@@ -59,17 +59,56 @@ it's possible to compute and obtain:
 - its :ref:`best alignment <best_alignments>` .
 - its :ref:`gamma agreement measure <gamma_agreement>` .
 
+You can create a continuum then add each unit one by one, by specifying the annotators of the units:
+
+.. code-block:: python
+
+    continnum = Continuum()
+
+    continuum.add('annotator_a',
+                  Segment(10.5, 15.2),
+                  'category_1')
+
+Continua can also be imported from CSV files with the following structure :
+
+.. code-block::
+
+    annotator, annotation, segment_start, segment_end
+
+Thus, for instance:
+
+.. code-block::
+
+    E.G.:
+
+    annotator_1, Marvin, 11.3, 15.6
+    annotator_1, Maureen, 20, 25.7
+    annotator_2, Marvin, 10, 26.3
+    annotator_C, Marvin, 12.3, 14
+
+.. code-block:: python
+
+    continuum = Continuum.from_csv('your/continuum/file.csv')
+
+
 If you're working in a Jupyter Notebook, outputting a `Continuum` instance will automatically
 show you a graphical representation of that `Continuum`:
 
 .. code-block:: ipython
 
  In  [mathet2015]: continuum = Continuum.from_csv("data/PaulAlexSuzan.csv")
-     continuum
+                   continuum
 
 .. image:: images/continuum_APS.png
   :alt: showing a continuum in a jupyter notebook
   :align: center
+
+The same image can also be displayed with ``matplotlib`` by using :
+
+.. code-block:: python
+
+    from pygamma_agreement import show_continuum
+    show_continuum(continuum, labelled=True)
 
 
 .. _alignments:
@@ -163,12 +202,16 @@ If one of the units in the dissimilarity is the *empty unit*, its value is
 :math:`\Delta_{\emptyset}`. This value is constant, and can be set as a parameter
 of a dissimilarity object before it is used to compute an alignment's disorder.
 
-TODO : show usage of dissimarity instances with continuua, alignments
+Right now, there are three types of dissimilarities available :
+
+* The positionnal sporadric dissimilarity (we will call it simply Positionnal dissimilarity)
+* The categorical dissimilarity
+* The combined dissimilarity
 
 .. note::
 
     Although you will have to instantiate dissimilarities objects when using
-    `pygamma-agreement`, you'll never have to use them in any way other than
+    ``pygamma-agreement``, you'll never have to use them in any way other than
     just by passing it as an argument as shown beforehand.
 
 Positional Dissimilarity
@@ -183,8 +226,19 @@ between two annotated units :math:`u` and :math:`v`. Its formula is :
                 \right)^2 \cdot \Delta_{\emptyset}
 
 
-TODO : show instantiation and parameters
 
+Here's how to instanciate a ``PositionnalDissimilarity`` object :
+
+.. code-block:: python
+
+    from pygamma_agreement import PositionalDissimilarity
+    dissim_pos = PositionalDissimilarity(delta_empty=1.0)
+
+
+and that's it.
+You can also use ``dissim_pos.d(unit1, unit2)`` to obtain directly the value of the dissimilarity between two units.
+It is however very unlikely that one would need to use it, as this value is only needed in the very low end of the
+gamma computation algorithm.
 Categorical Dissimilarity
 -------------------------
 
@@ -223,6 +277,44 @@ and thus the corresponding matrix is:
            [1., 0., 1. ],
            [1., 1., 0. ]])
 
+
+here's how to instanciate a categorical dissimilarity:
+
+.. code-block:: python
+
+    D = array([[0. , 0.5, 1. ],
+               [0.5, 0. , 1. ],
+               [1. , 1. , 0. ]])
+
+    from pygamma_agreement import CategoricalDissimilarity
+    from sortedcontainers import SortedSet
+
+    categories = SortedSet(('Noun', 'Verb', 'Adj'))
+    dissim_cat = CategoricalDissimilarity(categories,
+                                          cat_dissimilarity_matrix=D,
+                                          delta_empty=1.0)
+
+It's important to note that the index of each category in the categorical dissimilarity matrix is its index in
+**alphabetecial order**.
+
+You can also provide a fonction that will be used to compute the dissimilarity matrix, for instance the Levenshtein
+distance :
+
+.. code-block:: python
+
+    from pygamma_agreement import CategoricalDissimilarity
+    from sortedcontainers import SortedSet
+    from Levenshtein import distance as lev
+
+    def levenshtein_distance(str1, str2):
+        return lev(str1, str2) / max(len(str1), len(str2))
+
+    categories = SortedSet(('Noun', 'Verb', 'Adj'))
+    dissim_cat = CategoricalDissimilarity(categories,
+                                          cat_dissimilarity_matrix=levenshtein_distance,
+                                          delta_empty=1.0)
+
+
 .. warning::
 
     This dissimilarity, as of now, cannot directly be used to compute the γ-agreement.
@@ -243,7 +335,23 @@ weight the importance of each dissimilarity are :math:`\alpha` and :math:`\beta`
 
     d_{combi}^{\alpha,\beta}(u,v) = \alpha . d_{pos} + \beta . d_{cat}
 
-TODO : show instantiation and parameters
+This is the dissimilarity recommended by [mathet2015]_ for computing gamma.
+
+It takes the same parameters as the two other dissimilarities, plus :math:`\alpha` and :math:`\beta` :
+
+.. code-block:: python
+
+    from pygamma_agreement import CombinedCategoricalDissimilarity
+
+    categories = SortedSet(('Noun', 'Verb', 'Adj'))
+    dissim = CombinedCategoricalDissimilarity(categories,
+                                              alpha=3,
+                                              beta=1,
+                                              delta_empty=1.0,
+                                              cat_dissimilarity_matrix=levenshtein_distance)
+
+
+
 
 .. _gamma_agreement:
 
@@ -273,11 +381,66 @@ The gamma agreement's formula is finally:
 
 Several points that should be made about that value:
 
-* it is not bounded, but for most "regular" situations it should be contained in :math:`[0, 1]`
+* it is bounded by :math:`]-\infty,1]` but for most "regular" situations it should be contained in :math:`[0, 1]`
 * the higher and the closer it is to 1, the better.
 
+the gamma value is computed from a ``Continuum`` object, using a given ``Dissimilarity`` object :
 
-TODO : supplement with an explanation of the ``compute_gamma`` API.
+.. code-block:: python
+
+     continuum = Continuum.from_csv('your/csv/file.csv')
+     dissim = CombinedCategoricalDissimilarity(continuum.categories,
+                                               delta_empty=1,
+                                               alpha=3,
+                                               beta=1)
+     gamma_results = continuum.compute_gamma(dissim,
+                                             precision_level=0.02)
+
+     print(f"gamma value is: {gamma_results.gamma}")
+
+.. warning::
+    The algorithm implemented by ``continuum.compute_gamma`` is very costly.
+    An approximation of its computational complexity would be :math:`O(N \times (p_1 \times ... \times p_n))`
+    where :math:`p_i` is the number of annotations for annotator :math:`i`, and :math:`N` is the number of
+    samples used when computing :math:`\delta_{random}`, which grows as the ``precision_level``
+    parameter gets closer to 0. If time of computation becomes to high, it is advised to lower the precision
+    before anything else.
+
+Gamma-cat (γ-cat) and Gamma-k (γ-k)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+:math:`γ_{cat}` is an alternate inter-annotator agreement measure based on γ, made to evaluate the task of
+categorizing pre-defined units. Just like γ, it is a *chance-adjusted* metric :
+
+.. math::
+
+    \gamma_{cat} = 1 - \frac{\delta_{best}^{cat}}{\delta_{random}^{cat}}
+
+Where the disorder :math:`\delta_{cat}` of a continuum is computed using the same
+:ref:`best alignment <best_alignments>` used for the γ-agreement : this disorder is basically the average
+dissimilarity between pairs of non-empty :ref:`units <units>` in every :ref:`unitary alignment <alignments>`, weighted
+by the possitional agreement between the units.
+
+The :math:`γ_{cat}`-agreement can be obtained from the :ref:`GammaResults object <gamma_agreement>` easily:
+
+.. code-block:: python
+
+    print(f"gamma-cat value is : {gamma_results.gamma_cat} ")
+
+:math:`γ_{k}` is another alternate agreement measure. It only differs from :math:`γ_{cat}` by the fact that it
+only considers one defined category.
+
+The :math:`γ_{k}` value for a category alse can be obtained from the :ref:`GammaResults object <gamma_agreement>`:
+
+.. code-block:: python
+
+
+    for category in continuum.categories:
+        print(f"gamma-k of '{category}' is : {gamma_results.gamma_k(category)} ")
+
+Further details about the measures and the algorithms used for computing them can be consulted in [mathet2015]_.
+
+
+
 
 
 ..  [mathet2015] Yann Mathet et Al.

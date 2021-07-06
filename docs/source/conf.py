@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.abspath(path))
 # -- Project information -----------------------------------------------------
 
 project = 'pygamma-agreement'
-copyright = '2020, Rachid Riad & Hadrien Titeux'
-author = 'Rachid Riad & Hadrien Titeux'
+copyright = '2020, Rachid RIAD, Hadrien TITEUX, Léopold FAVRE'
+author = 'Rachid RIAD, Hadrien TITEUX, Léopold FAVRE'
 
 
 # -- General configuration ---------------------------------------------------
@@ -30,7 +30,8 @@ author = 'Rachid Riad & Hadrien Titeux'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
-    'sphinx.ext.mathjax'
+    'sphinx.ext.mathjax',
+    'sphinx_rtd_theme'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -52,4 +53,4 @@ html_theme = 'sphinx_rtd_theme'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# html_static_path = ['_static']

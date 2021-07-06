@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
-# Copyright (c) 2020 CoML
+# Copyright (c) 2020-2021 CoML
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,17 +21,22 @@
 # SOFTWARE.
 
 # AUTHORS
-# Rachid RIAD & Hadrien TITEUX
+# Rachid RIAD, Hadrien TITEUX, Léopold FAVRE
 
 
 import argparse
 import csv
 import logging
+import os
+import time
+import json
+import numpy as np
 from argparse import RawTextHelpFormatter, ArgumentDefaultsHelpFormatter
 from pathlib import Path
 from typing import Dict, List
 
-from pygamma_agreement import Continuum, CombinedCategoricalDissimilarity
+from pygamma_agreement import Continuum, CombinedCategoricalDissimilarity, ShuffleContinuumSampler
+from pygamma_agreement.dissimilarity import cat_arguments
 
 
 class RawAndDefaultArgumentFormatter(RawTextHelpFormatter,
@@ -64,32 +66,56 @@ argparser = argparse.ArgumentParser(
     """)
 argparser.add_argument("input_csv", type=Path, nargs="+",
                        help="Path to an input csv file(s) or directory(es)")
-argparser.add_argument("-d", "--delimiter",
+argparser.add_argument("-s", "--separator",
                        default=",", type=str,
                        help="Column delimiter used for input and output csv")
+argparser.add_argument("--seed",
+                       default=None, type=int,
+                       help="random seed")
 argparser.add_argument("-f", "--format", type=str, choices=["rttm", "csv"],
                        default="csv",
-                       help="Path to the output csv report")
-argparser.add_argument("-o", "--output_csv", type=Path,
-                       help="Path to the output csv report")
+                       help="Format of the input file")
+
+output = argparser.add_mutually_exclusive_group()
+output.add_argument("-o", "--output-csv", type=Path,
+                    help="Path to the output csv report")
+output.add_argument("-j", "--output-json", type=Path,
+                    help="Path to the output json report")
+
 argparser.add_argument("-a", "--alpha",
-                       default=2, type=float,
+                       default=1, type=float,
                        help="Alpha coefficient (positional dissimilarity ponderation)")
 argparser.add_argument("-b", "--beta",
                        default=1, type=float,
                        help="Beta coefficient (categorical dissimilarity ponderation)")
-argparser.add_argument("-p", "--precision_level",
+argparser.add_argument("-p", "--precision-level",
                        default=0.05, type=float,
-                       help="Precision level used for the gamma computation. "
-                            "This is a percentage, lower means more precision. "
+                       help="Precision level used for the gamma computation. \n"
+                            "This is a percentage, lower means more precision. \n"
                             "A value under 0.10 is advised.")
-argparser.add_argument("-n", "--n_samples",
+argparser.add_argument("-n", "--n-samples",
                        default=30, type=int,
-                       help="Number of random continuua to be sampled for the "
-                            "gamma computation.")
+                       help="Number of random continuua to be sampled for the \n"
+                            "gamma computation. Warning : additionnal continuua \n"
+                            "will be sampled if precision level is not satisfied.\n")
+argparser.add_argument("-d", "--cat-dissim", type=str, choices=cat_arguments,
+                       default="default",
+                       help="Categorical dissimilarity to use for measuring \n"
+                            "inter-annotation disorder. The default one gives 1.0\n"
+                            "if annotation have different categories, 0.0 otherwise")
 argparser.add_argument("-v", "--verbose",
                        action="store_true",
-                       help="Verbose mode")
+                       help="Logs progress of the algorithm")
+argparser.add_argument("-c", "--gamma-cat",
+                       action="store_true",
+                       help="Outputs the gamma-cat in addition to the gamma-agreement")
+argparser.add_argument("-k", "--gamma-k",
+                       action="store_true",
+                       help="Outputs the gamma-k's every inputs' categories")
+argparser.add_argument("-m", "--mathet-sampler",
+                       action="store_true",
+                       help="Set the expected dissimilarity sampler to the one\n"
+                            "chosen by Mathet et Al.")
 
 
 def pygamma_cmd():
@@ -97,12 +123,12 @@ def pygamma_cmd():
     logging.getLogger().setLevel(logging.INFO if args.verbose else logging.ERROR)
 
     input_files: List[Path] = []
-    results: Dict[Path, float] = {}
+    results: List = []
     for input_csv in args.input_csv:
         input_csv: Path
 
         if input_csv.is_dir():
-            logging.info(f"Loading csv files in folder {input_csv}")
+            logging.info(f"Loadinmodeg csv files in folder {input_csv}")
             for file_path in input_csv.iterdir():
                 input_files.append(file_path)
 
@@ -114,22 +140,68 @@ def pygamma_cmd():
 
     logging.info(f"Found {len(input_files)} csv files.")
 
+    json_dict = {}
+    if args.seed is not None:
+        np.random.seed(args.seed)
+
     for file_path in input_files:
+        start = time.time()
         if args.format == "csv":
-            continuum = Continuum.from_csv(file_path, delimiter=args.delimiter)
+            continuum = Continuum.from_csv(file_path, delimiter=args.separator)
         else:
             continuum = Continuum.from_rttm(file_path)
+        logging.info(f"Finished loading continuum from {os.path.basename(file_path)} in {(time.time() - start) * 1000} ms")
+        start = time.time()
 
         dissim = CombinedCategoricalDissimilarity(continuum.categories,
                                                   alpha=args.alpha,
-                                                  beta=args.beta)
+                                                  beta=args.beta,
+                                                  cat_dissimilarity_matrix=cat_arguments[args.cat_dissim])
+        logging.info(f"Finished loading dissimilarity object in {(time.time() - start) * 1000} ms")
+        start = time.time()
+
+        sampler = None
+        if args.mathet_sampler:
+            sampler = ShuffleContinuumSampler()
+
         gamma = continuum.compute_gamma(dissimilarity=dissim,
                                         precision_level=args.precision_level,
+                                        sampler=sampler,
                                         n_samples=args.n_samples)
-        results[file_path] = gamma.gamma
-        print(f"{file_path} : {gamma.gamma}")
+        logging.info(f"Finished computing best alignment & gamma in {(time.time() - start) * 1000} ms")
+        # start = time.time()
 
+        result_list = [file_path]
+        if args.output_csv is None and args.output_json is None:
+            print(f"{file_path}")
+            print(f"gamma={gamma.gamma}")
+            if args.gamma_cat:
+                print(f"gamma-cat={gamma.gamma_cat}")
+            if args.gamma_k:
+                for category in continuum.categories:
+                    print(f"gamma-k('{category}')={gamma.gamma_k(category)}")
+        else:
+            result_list.append(gamma.gamma)
+            if args.gamma_cat:
+                result_list.append(gamma.gamma_cat)
+            if args.gamma_k:
+                result_list.append({category: gamma.gamma_k(category) for category in continuum.categories})
+        results.append(result_list)
+
+    labels = ['filename', 'gamma']
+    if args.gamma_cat:
+        labels.append('gamma-cat')
+    if args.gamma_k:
+        labels.append("gamma-k")
     if args.output_csv is not None:
         with open(args.output_csv, "w") as output_csv:
-            writer = csv.writer(output_csv, delimiter=args.delimiter)
-            writer.writerows(list(results.items()))
+            writer = csv.writer(output_csv, delimiter=args.separator)
+            writer.writerow(labels)
+            writer.writerows(results)
+    elif args.output_json is not None:
+        for result in results:
+            json_dict[str(result[0])] = {label: result for (label, result) in zip(labels[1:], result[1:])}
+        with open(args.output_json, "w") as output_json:
+            json.dump(json_dict, output_json, indent=4)
+
+

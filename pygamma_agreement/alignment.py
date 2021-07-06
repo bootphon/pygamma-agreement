@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
-# Copyright (c) 2020 CoML
+# Copyright (c) 2020-2021 CoML
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +21,7 @@
 # SOFTWARE.
 
 # AUTHORS
-# Rachid RIAD & Hadrien TITEUX
+# Rachid RIAD, Hadrien TITEUX, Léopold FAVRE
 """
 ##########
 Alignement and disorder
@@ -33,17 +30,16 @@ Alignement and disorder
 """
 from abc import ABCMeta, abstractmethod
 from collections import Counter
-from typing import TYPE_CHECKING, Union
-from typing import Tuple, Optional, Iterable
+from typing import Tuple, Optional, Iterable, Iterator, List, TYPE_CHECKING, Union
+from sortedcontainers import SortedSet
 
 import numpy as np
 
-from .dissimilarity import AbstractDissimilarity
+from .dissimilarity import AbstractDissimilarity, CombinedCategoricalDissimilarity
 
-if TYPE_CHECKING:
-    from .continuum import Continuum, Annotator
+from .continuum import Continuum
 
-UnitsTuple = Tuple[Tuple['Annotator', 'Unit']]
+UnitsTuple = List[Tuple[str, Optional['Unit']]]
 
 
 class SetPartitionError(Exception):
@@ -84,12 +80,22 @@ class UnitaryAlignment:
 
     def __init__(self, n_tuple: UnitsTuple):
         assert len(n_tuple) >= 2
-        self._n_tuple = n_tuple
+        self._n_tuple: UnitsTuple = n_tuple
         self._disorder: Optional[float] = None
 
     @property
     def n_tuple(self):
         return self._n_tuple
+
+    @property
+    def bounds(self):
+        """Start of leftmost unit and end of rightmost unit"""
+        inf, sup = np.inf, -np.inf
+        for _, unit in self.n_tuple:
+            if unit is not None:
+                inf = min(inf, unit.segment.start)
+                sup = max(sup, unit.segment.end)
+        return inf, sup
 
     @n_tuple.setter
     def n_tuple(self, n_tuple: UnitsTuple):
@@ -98,54 +104,69 @@ class UnitaryAlignment:
 
     @property
     def disorder(self) -> float:
-        # TODO : doc
+        """
+        Disorder of the alignment.
+        Raises ValueError if self.compute_disorder(dissimilarity) hasn't been called
+        before.
+        """
         if self._disorder is None:
             raise ValueError("Disorder hasn't been computed. "
                              "Call `compute_disorder()` first to compute it.")
         else:
             return self._disorder
 
+    @property
+    def nb_units(self):
+        """The number of non-empty units in the unitary alignment."""
+        return sum(1 for _ in filter((lambda annot_unit: annot_unit[1] is not None), self._n_tuple))
+
     @disorder.setter
     def disorder(self, value: float):
         self._disorder = value
 
     def compute_disorder(self, dissimilarity: AbstractDissimilarity):
-        # TODO : doc
-        # building a fake one-element alignment to compute the dissim
+        """
+        Building a fake one-element alignment to compute the disorder
+        """
         fake_alignment = Alignment([self])
         self._disorder = fake_alignment.compute_disorder(dissimilarity)
         return self._disorder
 
 
 class Alignment(AbstractAlignment):
-    """Alignment
-
-    Parameters
-    ----------
-    unitary_alignments :
-        set of unitary alignments that make a partition of the set of
-        units/segments
-    continuum : optional Continuum
-        Continuum where the alignment is from
-    check_validity: bool
-        Check the validity of that Alignment against the specified continuum
-    """
 
     def __init__(self,
                  unitary_alignments: Iterable[UnitaryAlignment],
                  continuum: Optional['Continuum'] = None,
-                 check_validity: bool = False
+                 check_validity: bool = False,
+                 disorder: Optional[float] = None
                  ):
+        """
+        Alignment constructor.
+
+        Parameters
+        ----------
+        unitary_alignments :
+            set of unitary alignments that make a partition of the set of
+            units/segments
+        continuum : optional Continuum
+            Continuum where the alignment is from
+        check_validity: bool
+            Check the validity of that Alignment against the specified continuum
+        disorder: float, optional
+            If set, self.disorder returns it until a call to self.compute_disorder. It allows to make the most
+            of the best alignment computation, that takes advantage of this value.
+        """
         self.unitary_alignments = list(unitary_alignments)
         self.continuum = continuum
-        self._disorder: Optional[float] = None
+        self._disorder: Optional[float] = disorder
 
         if not check_validity:
             return
         else:
             self.check()
 
-    def __getitem__(self, *keys: Union[int, Tuple[int, 'Annotator']]):
+    def __getitem__(self, keys: Union[int, Tuple[int, str]]):
         # TODO : test and document
         if len(keys) == 1:
             idx = keys[0]
@@ -157,13 +178,29 @@ class Alignment(AbstractAlignment):
         else:
             raise KeyError("Invalid number of items in key")
 
-    @property
-    def annotators(self):
-        return [annotator for annotator, _
-                in self.unitary_alignments[0].n_tuple]
+    def __iter__(self) -> Iterator[UnitaryAlignment]:
+        return iter(self.unitary_alignments)
 
     @property
-    def num_alignments(self):
+    def leftmost(self):
+        """Return the (or one of the) leftmost unitary alignments."""
+        return min(self.unitary_alignments, key=(lambda unitary_alignment: unitary_alignment.bounds[0]))
+
+
+    @property
+    def annotators(self):
+        return SortedSet([annotator for annotator, _
+                in self.unitary_alignments[0].n_tuple])
+
+    @property
+    def avg_num_annotations_per_annotator(self):
+        if self.continuum is not None:
+            return self.continuum.avg_num_annotations_per_annotator
+        else:
+            return sum(unitary_alignment.nb_units for unitary_alignment in self) / self.num_annotators
+
+    @property
+    def num_unitary_alignments(self):
         return len(self.unitary_alignments)
 
     @property
@@ -176,23 +213,80 @@ class Alignment(AbstractAlignment):
         if self._disorder is None:
             self._disorder = (sum(u_align.disorder for u_align
                                   in self.unitary_alignments)
-                              / self.num_alignments)
+                              / self.avg_num_annotations_per_annotator)
         return self._disorder
 
     def compute_disorder(self, dissimilarity: AbstractDissimilarity):
-        # TODO : doc
+        """
+        Recalculates the disorder of this alignment using the given dissimilarity computer.
+        Usually not needed since most alignment are generated from a minimal disorder
+        so they are
+        """
         disorder_args = dissimilarity.build_args(self)
-        unit_ids = np.arange(self.num_alignments, dtype=np.int32)
+        unit_ids = np.arange(self.num_unitary_alignments, dtype=np.int32)
         unit_ids = np.vstack([unit_ids] * self.num_annotators)
         unit_ids = unit_ids.swapaxes(0, 1)
         disorders = dissimilarity(unit_ids, *disorder_args)
         for i, disorder in enumerate(disorders):
             self.unitary_alignments[i].disorder = disorder
         self._disorder = (dissimilarity(unit_ids, *disorder_args).sum()
-                          / self.num_alignments)
+                          / self.avg_num_annotations_per_annotator)
         return self._disorder
 
-    def check(self, continuum: Optional['Continuum'] = None):
+    def gamma_k_disorder(self, dissimilarity: 'AbstractDissimilarity', category: Optional[str]) -> float:
+        """
+        Returns the gamma-k or gamma-cat metric disorder.
+        (Exact implementation of the algorithm from section 4.2.5 of https://hal.archives-ouvertes.fr/hal-01712281)
+
+        Parameters
+        ----------
+        dissimilarity: AbstractDissimilarity
+            the dissimilarity measure to be used in the algorithm. Raises ValueError if it is not a combined categorical
+            dissimilarity, as gamma-cat requires both positional and categorical dissimilarity.
+        category:
+            If set, the category to be used as reference for gamma-k.
+            Leave it unset to compute the gamma-cat disorder.
+        """
+        if not isinstance(dissimilarity, CombinedCategoricalDissimilarity):
+            raise TypeError("Gamma-k and Gamma-cat can only be computed using "
+                            f"the {CombinedCategoricalDissimilarity} "
+                            f"dissimilarity.")
+
+        total_disorder = 0
+        total_weight = 0
+        no_cat = True
+        no_loop = True
+        for unitary_alignment in self:
+            nv = unitary_alignment.nb_units
+            if nv < 2:
+                weight_base = 0
+            else:
+                weight_base = 1 / (nv - 1)
+            for i, (_, unit1) in enumerate(unitary_alignment.n_tuple):
+                for _, unit2 in unitary_alignment.n_tuple[i+1:]:
+                    # Case handler for gamma-k
+                    if category is not None and ((unit1 is None or unit1.annotation != category)
+                                                 and (unit2 is None or unit2.annotation != category)):
+                        continue
+                    no_cat = False
+                    if unit1 is None or unit2 is None:
+                        # extra case for unaligned annotations, experimental
+                        # if unit1 is not None or unit2 is not None:
+                        #    total_disorder += dissimilarity.delta_empty * dissimilarity.delta_empty
+                        #    total_weight += dissimilarity.delta_empty
+                        continue
+                    no_loop = False
+                    pos_dissim = dissimilarity.alpha * dissimilarity.positional_dissim.d(unit1, unit2)
+                    weight_confidence = max(0, 1 - pos_dissim)
+                    cat_dissim = dissimilarity.categorical_dissim.d(unit1, unit2)
+                    weight = weight_base * weight_confidence  # Each categorical dissimilarity is weighted by both
+                    total_disorder += cat_dissim * weight     # a positional "confidence" and the # of alignments
+                    total_weight += weight                    # in the unitary alignment
+        if no_loop:
+            return 1.0 if no_cat else 0.0
+        return 0 if total_disorder == 0 else total_disorder / total_weight
+
+    def check(self, continuum: Optional[Continuum] = None):
         """
         Checks that an alignment is a valid partition of a Continuum. That is,
         that all annotations from the referenced continuum *can be found*

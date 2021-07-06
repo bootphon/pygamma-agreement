@@ -23,13 +23,11 @@ CSV files need to have the following structure:
 
 .. code-block::
 
-    annotator_id, annotation, segment_start, segment_end
+    annotator, annotation, segment_start, segment_end
 
 Thus, for instance:
 
 .. code-block::
-
-    E.G.:
 
     annotator_1, Marvin, 11.3, 15.6
     annotator_1, Maureen, 20, 25.7
@@ -50,12 +48,22 @@ containing several files. Thus, all these commands will work:
     pygamma-agreement data/
 
 The gamma value for each file will be printed out in the console's stdout.
-If you wish to easily save the tool's output in a file, you can use the ``--output_csv``
-option to save it to a 2-column CSV that will contain each file's gamma value.
+If you wish to easily save the tool's output in a file, you can use the ``--output-csv`` (or ``-o``)
+option to save it to a CSV that will contain each file's gamma value. You can then visualize the
+results with tools like ``tabview`` or other spreadsheet software alike.
 
 .. code-block:: bash
 
-    pygamma-agreement data/*.csv --output_csv gamma_results.csv
+    pygamma-agreement data/*.csv --output-csv gamma_results.csv
+    pygamma-agreement data/*.csv -o gamma_results.csv
+
+There is also the option of saving the values in the JSON format with the ``--output-json`` (or ``-j``) option.
+
+.. code-block:: bash
+
+    pygamma-agreement data/*.csv --output-json gamma_results.json
+    pygamma-agreement data/*.csv -j gamma_results.json
+
 
 Optionally, you can also configure the alpha and beta coefficients used in
 the combined categorical dissimilarity. You can also set a different precision level
@@ -64,4 +72,26 @@ if you want your gamma's estimation to be more or less precise:
 .. code-block:: bash
 
     pygamma-agreement data/my_annotation_file.csv --alpha 3 --beta 1 --precision_level 0.02
+
+In addition the gamma agreement, ``pygamma-agreement`` also gives you the option to output the gamma-cat & gamma-k(s)
+alternate inter-annotator agreements, with the ``--gamma-cat`` (or ``-g``) and ``--gamma-k`` (or ``-k``) options, or
+both.
+
+.. code-block:: bash
+
+    pygamma-agreement -k -g tests/data/*.csv -o test.csv
+    OR
+    pygamma-agreement -k -g tests/data/*.csv -j test.csv
+
+
+
+
+
+
+
+
+
+
+
+
 

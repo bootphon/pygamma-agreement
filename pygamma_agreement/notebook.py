@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
-# Copyright (c) 2020 CoML
+# Copyright (c) 2020-2021 CoML
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -32,12 +29,13 @@
 Visualization
 #############
 """
-from typing import Iterable, Dict, Optional, Tuple, Hashable, Union
+from typing import Iterable, Dict, Optional, Tuple, Hashable, Union, Iterator
 
 from pyannote.core import Timeline, Segment
 
 try:
     from IPython.core.pylabtools import print_figure
+    from IPython.core.display import display_png
 except Exception as e:
     pass
 
@@ -62,7 +60,7 @@ class Notebook:
         self._crop: Optional[Segment] = None
         self._width: Optional[int] = None
         self._style: Dict[Optional[Label], LabelStyle] = {}
-        self._style_generator: Iterable[LabelStyle] = None
+        self._style_generator: Iterator[LabelStyle] = iter([])
         self.reset()
 
     def reset(self):
@@ -123,7 +121,7 @@ class Notebook:
         ax.axes.get_yaxis().set_visible(yaxis)
         return ax
 
-    def draw_segment(self, ax, segment: Segment, y, annotator=None, boundaries=True):
+    def draw_segment(self, ax, segment: Segment, y, annotator=None, boundaries=True, text=None):
 
         # do nothing if segment is empty
         if not segment:
@@ -139,12 +137,14 @@ class Notebook:
                       color, linewidth=1, linestyle='solid')
             ax.vlines(segment.end, y + 0.05, y - 0.05,
                       color, linewidth=1, linestyle='solid')
+        if text is not None:
+            self.draw_centered_text(ax, segment.start + (segment.end - segment.start)/2, y, text)
 
         if annotator is None:
             return
 
     def draw_centered_text(self, ax, x: float, y: float, text: str):
-        ax.text(x, y, text,
+        ax.text(x, y-0.07, text,
                 horizontalalignment='center',
                 fontsize=10, color='black',
                 )
@@ -178,6 +178,13 @@ class Notebook:
         H, L = zip(*list((next(h_l)[0], l) for l, h_l in HL))
         ax.legend(H, L, bbox_to_anchor=(0, 1), loc=3,
                   ncol=5, borderaxespad=0., frameon=False)
+
+    def link_segments(self, ax, segment1: Segment, y1: float, segment2: Segment, y2: float):
+        x = [(segment1.end + segment1.start) / 2, (segment2.end + segment2.start) / 2]
+        y = [y1, y2]
+        ax.plot(x, y, color='black', linestyle='dotted', linewidth=1)
+
+
 
     def get_y(self, segments: Iterable[Segment]) -> np.ndarray:
         """
@@ -231,10 +238,13 @@ class Notebook:
             self.plot_alignment(resource, time=time)
 
         elif isinstance(resource, Continuum):
-            self.plot_continuum(resource, time=time)
+            self.plot_continuum(resource)
 
-    def plot_alignment(self, alignment: Alignment, ax=None, time=True, legend=True):
-        self.crop = Segment(0, alignment.num_alignments)
+    def plot_alignment(self, alignment: Alignment, ax=None, time=True, legend=True, labelled=True):
+        if alignment.continuum is not None:
+            self.plot_alignment_continuum(alignment, ax, time, legend, labelled)
+            return
+        self.crop = Segment(0, alignment.num_unitary_alignments)
 
         ax = self.setup(ax=ax, time=time)
         ax.set_xlabel('Alignments')
@@ -257,54 +267,100 @@ class Notebook:
                     self.draw_empty_unit(ax, unit_align_center, y, annotator)
                 else:
                     normed_len = unit.segment.duration / max_duration
+                    if labelled:
+                        text = unit.annotation
+                    else:
+                        text = None
                     self.draw_centered_segment(ax,
                                                length=normed_len,
                                                center=unit_align_center,
                                                y=y,
                                                annotator=annotator,
-                                               # text=unit.annotation
+                                               text=text
                                                )
         if legend:
             self.draw_legend_from_labels(ax)
 
-    def plot_continuum(self, continuum: Continuum, ax=None, time=True,
-                       legend=True):
-        self.crop = Timeline([unit.segment for (_, unit) in continuum]).extent()
-        self.setup(ax, ylim=(0, continuum.num_annotators))
+    def plot_alignment_continuum(self, alignment: Alignment, ax=None, time=True, legend=True, labelled=True):
+        assert alignment.continuum is not None
+        y_annotator_unit = self.plot_continuum(alignment.continuum, ax=ax, legend=legend, labelled=labelled)
+        for unitary_alignment in alignment:
+            annotations = iter(unitary_alignment.n_tuple)
+            last_unit = None
+            while last_unit is None:
+                last_annotator, last_unit = next(annotations)
+            for (annotator, unit) in annotations:
+                if unit is None:
+                    continue
+                self.link_segments(ax,
+                                   last_unit.segment, y_annotator_unit[last_annotator][last_unit],
+                                   unit.segment, y_annotator_unit[annotator][unit])
+                last_annotator, last_unit = annotator, unit
 
+    def plot_continuum(self, continuum: Continuum, ax=None,  # time=True,
+                       legend=True, labelled=True):
+        self.crop = Segment(continuum.bound_inf, continuum.bound_sup)
+        self.setup(ax, ylim=(0, continuum.num_annotators))
+        y_annotator_unit = {}
         for annot_id, annotator in enumerate(continuum.annotators):
-            units_tl = Timeline([unit.segment for unit in continuum[annotator]])
-            for segment, y in zip(units_tl, self.get_y(units_tl)):
-                self.draw_segment(ax, segment, y + annot_id,
-                                  annotator=annotator)
+            y_annotator_unit[annotator] = {}
+            units_tl = sorted(continuum[annotator], key=(lambda unit: unit.segment))
+            for unit, y in zip(units_tl, self.get_y(unit.segment for unit in units_tl)):
+                y_annotator_unit[annotator][unit] = y + annot_id
+                if labelled:
+                    text = unit.annotation
+                else:
+                    text = None
+                self.draw_segment(ax, unit.segment, y + annot_id,
+                                  annotator=annotator, text=text)
         if legend:
             self.draw_legend_from_labels(ax)
+        return y_annotator_unit
 
 
 notebook = Notebook()
 
 
-def repr_alignment(alignment: Alignment):
+def repr_alignment(alignment: Alignment, labelled=True):
     """Get `png` data for `Alignment`"""
-    import matplotlib.pyplot as plt
-    figsize = plt.rcParams['figure.figsize']
-    plt.rcParams['figure.figsize'] = (notebook.width, 1)
-    fig, ax = plt.subplots()
-    notebook.plot_alignment(alignment, ax=ax)
-    data = print_figure(fig, 'png')
-    plt.close(fig)
-    plt.rcParams['figure.figsize'] = figsize
-    return data
-
-
-def repr_continuum(continuum: Continuum):
-    """Get `png` data for `annotation`"""
     import matplotlib.pyplot as plt
     figsize = plt.rcParams['figure.figsize']
     plt.rcParams['figure.figsize'] = (notebook.width, 2)
     fig, ax = plt.subplots()
-    notebook.plot_continuum(continuum, ax=ax)
+    notebook.plot_alignment(alignment, ax=ax, labelled=labelled)
     data = print_figure(fig, 'png')
     plt.close(fig)
     plt.rcParams['figure.figsize'] = figsize
     return data
+
+
+def repr_continuum(continuum: Continuum, labelled=True):
+    """Get `png` data for `Continuum`"""
+    import matplotlib.pyplot as plt
+    figsize = plt.rcParams['figure.figsize']
+    plt.rcParams['figure.figsize'] = (notebook.width, 2)
+    fig, ax = plt.subplots()
+    notebook.plot_continuum(continuum, ax=ax, labelled=labelled)
+    data = print_figure(fig, 'png')
+    plt.close(fig)
+    plt.rcParams['figure.figsize'] = figsize
+    return data
+
+def show_continuum(continuum: Continuum, labelled=True):
+    import matplotlib.pyplot as plt
+    figsize = plt.rcParams['figure.figsize']
+    plt.rcParams['figure.figsize'] = (notebook.width, 2)
+    fig, ax = plt.subplots()
+    notebook.plot_continuum(continuum, ax=ax, labelled=labelled)
+    fig.show()
+    plt.rcParams['figure.figsize'] = figsize
+
+
+def show_alignment(alignment: Alignment, labelled=True):
+    import matplotlib.pyplot as plt
+    figsize = plt.rcParams['figure.figsize']
+    plt.rcParams['figure.figsize'] = (notebook.width, 2)
+    fig, ax = plt.subplots()
+    notebook.plot_alignment_continuum(alignment, ax=ax, labelled=labelled)
+    fig.show()
+    plt.rcParams['figure.figsize'] = figsize
