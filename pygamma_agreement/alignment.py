@@ -190,7 +190,7 @@ class Alignment(AbstractAlignment):
     @property
     def annotators(self):
         return SortedSet([annotator for annotator, _
-                in self.unitary_alignments[0].n_tuple])
+                          in self.unitary_alignments[0].n_tuple])
 
     @property
     def avg_num_annotations_per_annotator(self):

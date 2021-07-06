@@ -121,3 +121,17 @@ def chunked_cartesian_product(sizes: List[int], chunk_size: int):
 def cartesian_product(sizes: List[int]):
     """Regular cartesian product"""
     return next(chunked_cartesian_product(sizes, np.prod(sizes)))
+
+@nb.njit
+def next_tuple(current: np.ndarray, sizes: np.ndarray):
+    for i in range(len(current)):
+        current[i] += 1
+        if current[i] < sizes[i]:
+            break
+        current[i] = 0
+
+
+
+
+
+

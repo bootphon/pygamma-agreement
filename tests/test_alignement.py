@@ -62,7 +62,6 @@ def test_unitary_alignment():
                     [0.3, 0.6, 0., 0.7],
                     [0.7, 0.4, 0.7, 0.]])
     combi_dis = CombinedCategoricalDissimilarity(
-        categories=categories,
         delta_empty=0.5,
         cat_dissimilarity_matrix=cat,
         alpha=1)
@@ -70,7 +69,7 @@ def test_unitary_alignment():
                ('pierrot', Unit(Segment(12, 18), "Alice")),
                ('hadrien', None)]
     unitary_alignment = UnitaryAlignment(n_tuple)
-    assert  unitary_alignment.nb_units == 2
+    assert unitary_alignment.nb_units == 2
 
     assert (unitary_alignment.compute_disorder(combi_dis)
            ==
@@ -108,7 +107,6 @@ def test_alignment():
                     [0.3, 0.6, 0., 0.7],
                     [0.7, 0.4, 0.7, 0.]])
     combi_dis = CombinedCategoricalDissimilarity(
-        categories=categories,
         delta_empty=0.5,
         alpha=3,
         cat_dissimilarity_matrix=cat)

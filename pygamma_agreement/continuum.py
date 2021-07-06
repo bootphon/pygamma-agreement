@@ -103,7 +103,7 @@ class Unit:
 class Continuum:
     """
     Representation of a continuum, i.e a set of annotated segments by multiple annotators.
-    It is implemented as a dictionnarfrom .notebook import show_continuumy of sets (all sorted) :
+    It is implemented as a dictionnary of sets (all sorted) :
 
     ``{'annotator1': {unit1, ...}, ...}``
     """
@@ -540,8 +540,6 @@ class Continuum:
         assert len(self.annotators) >= 2 and self, "Disorder cannot be computed with less than two annotators, or " \
                                                    "without annotations."
 
-        disorder_args = dissimilarity.build_args(self)
-
         nb_unit_per_annot = []
         for annotator, arr in self._annotations.items():
             # assert len(arr) > 0, f"Disorder cannot be computed because annotator {annotator} has no annotations."
@@ -549,16 +547,8 @@ class Continuum:
 
         all_disorders = []
         all_valid_tuples = []
-        for tuples_batch in chunked_cartesian_product(nb_unit_per_annot, CHUNK_SIZE):
-            batch_disorders = dissimilarity(tuples_batch, *disorder_args)
-            # Property section 5.1.1 to reduce initial complexity
-            valid_disorders_ids, = np.where(batch_disorders <= self.num_annotators * dissimilarity.delta_empty)
 
-            all_disorders.append(batch_disorders[valid_disorders_ids])
-            all_valid_tuples.append(tuples_batch[valid_disorders_ids])
-
-        disorders = np.concatenate(all_disorders)
-        possible_unitary_alignments = np.concatenate(all_valid_tuples)
+        disorders, possible_unitary_alignments = dissimilarity(self)
 
         # Definition of the integer linear program
         n = len(disorders)
@@ -644,7 +634,7 @@ class Continuum:
         """
         from .dissimilarity import CombinedCategoricalDissimilarity
         if dissimilarity is None:
-            dissimilarity = CombinedCategoricalDissimilarity(self.categories)
+            dissimilarity = CombinedCategoricalDissimilarity()
 
         if sampler is None:
             from .sampler import StatisticalContinuumSampler
