@@ -297,7 +297,7 @@ here's how to instanciate a categorical dissimilarity:
 It's important to note that the index of each category in the categorical dissimilarity matrix is its index in
 **alphabetecial order**.
 
-You can also provide a fonction that will be used to compute the dissimilarity matrix, for instance the Levenshtein
+You can also provide a function that will be used to compute the dissimilarity matrix, for instance the Levenshtein
 distance :
 
 .. code-block:: python
@@ -384,7 +384,7 @@ Several points that should be made about that value:
 * it is bounded by :math:`]-\infty,1]` but for most "regular" situations it should be contained in :math:`[0, 1]`
 * the higher and the closer it is to 1, the better.
 
-the gamma value is computed from a ``Continuum`` object, using a given ``Dissimilarity`` object :
+The gamma value is computed from a ``Continuum`` object, using a given ``Dissimilarity`` object :
 
 .. code-block:: python
 
@@ -403,7 +403,7 @@ the gamma value is computed from a ``Continuum`` object, using a given ``Dissimi
     An approximation of its computational complexity would be :math:`O(N \times (p_1 \times ... \times p_n))`
     where :math:`p_i` is the number of annotations for annotator :math:`i`, and :math:`N` is the number of
     samples used when computing :math:`\delta_{random}`, which grows as the ``precision_level``
-    parameter gets closer to 0. If time of computation becomes to high, it is advised to lower the precision
+    parameter gets closer to 0. If time of computation becomes too high, it is advised to lower the precision
     before anything else.
 
 Gamma-cat (γ-cat) and Gamma-k (γ-k)
@@ -429,7 +429,7 @@ The :math:`γ_{cat}`-agreement can be obtained from the :ref:`GammaResults objec
 :math:`γ_{k}` is another alternate agreement measure. It only differs from :math:`γ_{cat}` by the fact that it
 only considers one defined category.
 
-The :math:`γ_{k}` value for a category alse can be obtained from the :ref:`GammaResults object <gamma_agreement>`:
+The :math:`γ_{k}` value for a category also can be obtained from the :ref:`GammaResults object <gamma_agreement>`:
 
 .. code-block:: python
 
