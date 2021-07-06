@@ -84,7 +84,7 @@ class UnitaryAlignment:
         self._disorder: Optional[float] = None
 
     @property
-    def n_tuple(self):
+    def n_tuple(self) -> UnitsTuple:
         return self._n_tuple
 
     @property

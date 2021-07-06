@@ -69,7 +69,7 @@ setup(
             'pygamma-agreement = pygamma_agreement.cli_apps:pygamma_cmd',
         ]
     },
-    extras_requires={
+    extras_require={
         "notebook": [
             "matplotlib",
         ],

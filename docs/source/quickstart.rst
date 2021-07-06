@@ -12,7 +12,7 @@ Loading the data
 ~~~~~~~~~~~~~~~~
 
 Let's say we have a short recording of some human speech, in which several
-people are chatting. Let's call these people __Robin__, __Maureen__ and __Marvin__.
+people are chatting. Let's call these people **Robin**, **Maureen** and **Marvin**.
 We asked 3 annotators to annotate this audio file to indicate when each of
 these people is talking. Each annotated segment can be represented as a
 tuple of 3 information:

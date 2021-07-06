@@ -51,3 +51,4 @@ then:
    api_reference
    issues
    performance
+   changelog

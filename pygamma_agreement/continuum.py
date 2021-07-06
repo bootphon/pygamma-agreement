@@ -472,7 +472,10 @@ class Continuum:
         except KeyError:
             raise KeyError('key must be either Annotator (from the continuum) or (Annotator, int)')
 
-    def __iter__(self) -> Generator[Tuple[str, Unit], None, None]:
+    def __iter__(self) -> Generator[Tuple[Annotator, Unit], None, None]:
+        """
+        Iterates over (annotator, unit) tuples for every unit in the continuum.
+        """
         for annotator, annotations in self._annotations.items():
             for unit in annotations:
                 yield annotator, unit
@@ -605,7 +608,8 @@ class Continuum:
         dissimilarity: AbstractDissimilarity
             the dissimilarity that will be used to compute unit-to-unit disorder.
         """
-        assert len(self.annotators) >= 2, "Disorder cannot be computed with less than two annotators."
+        assert len(self.annotators) >= 2 and self, "Disorder cannot be computed with less than two annotators, or " \
+                                                   "without annotations."
 
         disorder_args = dissimilarity.build_args(self)
 
@@ -628,8 +632,7 @@ class Continuum:
         possible_unitary_alignments = np.concatenate(all_valid_tuples)
 
         # Definition of the integer linear program
-        num_possible_unitary_alignements = len(disorders)
-        x = cp.Variable(shape=num_possible_unitary_alignements, boolean=True)
+        n = len(disorders)
 
         true_units_ids = []
         num_units = 0
@@ -638,13 +641,14 @@ class Continuum:
             num_units += len(units)
 
         # Constraints matrix ("every unit must appear once and only once")
-        A = np.zeros((num_units, num_possible_unitary_alignements))
+        A = np.zeros((num_units, n))
         for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
             for annotator_id, unit_id in enumerate(unit_ids_tuple):
                 if unit_id != len(true_units_ids[annotator_id]):
                     A[true_units_ids[annotator_id][unit_id], p_id] = 1
 
         # we don't actually care about the optimal loss value
+        x = cp.Variable(shape=(n,), boolean=True)
         try:
             import cylp
             cp.Problem(cp.Minimize(disorders.T @ x), [A @ x == 1]).solve(solver=cp.CBC)
