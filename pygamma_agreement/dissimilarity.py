@@ -80,8 +80,10 @@ class AbstractDissimilarity:
 
     @staticmethod
     @nb.njit
-    def get_all_valid_alignments(position_arrays, category_arrays, d_mat, delta_empty: float):
-        chunk_size = 2 ** 10
+    def get_all_valid_alignments(position_arrays: nb.typed.List, category_arrays: nb.typed.List,
+                                 d_mat,
+                                 delta_empty: float):
+        chunk_size = (10**6) // 8
         nb_annotators = len(position_arrays)
         c2n = (nb_annotators * (nb_annotators - 1) // 2)
 
@@ -97,8 +99,8 @@ class AbstractDissimilarity:
         while True:
             # for each tuple (corresponding to a unitary alignment), compute disorder
             disorder = 0
-            for annot_a in np.arange(nb_annotators):
-                for annot_b in np.arange(annot_a + 1, nb_annotators):
+            for annot_a in range(nb_annotators):
+                for annot_b in range(annot_a + 1, nb_annotators):
                     # this block looks a bit slow (because of all the variables
                     # declarations) but should be fairly sped up automatically
                     # by the LLVM optimization pass
@@ -115,8 +117,8 @@ class AbstractDissimilarity:
                 alignments[i_chosen, :] = unitary_alignment
                 i_chosen += 1
                 if i_chosen == chunk_size:
-                    disorders = np.concatenate((disorders, np.zeros(chunk_size, dtype=np.float64)))
-                    alignments = np.concatenate((alignments, np.zeros((chunk_size, nb_annotators), dtype=np.int32)))
+                    disorders = np.concatenate((disorders, np.zeros(chunk_size // 2, dtype=np.float64)))
+                    alignments = np.concatenate((alignments, np.zeros((chunk_size // 2, nb_annotators), dtype=np.int32)))
                     chunk_size += chunk_size // 2
             next_tuple(unitary_alignment, sizes)
             if not np.any(unitary_alignment):
