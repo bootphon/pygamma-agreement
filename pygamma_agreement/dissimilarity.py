@@ -36,7 +36,7 @@ import numba as nb
 import numpy as np
 from matplotlib import pyplot as plt
 from sortedcontainers import SortedSet
-from .numba_utils import next_tuple
+from .numba_utils import iter_tuples
 
 if TYPE_CHECKING:
     from .continuum import Continuum
@@ -86,6 +86,7 @@ class AbstractDissimilarity:
         chunk_size = (10**6) // 8
         nb_annotators = len(position_arrays)
         c2n = (nb_annotators * (nb_annotators - 1) // 2)
+        criterium = c2n * delta_empty * nb_annotators
 
         sizes = np.zeros(nb_annotators).astype(np.int32)
         for annotator_id in range(nb_annotators):
@@ -94,9 +95,8 @@ class AbstractDissimilarity:
         disorders = np.zeros(chunk_size, dtype=np.float64)
         alignments = np.zeros((chunk_size, nb_annotators), dtype=np.int32)
 
-        unitary_alignment = np.zeros(nb_annotators, dtype=np.int32)
         i_chosen = 0
-        while True:
+        for unitary_alignment in iter_tuples(sizes):
             # for each tuple (corresponding to a unitary alignment), compute disorder
             disorder = 0
             for annot_a in range(nb_annotators):
@@ -111,20 +111,18 @@ class AbstractDissimilarity:
                         disorder += delta_empty
                     else:
                         disorder += d_mat(pos_a, cat_a, pos_b, cat_b)
-            disorder /= c2n
-            if disorder <= nb_annotators * delta_empty:
+            if disorder <= criterium:
                 disorders[i_chosen] = disorder
-                alignments[i_chosen, :] = unitary_alignment
+                alignments[i_chosen] = unitary_alignment
                 i_chosen += 1
                 if i_chosen == chunk_size:
                     disorders = np.concatenate((disorders, np.zeros(chunk_size // 2, dtype=np.float64)))
                     alignments = np.concatenate((alignments, np.zeros((chunk_size // 2, nb_annotators), dtype=np.int32)))
                     chunk_size += chunk_size // 2
-            next_tuple(unitary_alignment, sizes)
-            if not np.any(unitary_alignment):
-                break
 
-        return disorders[:i_chosen], alignments[:i_chosen]
+        disorders, alignments = disorders[:i_chosen], alignments[:i_chosen]
+        disorders /= c2n
+        return disorders, alignments
 
     def d(self, unit1: 'Unit', unit2: 'Unit'):
         unit1_pos = np.array([unit1.segment.start, unit1.segment.end, unit1.segment.end - unit1.segment.start])

@@ -123,12 +123,18 @@ def cartesian_product(sizes: List[int]):
     return next(chunked_cartesian_product(sizes, np.prod(sizes)))
 
 @nb.njit
-def next_tuple(current: np.ndarray, sizes: np.ndarray):
-    for i in range(len(current)):
-        current[i] += 1
-        if current[i] < sizes[i]:
-            break
-        current[i] = 0
+def iter_tuples(sizes: np.ndarray):
+    nb_annotators = len(sizes)
+    current = np.zeros(nb_annotators, dtype=np.int16)
+    while True:
+        yield current
+        for i in range(len(current)):
+            current[i] += 1
+            if current[i] < sizes[i]:
+                break
+            current[i] = 0
+        else:
+            return
 
 
 
