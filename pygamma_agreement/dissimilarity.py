@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from .continuum import Continuum
     from .alignment import Alignment
 
-dissimilarity_dec = nb.cfunc(nb.float64(nb.float64[:], nb.float64[:]), nopython=True)
+dissimilarity_dec = nb.cfunc(nb.float32(nb.float32[:], nb.float32[:]), nopython=True)
 
 
 
@@ -64,7 +64,7 @@ class AbstractDissimilarity:
         for annotator_id, (annotator, units) in enumerate(continuum._annotations.items()):
             # dim x : segment
             # dim y : (start, end, dur) / annotation
-            unit_array = np.zeros((len(units), 4), dtype=np.float64)
+            unit_array = np.zeros((len(units), 4), dtype=np.float32)
             for unit_id, unit in enumerate(units):
                 unit_array[unit_id][0] = unit.segment.start
                 unit_array[unit_id][1] = unit.segment.end
@@ -80,10 +80,10 @@ class AbstractDissimilarity:
         raise NotImplemented()
 
     @staticmethod
-    @nb.njit(nb.types.Tuple((nb.float64[:], nb.int32[:, :]))(nb.types.ListType(nb.float64[:, ::1]),
-                                                             nb.types.FunctionType(nb.float64(nb.float64[:],
-                                                                                              nb.float64[:])),
-                                                             nb.float64))
+    @nb.njit(nb.types.Tuple((nb.float32[:], nb.int16[:, :]))(nb.types.ListType(nb.float32[:, ::1]),
+                                                             nb.types.FunctionType(nb.float32(nb.float32[:],
+                                                                                              nb.float32[:])),
+                                                             nb.float32))
     def get_all_valid_alignments(unit_arrays: nb.typed.List,
                                  d_mat,
                                  delta_empty: float):
@@ -92,27 +92,27 @@ class AbstractDissimilarity:
         c2n = (nb_annotators * (nb_annotators - 1) // 2)
         criterium = c2n * delta_empty * nb_annotators
 
-        sizes_with_null = np.zeros(nb_annotators).astype(np.int32)
-        sizes = np.zeros(nb_annotators).astype(np.int32)
+        sizes_with_null = np.zeros(nb_annotators).astype(np.int16)
+        sizes = np.zeros(nb_annotators).astype(np.int16)
         for annotator_id in range(nb_annotators):
             sizes[annotator_id] = len(unit_arrays[annotator_id])
             sizes_with_null[annotator_id] = len(unit_arrays[annotator_id]) + 1
 
         # PRECOMPUTATION OF ALL INTER-ANNOTATOR COUPLES OF UNITS
-        precomputation = nb.typed.List([nb.typed.List([np.zeros((1, 1), dtype=np.float64) for _ in range(i)])
+        precomputation = nb.typed.List([nb.typed.List([np.zeros((1, 1), dtype=np.float32) for _ in range(i)])
                                         for i in range(nb_annotators)])
         for annotator_a in range(nb_annotators):
             for annotator_b in range(annotator_a):
                 nb_annot_a, nb_annot_b = sizes[annotator_a], sizes[annotator_b]
-                matrix = np.full((nb_annot_a + 1, nb_annot_b + 1), fill_value=delta_empty, dtype=np.float64)
+                matrix = np.full((nb_annot_a + 1, nb_annot_b + 1), fill_value=delta_empty, dtype=np.float32)
                 for annot_a in range(nb_annot_a):
                     for annot_b in range(nb_annot_b):
                         matrix[annot_a, annot_b] = d_mat(unit_arrays[annotator_a][annot_a],
                                                          unit_arrays[annotator_b][annot_b])
                 precomputation[annotator_a][annotator_b] = matrix
 
-        disorders = np.zeros(chunk_size, dtype=np.float64)
-        alignments = np.zeros((chunk_size, nb_annotators), dtype=np.int32)
+        disorders = np.zeros(chunk_size, dtype=np.float32)
+        alignments = np.zeros((chunk_size, nb_annotators), dtype=np.int16)
         i_chosen = 0
         for unitary_alignment in iter_tuples(sizes_with_null):
             # for each tuple (corresponding to a unitary alignment), compute disorder
@@ -129,8 +129,8 @@ class AbstractDissimilarity:
                 alignments[i_chosen] = unitary_alignment
                 i_chosen += 1
                 if i_chosen == chunk_size:
-                    disorders = np.concatenate((disorders, np.zeros(chunk_size // 2, dtype=np.float64)))
-                    alignments = np.concatenate((alignments, np.zeros((chunk_size // 2, nb_annotators), dtype=np.int32)))
+                    disorders = np.concatenate((disorders, np.zeros(chunk_size // 2, dtype=np.float32)))
+                    alignments = np.concatenate((alignments, np.zeros((chunk_size // 2, nb_annotators), dtype=np.int16)))
                     chunk_size += chunk_size // 2
         disorders, alignments = disorders[:i_chosen], alignments[:i_chosen]
         disorders /= c2n
@@ -192,8 +192,8 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         self.positional_dissim = PositionalDissimilarity(delta_empty)
         self.categorical_dissim = CategoricalDissimilarity(delta_empty, method='absolute')
 
-        self._alpha = alpha
-        self._beta = beta
+        self._alpha = nb.float32(alpha)
+        self._beta = nb.float32(beta)
         pos = self.positional_dissim.d_mat
         cat = self.categorical_dissim.d_mat
 
@@ -205,7 +205,6 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         super().__init__(d_mat, delta_empty)
 
     def __reset_dmat(self):
-        delta_empty = self.delta_empty
         alpha = self.alpha
         beta = self.beta
         pos = self.positional_dissim.d_mat
@@ -219,20 +218,20 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
 
     @property
     def alpha(self) -> float:
-        return self._alpha
+        return float(self._alpha)
 
     @property
     def beta(self) -> float:
-        return self._beta
+        return float(self._beta)
 
     @alpha.setter
-    def alpha(self, alpha):
-        self._alpha = alpha
+    def alpha(self, alpha: float):
+        self._alpha = nb.float32(alpha)
         self.__reset_dmat()
 
     @beta.setter
     def beta(self, beta):
-        self._beta = beta
+        self._beta = nb.float32(beta)
         self.__reset_dmat()
 
 
