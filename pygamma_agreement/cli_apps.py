@@ -35,7 +35,11 @@ from argparse import RawTextHelpFormatter, ArgumentDefaultsHelpFormatter
 from pathlib import Path
 from typing import Dict, List
 
-from pygamma_agreement import Continuum, CombinedCategoricalDissimilarity, ShuffleContinuumSampler
+from pygamma_agreement import (Continuum,
+                               LevenshteinCategoricalDissimilarity,
+                               OrdinalCategoricalDissimilarity,
+                               ShuffleContinuumSampler,
+                               CombinedCategoricalDissimilarity)
 
 class RawAndDefaultArgumentFormatter(RawTextHelpFormatter,
                                      ArgumentDefaultsHelpFormatter):
@@ -80,6 +84,9 @@ output.add_argument("-o", "--output-csv", type=Path,
 output.add_argument("-j", "--output-json", type=Path,
                     help="Path to the output json report")
 
+argparser.add_argument("-e", "--empty-delta",
+                       default=1, type=float,
+                       help="Delta empty coefficient (empty alignment tolerance)")
 argparser.add_argument("-a", "--alpha",
                        default=1, type=float,
                        help="Alpha coefficient (positional dissimilarity ponderation)")
@@ -151,9 +158,16 @@ def pygamma_cmd():
         logging.info(f"Finished loading continuum from {os.path.basename(file_path)} in {(time.time() - start) * 1000} ms")
         start = time.time()
 
+        cat_dissim = None
+        if args.cat_dissim == "levenshtein":
+            cat_dissim = LevenshteinCategoricalDissimilarity(continuum.categories)
+        elif args.cat_dissim == "ordinal":
+            cat_dissim = OrdinalCategoricalDissimilarity(continuum.categories)
+
         dissim = CombinedCategoricalDissimilarity(alpha=args.alpha,
                                                   beta=args.beta,
-                                                  cat_method=args.cat_dissim)
+                                                  delta_empty=args.empty_delta,
+                                                  cat_dissim=cat_dissim)
         logging.info(f"Finished loading dissimilarity object in {(time.time() - start) * 1000} ms")
         start = time.time()
 

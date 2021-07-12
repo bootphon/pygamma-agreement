@@ -4,8 +4,9 @@ from pyannote.core import Segment
 
 def test_errors_continuum():
     continuum = pa.Continuum()
-    dissim = pa.CombinedCategoricalDissimilarity(continuum.categories, alpha=3, beta=2, delta_empty=1.0,
-                                                 cat_dissimilarity_matrix=pa.dissimilarity.cat_levenshtein)
+    cat_dissim = pa.OrdinalCategoricalDissimilarity(continuum.categories)
+    dissim = pa.CombinedCategoricalDissimilarity(alpha=3, beta=2, delta_empty=1.0,
+                                                 cat_dissim=cat_dissim)
     # 0 annotators
     try:
         best_alignment = continuum.get_best_alignment(dissim)
@@ -23,14 +24,11 @@ def test_errors_continuum():
 
     continuum.add_annotator('Martino')
     # dissim without categories
-    try:
-        best_alignment = continuum.get_best_alignment(dissim)
-    except ValueError:
-        best_alignment = None
-    assert best_alignment is None
+    best_alignment = continuum.get_best_alignment(dissim)
 
-    dissim = pa.CombinedCategoricalDissimilarity(continuum.categories, alpha=3, beta=2, delta_empty=1.0,
-                                                 cat_dissimilarity_matrix=pa.dissimilarity.cat_levenshtein)
+    cat_dissim = pa.OrdinalCategoricalDissimilarity(continuum.categories)
+    dissim = pa.CombinedCategoricalDissimilarity(alpha=3, beta=2, delta_empty=1.0,
+                                                 cat_dissim=cat_dissim)
 
     best_alignment = continuum.get_best_alignment(dissim)
     only_unit_align = best_alignment.unitary_alignments[0]
@@ -55,8 +53,9 @@ def test_errors_continuum():
     continuum.remove('Martin', unit_martin)
 
     # Gamma - no annotations
-    dissim = pa.CombinedCategoricalDissimilarity(continuum.categories, alpha=3, beta=2, delta_empty=1.0,
-                                                 cat_dissimilarity_matrix=pa.dissimilarity.cat_levenshtein)
+    cat_dissim = pa.LevenshteinCategoricalDissimilarity(continuum.categories)
+    dissim = pa.CombinedCategoricalDissimilarity(alpha=3, beta=2, delta_empty=1.0,
+                                                 cat_dissim=cat_dissim)
     try:
         gamma_results = continuum.compute_gamma(dissim)
         exit(1)

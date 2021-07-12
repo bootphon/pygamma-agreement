@@ -163,6 +163,7 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         min_dist_between_pivots = continuum.avg_length_unit / 2
         bound_inf, bound_sup = continuum.bounds
         new_continuum = Continuum()
+        new_continuum._categories = SortedSet(self._reference_continuum.categories)
         annotators = self._ground_truth_annotators
         while not new_continuum:  # Simple check to prevent returning an empty continuum.
             segments_available = [Segment(bound_inf, bound_sup)]
@@ -313,6 +314,7 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
     def sample_from_continuum(self) -> Continuum:
         self._has_been_init()
         new_continnum = Continuum()
+        new_continnum._categories = SortedSet(self._categories)
         for annotator in self._ground_truth_annotators:
             new_continnum.add_annotator(annotator)
             last_point = 0

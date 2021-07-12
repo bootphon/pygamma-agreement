@@ -49,7 +49,6 @@ from sortedcontainers import SortedDict, SortedSet
 from typing_extensions import Literal
 
 from .dissimilarity import AbstractDissimilarity
-from .numba_utils import chunked_cartesian_product
 
 if TYPE_CHECKING:
     from .alignment import UnitaryAlignment, Alignment
@@ -124,6 +123,7 @@ class Continuum:
         self.uri = uri
         # Structure {annotator -> SortedSet}
         self._annotations: SortedDict = SortedDict()
+        self._categories: SortedSet = SortedSet()
         self.bound_inf = 0.0
         self.bound_sup = 0.0
 
@@ -228,8 +228,7 @@ class Continuum:
     @property
     def categories(self) -> SortedSet:
         """Returns the (alphabetically) sorted set of all the continuum's annotations's categories."""
-        return SortedSet(unit.annotation for _, unit in self
-                         if unit.annotation is not None)
+        return self._categories
 
     @property
     def category_weights(self) -> SortedDict:
@@ -305,7 +304,7 @@ class Continuum:
 
         if annotator not in self._annotations:
             self._annotations[annotator] = SortedSet()
-
+        self._categories.add(annotation)
         self._annotations[annotator].add(Unit(segment, annotation))
         self.bound_inf = min(self.bound_inf, segment.start)
         self.bound_sup = max(self.bound_sup, segment.end)
@@ -548,7 +547,7 @@ class Continuum:
         all_disorders = []
         all_valid_tuples = []
 
-        disorders, possible_unitary_alignments = dissimilarity(self)
+        disorders, possible_unitary_alignments = dissimilarity.valid_alignments(self)
 
         # Definition of the integer linear program
         n = len(disorders)
@@ -747,40 +746,11 @@ class GammaResults:
         return self.best_alignment.disorder
 
     @property
-    def observed_cat_disorder(self) -> float:
-        """Observed disorder for gamma-cat (disorder of the best alignment)"""
-        return self.best_alignment.gamma_k_disorder(self.dissimilarity, None)
-
-    def observed_k_disorder(self, category: str) -> float:
-        """Observed disorder for gamma-k of the given category (disorder of best alignment)"""
-        return self.best_alignment.gamma_k_disorder(self.dissimilarity, category)
-
-    @property
     def expected_disorder(self) -> float:
         """Returns the expected disagreement for computed random samples, i.e.,
         the mean of the sampled continuua's disorders"""
         return float(np.mean([align.disorder for align in self.chance_alignments]))
 
-    @property
-    def expected_cat_disorder(self) -> float:
-        """
-        Returns the expected disagreement (as defined for gamma-cat)
-        using the same random samples' best alignments
-        as for gamma (the mean of the sampled continuua's gamma-cat disorders)
-        """
-        return float(np.mean(list(filter((lambda x: x is not np.NaN),
-                                         (align.gamma_k_disorder(self.dissimilarity, None)
-                                          for align in self.chance_alignments)))))
-
-    def expected_k_disorder(self, category: str) -> float:
-        """
-        Returns the expected disagreement (as defined for gamma-k)
-        using the same random samples' best alignments
-        as for gamma (the mean of the sampled continuua's gamma-k disorders)
-        """
-        return float(np.mean(list(filter((lambda x: x is not np.NaN),
-                                         (align.gamma_k_disorder(self.dissimilarity, category)
-                                          for align in self.chance_alignments)))))
 
     @property
     def approx_gamma_range(self):
@@ -805,17 +775,41 @@ class GammaResults:
     @property
     def gamma_cat(self) -> float:
         """Returns the gamma-cat value"""
-        observed_cat_disorder = self.observed_cat_disorder
-        if observed_cat_disorder == 0:
+        p = Pool()
+
+        observed_disorder_job = p.apply_async(_compute_gamma_k_job,
+                                              (self.dissimilarity, self.best_alignment, None))
+
+        chance_disorders_jobs = [
+            p.apply_async(_compute_gamma_k_job,
+                          (self.dissimilarity, alignment, None))
+            for alignment in self.chance_alignments
+        ]
+        observed_disorder = observed_disorder_job.get()
+        if observed_disorder == 0:
             return 1
-        return 1 - observed_cat_disorder / self.expected_cat_disorder
+        p.close()
+        p.join()
+        return 1 - observed_disorder / float(np.mean(np.array([job_res.get() for job_res in chance_disorders_jobs])))
 
     def gamma_k(self, category: str) -> float:
         """Returns the gamma-k value for the given category"""
-        observed_k_disorder = self.observed_k_disorder(category)
-        if observed_k_disorder == 0:
+        p = Pool()
+
+        observed_disorder_job = p.apply_async(_compute_gamma_k_job,
+                                              (self.dissimilarity, self.best_alignment, category))
+
+        chance_disorders_jobs = [
+            p.apply_async(_compute_gamma_k_job,
+                          (self.dissimilarity, alignment, category))
+            for alignment in self.chance_alignments
+        ]
+        observed_disorder = observed_disorder_job.get()
+        if observed_disorder == 0:
             return 1
-        return 1 - observed_k_disorder / self.expected_k_disorder(category)
+        p.close()
+        p.join()
+        return 1 - observed_disorder / float(np.mean(np.array([job_res.get() for job_res in chance_disorders_jobs])))
 
 
 def _compute_best_alignment_job(dissimilarity: AbstractDissimilarity,
@@ -825,3 +819,9 @@ def _compute_best_alignment_job(dissimilarity: AbstractDissimilarity,
     using the given dissimilarity.
     """
     return continuum.get_best_alignment(dissimilarity)
+
+
+def _compute_gamma_k_job(dissimilarity: AbstractDissimilarity,
+                         alignment: 'Alignment',
+                         category: Optional[str]):
+    return alignment.gamma_k_disorder(dissimilarity, category)
