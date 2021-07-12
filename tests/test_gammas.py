@@ -82,7 +82,7 @@ def test_gamma_alexpaulsuzan_otherdissims():
     continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
     dissimilarity = PositionalDissimilarity()
 
-    gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.01)
+    gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.05)
 
     gamma = gamma_results.gamma
     try:
@@ -91,9 +91,9 @@ def test_gamma_alexpaulsuzan_otherdissims():
     except:
         pass
 
-    dissimilarity = ()
+    dissimilarity = AbsoluteCategoricalDissimilarity()
 
-    gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.01)
+    gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.05)
 
     gamma = gamma_results.gamma
     try:

@@ -187,7 +187,6 @@ class Alignment(AbstractAlignment):
         """Return the (or one of the) leftmost unitary alignments."""
         return min(self.unitary_alignments, key=(lambda unitary_alignment: unitary_alignment.bounds[0]))
 
-
     @property
     def annotators(self):
         return SortedSet([annotator for annotator, _
@@ -202,8 +201,6 @@ class Alignment(AbstractAlignment):
                               for unitary_alignment in self
                               for _, unit in unitary_alignment.n_tuple
                               if unit is not None])
-
-
 
     @property
     def avg_num_annotations_per_annotator(self):
@@ -365,55 +362,5 @@ class Alignment(AbstractAlignment):
 
         from .notebook import repr_alignment
         return repr_alignment(self)
-
-
-@nb.njit(nb.float32(nb.float32[:, :, ::1],
-                    nb.float32,
-                    nb.types.FunctionType(nb.float32(nb.float32[:],
-                                                     nb.float32[:])),
-                    nb.types.FunctionType(nb.float32(nb.float32[:],
-                                                     nb.float32[:])),
-                    nb.float32))
-def array_cat_disorder(alignment_arrays: np.ndarray, alpha: float,  d_pos, d_cat, category: np.float) -> float:
-    nb_unitary_alignments, nb_annotators, _ = alignment_arrays.shape
-
-    total_disorder = 0
-    total_weight = 0
-    no_cat = True
-    no_loop = True
-    for alignment_id in range(nb_unitary_alignments):
-        unitary_alignment = alignment_arrays[alignment_id]
-        nv = 0  # number of non-empty units
-        for unit in unitary_alignment:
-            nv += 1 if unit[0] != -1 else 0
-        if nv < 2:
-            weight_base = 0
-        else:
-            weight_base = 1 / (nv - 1)
-        for i in range(nb_annotators):
-            for j in range(i):
-                category_i = unitary_alignment[i, 3]
-                category_j = unitary_alignment[j, 3]
-                # Case handler for gamma-k
-                if category != -1 and ((category_i == -1 or category_i != category)
-                                       and (category_j == -1 or category_j != category)):
-                    continue
-                no_cat = False
-                if category_i == -1 or category_j == -1:
-                    # extra case for unaligned annotations, experimental
-                    # if unit1 is not None or unit2 is not None:
-                    #    total_disorder += dissimilarity.delta_empty * dissimilarity.delta_empty
-                    #    total_weight += dissimilarity.delta_empty
-                    continue
-                no_loop = False
-                pos_dissim = alpha * d_pos(unitary_alignment[i], unitary_alignment[j])
-                weight_confidence = max(0, 1 - pos_dissim)
-                cat_dissim = d_cat(unitary_alignment[i], unitary_alignment[j])
-                weight = weight_base * weight_confidence  # Each categorical dissimilarity is weighted by both
-                total_disorder += cat_dissim * weight  # a positional "confidence" and the # of alignments
-                total_weight += weight  # in the unitary alignment
-    if no_loop:
-        return 1.0 if no_cat else 0.0
-    return 0 if total_disorder == 0 else total_disorder / total_weight
 
 
