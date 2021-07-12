@@ -259,16 +259,40 @@ class Alignment(AbstractAlignment):
             raise TypeError("Gamma-k and Gamma-cat can only be computed using "
                             f"the {CombinedCategoricalDissimilarity} "
                             f"dissimilarity.")
-        arrays_alignment = dissimilarity.build_arrays_alignment(self)
-        if category is None:
-            category = -1
-        else:
-            category = self.categories.index(category)
-        return array_cat_disorder(arrays_alignment,
-                                  dissimilarity.alpha,
-                                  dissimilarity.positional_dissim.d_mat,
-                                  dissimilarity.categorical_dissim.d_mat,
-                                  category)
+
+        total_disorder = 0
+        total_weight = 0
+        no_cat = True
+        no_loop = True
+        for unitary_alignment in self:
+            nv = unitary_alignment.nb_units
+            if nv < 2:
+                weight_base = 0
+            else:
+                weight_base = 1 / (nv - 1)
+            for i, (_, unit1) in enumerate(unitary_alignment.n_tuple):
+                for _, unit2 in unitary_alignment.n_tuple[i + 1:]:
+                    # Case handler for gamma-k
+                    if category is not None and ((unit1 is None or unit1.annotation != category)
+                                                 and (unit2 is None or unit2.annotation != category)):
+                        continue
+                    no_cat = False
+                    if unit1 is None or unit2 is None:
+                        # extra case for unaligned annotations, experimental
+                        # if unit1 is not None or unit2 is not None:
+                        #    total_disorder += dissimilarity.delta_empty * dissimilarity.delta_empty
+                        #    total_weight += dissimilarity.delta_empty
+                        continue
+                    no_loop = False
+                    pos_dissim = dissimilarity.alpha * dissimilarity.positional_dissim.d(unit1, unit2)
+                    weight_confidence = max(0, 1 - pos_dissim)
+                    cat_dissim = dissimilarity.categorical_dissim.d(unit1, unit2)
+                    weight = weight_base * weight_confidence  # Each categorical dissimilarity is weighted by both
+                    total_disorder += cat_dissim * weight  # a positional "confidence" and the # of alignments
+                    total_weight += weight  # in the unitary alignment
+        if no_loop:
+            return 1.0 if no_cat else 0.0
+        return 0 if total_disorder == 0 else total_disorder / total_weight
 
     def check(self, continuum: Optional[Continuum] = None):
         """
