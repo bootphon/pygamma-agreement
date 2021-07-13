@@ -4,7 +4,7 @@ from pyannote.core import Segment
 
 def test_errors_continuum():
     continuum = pa.Continuum()
-    cat_dissim = pa.OrdinalCategoricalDissimilarity(continuum.categories)
+    cat_dissim = pa.LevenshteinCategoricalDissimilarity(continuum.categories)
     dissim = pa.CombinedCategoricalDissimilarity(alpha=3, beta=2, delta_empty=1.0,
                                                  cat_dissim=cat_dissim)
     # 0 annotators
@@ -26,7 +26,7 @@ def test_errors_continuum():
     # dissim without categories
     best_alignment = continuum.get_best_alignment(dissim)
 
-    cat_dissim = pa.OrdinalCategoricalDissimilarity(continuum.categories)
+    cat_dissim = pa.LevenshteinCategoricalDissimilarity(continuum.categories)
     dissim = pa.CombinedCategoricalDissimilarity(alpha=3, beta=2, delta_empty=1.0,
                                                  cat_dissim=cat_dissim)
 
