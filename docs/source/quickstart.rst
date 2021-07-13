@@ -85,8 +85,7 @@ coefficients.
 
     from pygamma_agreement import CombinedCategoricalDissimilarity
 
-    dissim = CombinedCategoricalDissimilarity(continuum.categories,
-                                              alpha=1, beta=2)
+    dissim = CombinedCategoricalDissimilarity(alpha=1, beta=2)
 
 
 Computing the Gamma

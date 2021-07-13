@@ -78,8 +78,7 @@ of the gamma software. We chose to include the alpha factor, as setting it to `1
 
 .. code-block:: python
 
-    dissimilarity = CombinedCategoricalDissimilarity(continuum.categories,
-                                                     alpha=3.0, # Set any alpha value you want
+    dissimilarity = CombinedCategoricalDissimilarity(alpha=3.0, # Set any alpha value you want
                                                      beta=2.0,
                                                      delta_empty=1.0)
 
@@ -137,8 +136,7 @@ In python, you need to manually create the combined categorical dissimilarity wi
 
 .. code-block:: python
 
-    dissim = CombinedCategoricalDissimilarity(continuum.categories,
-                                              alpha=3)
+    dissim = CombinedCategoricalDissimilarity(alpha=3)
     gamma_results = continuum.compute_gamma(dissim,
                                             sampler=ShuffleContinuumSampler(),
                                             precision_level=0.01)

@@ -290,37 +290,33 @@ here's how to instanciate a categorical dissimilarity:
     from sortedcontainers import SortedSet
 
     categories = SortedSet(('Noun', 'Verb', 'Adj'))
-    dissim_cat = CategoricalDissimilarity(categories,
-                                          cat_dissimilarity_matrix=D,
-                                          delta_empty=1.0)
+    dissim_cat = MatrixCategoricalDissimilarity(categories,
+                                                matrix=D,
+                                                delta_empty=1.0)
 
 It's important to note that the index of each category in the categorical dissimilarity matrix is its index in
 **alphabetecial order**.
 
-You can also provide a fonction that will be used to compute the dissimilarity matrix, for instance the Levenshtein
-distance :
+There are other other available categorical dissimilarity, such as the ``LevenshteinCategoricalDissimilarity`` which
+is based on the levenshtein distance.
+
+You can also create your own Categorical dissimilarity using any (str, str) -> float function :
 
 .. code-block:: python
 
-    from pygamma_agreement import CategoricalDissimilarity
+    from pygamma_agreement import PrecomputedCategoricalDissimilarity
     from sortedcontainers import SortedSet
     from Levenshtein import distance as lev
 
-    def levenshtein_distance(str1, str2):
-        return lev(str1, str2) / max(len(str1), len(str2))
+    class MyCategoricalDissimilarity(PrecomputedCategoricalDissimilarity):
+        def cat_dissim_func(self, str1: str, str2: str):
+            return ... # any distance between category strings
+
 
     categories = SortedSet(('Noun', 'Verb', 'Adj'))
-    dissim_cat = CategoricalDissimilarity(categories,
-                                          cat_dissimilarity_matrix=levenshtein_distance,
-                                          delta_empty=1.0)
+    dissim_cat = MyCategoricalDissimilarity(categories,
+                                            delta_empty=1.0)
 
-
-.. warning::
-
-    This dissimilarity, as of now, cannot directly be used to compute the γ-agreement.
-    In some near future, it will be usable to compute the γ-categorical agreement [mathet2018]_.
-    However, since this dissimilarity is part of the following :ref:`combined-dissim`,
-    we thought it was useful to explain its functioning.
 
 .. _combined-dissim:
 
@@ -341,16 +337,13 @@ It takes the same parameters as the two other dissimilarities, plus :math:`\alph
 
 .. code-block:: python
 
-    from pygamma_agreement import CombinedCategoricalDissimilarity
+    from pygamma_agreement import CombinedCategoricalDissimilarity, LevenshteinCategoricalDissimilarity
 
     categories = SortedSet(('Noun', 'Verb', 'Adj'))
-    dissim = CombinedCategoricalDissimilarity(categories,
-                                              alpha=3,
+    dissim = CombinedCategoricalDissimilarity(alpha=3,
                                               beta=1,
                                               delta_empty=1.0,
-                                              cat_dissimilarity_matrix=levenshtein_distance)
-
-
+                                              cat_dissim=LevenshteinCategoricalDissimilarity(categories))
 
 
 .. _gamma_agreement:
@@ -389,8 +382,7 @@ the gamma value is computed from a ``Continuum`` object, using a given ``Dissimi
 .. code-block:: python
 
      continuum = Continuum.from_csv('your/csv/file.csv')
-     dissim = CombinedCategoricalDissimilarity(continuum.categories,
-                                               delta_empty=1,
+     dissim = CombinedCategoricalDissimilarity(delta_empty=1,
                                                alpha=3,
                                                beta=1)
      gamma_results = continuum.compute_gamma(dissim,

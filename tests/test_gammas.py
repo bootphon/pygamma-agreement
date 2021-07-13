@@ -7,7 +7,7 @@ import pytest
 from pygamma_agreement.continuum import Continuum
 from pygamma_agreement.dissimilarity import (CombinedCategoricalDissimilarity,
                                              PositionalDissimilarity,
-                                             AbsoluteCategoricalDissimilarity)
+                                             OrdinalCategoricalDissimilarity)
 from pygamma_agreement.sampler import ShuffleContinuumSampler
 
 
@@ -91,7 +91,7 @@ def test_gamma_alexpaulsuzan_otherdissims():
     except:
         pass
 
-    dissimilarity = AbsoluteCategoricalDissimilarity()
+    dissimilarity = OrdinalCategoricalDissimilarity(continuum.categories)
 
     gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.05)
 
