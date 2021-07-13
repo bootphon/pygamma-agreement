@@ -43,7 +43,7 @@ setup(
 
     # PyPI
     name='pygamma-agreement',
-    description=('Inter-annotator agreement measure and alignment'
+    description=('Inter-annotator agreement measure and alignment '
                  'written in python'),
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -69,7 +69,7 @@ setup(
             'pygamma-agreement = pygamma_agreement.cli_apps:pygamma_cmd',
         ]
     },
-    extras_requires={
+    extras_require={
         "notebook": [
             "matplotlib",
         ],

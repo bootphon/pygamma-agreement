@@ -395,7 +395,7 @@ the gamma value is computed from a ``Continuum`` object, using a given ``Dissimi
     An approximation of its computational complexity would be :math:`O(N \times (p_1 \times ... \times p_n))`
     where :math:`p_i` is the number of annotations for annotator :math:`i`, and :math:`N` is the number of
     samples used when computing :math:`\delta_{random}`, which grows as the ``precision_level``
-    parameter gets closer to 0. If time of computation becomes to high, it is advised to lower the precision
+    parameter gets closer to 0. If time of computation becomes too high, it is advised to lower the precision
     before anything else.
 
 Gamma-cat (γ-cat) and Gamma-k (γ-k)

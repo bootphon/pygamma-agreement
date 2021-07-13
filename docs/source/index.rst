@@ -50,3 +50,4 @@ then:
    cli
    api_reference
    issues
+   changelog

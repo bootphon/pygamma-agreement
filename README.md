@@ -20,7 +20,7 @@ Python 3 and based mostly on NumPy, Numba and pyannote.core. For a full list of
 The main dependencies of pygamma-agreement are :
 
 * [NumPy](https://numpy.org/) (>= 1.10)
-* [sortedcontainers](http://www.grantjenks.com/docs/sortedcontainers/) (>=2.0.4)
+* [sortedcontainers](http://www.grantjenks.com/docs/sortedcontainers/) (>= 2.0.4)
 * [pyannote.core](http://pyannote.github.io/pyannote-core/) (>= 4.1)
 * [CVXPY](https://www.cvxpy.org/) (>= 1.0.25)
 * [CVXOPT](http://cvxopt.org/) (>= 1.2.6)
