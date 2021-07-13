@@ -98,8 +98,7 @@ def test_cst_cat():
     np.random.seed(5589)
     continuum = Continuum.from_csv(Path("tests/data/annotation_paul_suzann_alex.csv"))
     categories = continuum.categories
-    dissim = CombinedCategoricalDissimilarity(categories,
-                                              delta_empty=1,
+    dissim = CombinedCategoricalDissimilarity(delta_empty=1,
                                               alpha=1,
                                               beta=3,
                                               cat_dissim=OrdinalCategoricalDissimilarity(categories))
@@ -119,6 +118,7 @@ def test_cst_cat():
                                  avg_duration=10, std_duration=1,
                                  categories=np.array([str(i) for i in range(1000)]))
     continuum_martino = sampler.sample_from_continuum
+    categories = continuum_martino.categories
     cst_lots_of_cat = CorpusShufflingTool(1.0, continuum_martino)
     shuffled_cat = cst_lots_of_cat.corpus_from_reference(["martino", "Martingale", "Martine"])
     cst_lots_of_cat.category_shuffle(shuffled_cat, prevalence=True)
@@ -163,11 +163,3 @@ def test_cst_benchmark():
                                                        sampler=ShuffleContinuumSampler())
                 gamma = gamma_results.gamma
                 gamma_cat = gamma_results.gamma_cat
-
-
-
-
-
-
-
-

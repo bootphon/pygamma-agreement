@@ -8,7 +8,8 @@ from sortedcontainers import SortedSet
 from pygamma_agreement.alignment import (UnitaryAlignment)
 from pygamma_agreement.continuum import Continuum, Unit
 from pygamma_agreement.dissimilarity import (PositionalDissimilarity,
-                                   CombinedCategoricalDissimilarity, MatrixCategoricalDissimilarity)
+                                             CombinedCategoricalDissimilarity,
+                                             MatrixCategoricalDissimilarity)
 
 
 def test_categorical_dissimilarity():

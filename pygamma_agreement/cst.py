@@ -72,6 +72,7 @@ class CorpusShufflingTool:
     def corpus_from_reference(self, new_annotators: Union[int, Iterable[Annotator]]):
         # TODO: add docstring
         continuum = Continuum()
+        continuum._categories = self._reference_continuum.categories
         continuum.bound_inf, continuum.bound_sup = self._reference_continuum.bounds
         if isinstance(new_annotators, int):
             new_annotators = [f"annotator_{i}" for i in range(new_annotators)]
@@ -88,7 +89,7 @@ class CorpusShufflingTool:
         of bounds proportionnal to the magnitude of the CST and the length of the segment.
         """
         shift_max = self.magnitude * self.SHIFT_FACTOR * \
-                    self._reference_continuum.avg_length_unit
+            self._reference_continuum.avg_length_unit
         for annotator in continuum.annotators:
             for unit in continuum[annotator]:
                 continuum.remove(annotator, unit)

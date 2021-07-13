@@ -330,7 +330,7 @@ class OrdinalCategoricalDissimilarity(PrecomputedCategoricalDissimilarity):
         super().__init__(categories, delta_empty)
 
     def cat_dissim_func(self, str1: str, str2: str):
-        return str(float(str1) - float(str2)) * self.delta_empty
+        return abs(float(str1) - float(str2)) * self.delta_empty
 
 
 class CombinedCategoricalDissimilarity(AbstractDissimilarity):
