@@ -96,17 +96,17 @@ def test_positional_dissimilarity_figure10():
         (Segment(20, 25), Segment(14, 24)): 0.22,
     }
     for (seg_a, seg_b), value in segments.items():
-        unit_alignment = UnitaryAlignment([("liza", Unit(seg_a)),
-                                           ("pierrot", Unit(seg_b))])
+        unit_alignment = UnitaryAlignment([("liza", Unit(seg_a, "cat_a")),
+                                           ("pierrot", Unit(seg_b, "cat_b"))])
         assert unit_alignment.compute_disorder(pos_dis) == pytest.approx(value, 0.1)
 
 
 def test_positional_dissimilarity_figure20_scale_effect():
     pos_dis = PositionalDissimilarity(delta_empty=1.0)
-    unit_align_a = UnitaryAlignment([("pierrot", Unit(Segment(0, 7))),
-                                     ("liza", Unit(Segment(0, 10)))])
-    unit_align_b = UnitaryAlignment([("pierrot", Unit(Segment(0, 21))),
-                                     ("liza", Unit(Segment(0, 30)))])
+    unit_align_a = UnitaryAlignment([("pierrot", Unit(Segment(0, 7), "cat_a")),
+                                     ("liza", Unit(Segment(0, 10), "cat_b"))])
+    unit_align_b = UnitaryAlignment([("pierrot", Unit(Segment(0, 21), "cat_a")),
+                                     ("liza", Unit(Segment(0, 30), "cat_b"))])
 
     assert (unit_align_a.compute_disorder(pos_dis)
             ==
