@@ -23,18 +23,8 @@
 # AUTHORS
 # Rachid RIAD, Hadrien TITEUX, Léopold FAVRE
 
-from typing import List
-
 import numba as nb
 import numpy as np
-
-import cffi
-
-ffi = cffi.FFI()
-ffi.cdef("""
-float atof(const char *str);
-""")
-atoi = ffi.dlopen(None)
 
 
 @nb.cfunc(nb.float32(nb.types.string, nb.types.string))
@@ -52,10 +42,6 @@ def levenshtein(str1: str, str2: str):
                                                 matrix_lev[i, j-1] + 1,
                                                 matrix_lev[i-1, j-1] + cost]))
     return matrix_lev[-1, -1]
-
-@nb.cfunc(nb.float32(nb.types.string, nb.types.string))
-def diff(str1: str, str2: str):
-    return np.float32(str1 != str2)
 
 
 @nb.njit

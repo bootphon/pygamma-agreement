@@ -29,16 +29,13 @@ Dissimilarity
 
 """
 import abc
-import time
-from typing import List, TYPE_CHECKING, Tuple, Union, Callable, Optional
+from typing import TYPE_CHECKING, Tuple, Callable, Optional
 from abc import ABCMeta
 
-from pyannote.core import Segment
-from Levenshtein import distance as lev
 
 import numba as nb
 import numpy as np
-from matplotlib import pyplot as plt
+
 from sortedcontainers import SortedSet
 from .numba_utils import iter_tuples
 

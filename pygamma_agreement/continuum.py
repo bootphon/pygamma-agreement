@@ -31,15 +31,12 @@ Continuum and corpus
 import csv
 import logging
 import os
-import sys
-import time
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import total_ordering
 from multiprocessing import Pool
 from pathlib import Path
-from itertools import islice
-from typing import Optional, Tuple, List, Union, Set, Iterable, TYPE_CHECKING, Dict, Generator
+from typing import Optional, Tuple, List, Union, TYPE_CHECKING, Generator
 
 import cvxpy as cp
 import numpy as np
