@@ -130,10 +130,11 @@ def test_combi_categorical_dissimilarity():
     continuum.add_annotation('pierrot', annotation)
     categories = SortedSet(['Carol', 'Bob', 'Alice', 'Jeremy'])
 
-    cat = np.array([[0, 0.5, 0.3, 0.7],
-                    [0.5, 0., 0.6, 0.4],
-                    [0.3, 0.6, 0., 0.7],
+    cat = np.array([[0., 0.6, 0.3, 0.7],
+                    [0.6, 0., 0.5, 0.4],
+                    [0.3, 0.5, 0., 0.7],
                     [0.7, 0.4, 0.7, 0.]])
+
     combi_dis = CombinedCategoricalDissimilarity(
         delta_empty=0.5,
         cat_dissim=MatrixCategoricalDissimilarity(categories, cat),
@@ -144,7 +145,7 @@ def test_combi_categorical_dissimilarity():
             unit_alignment = UnitaryAlignment([("liza", liza_unit),
                                                ("pierrot", pierrot_unit)])
             list_dis.append(unit_alignment.compute_disorder(combi_dis))
-    print(len(list_dis))
+
     assert list_dis == pytest.approx([
         0.09375, 5.11, 2.69375, 6.15, 8.790000000000001, 1.75,
         0.16666666666666666, 1.3020408163265305, 1.8, 6.3, 2.0237024221453286,
