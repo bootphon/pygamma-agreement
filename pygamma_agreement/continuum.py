@@ -26,12 +26,14 @@
 ##########
 Continuum and corpus
 ##########
-
 """
 import csv
 import itertools
 import logging
+import math
 import os
+import time
+from sympy import symbols, solve
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import total_ordering
@@ -66,6 +68,7 @@ PRECISION_LEVEL = {
     "medium": 0.02,
     "low": 0.1
 }
+
 
 
 @total_ordering
@@ -523,25 +526,48 @@ class Continuum:
         """
         return iter(self._annotations[annotator])
 
-    def get_first_window(self, dissimilarity: AbstractDissimilarity) -> 'Continuum':
+    def get_first_window(self, dissimilarity: AbstractDissimilarity, n: int = 1) -> 'Continuum':
         """
         Returns a continuum containing the n first annotations from each annotator.
         """
+        sizes = {annotator: len(units) for annotator, units in self._annotations.items()}
+        indexes = {annotator: 0 for annotator in self._annotations.keys()}
+
+        # Take the n first units of an annotator and all those in the same timestamp from the others.
+        end_unit = None
         window = Continuum()
-        for annotator in self.annotators:
+        for annotator in indexes.keys():
             window.add_annotator(annotator)
-            if len(self._annotations[annotator]) == 0:
+            if indexes[annotator] == sizes[annotator]:
                 continue
-            first_unit = self._annotations[annotator][0]
-            window.add(annotator, first_unit.segment, first_unit.annotation)
-            unreachable_unit = False
-            for index, unit in enumerate(self.iterunits(annotator)):
-                if dissimilarity.d(unit, first_unit) > self.num_annotators * dissimilarity.delta_empty:
-                    if unreachable_unit:     # Instead of stopping at the first unreachable unit of the first unit,
-                        break                # we stop at the first unreachable unit of the first unreachable unit
-                    unreachable_unit = True  # of the first unit (more secure)
-                    first_unit = unit
+            for index in range(indexes[annotator], sizes[annotator]):
+                unit = self._annotations[annotator][index]
+                if end_unit is not None and unit.segment.start >= end_unit.segment.end:
+                    indexes[annotator] = index
+                    break
                 window.add(annotator, unit.segment, unit.annotation)
+                if end_unit is None and index == indexes[annotator] + n - 1:
+                    indexes[annotator] = index + 1
+                    end_unit = unit
+                    break
+            else:
+                indexes[annotator] = sizes[annotator]
+
+        def take_until_criterium(indexes_start):
+            indexes_end = {}
+            for annotator in indexes_start.keys():
+                for index in range(indexes_start[annotator], sizes[annotator]):
+                    unit = self._annotations[annotator][index]
+                    if any(dissimilarity.d(unit, self._annotations[other_annot][indexes[other_annot]])
+                           <= dissimilarity.delta_empty * self.num_annotators for other_annot in indexes_start.keys()
+                           if other_annot != annotator and indexes[other_annot] != sizes[other_annot]):
+                        window.add(annotator, unit.segment, unit.annotation)
+                    else:
+                        indexes_end[annotator] = index
+                        break
+            return indexes_end
+        take_until_criterium(take_until_criterium(indexes))
+
         return window
 
     def iter_windows(self, min_length: int):
@@ -569,24 +595,27 @@ class Continuum:
                     indexes[annotator] = sizes[annotator]
             yield continuum
 
-    def get_fast_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
+    def get_fast_alignment(self, dissimilarity: AbstractDissimilarity, take_units: int = 20) -> 'Alignment':
         """Returns an 'approximation' of the best alignment (Very likely to be the actual best alignment for
          continua with limited overlapping)"""
         from .alignment import Alignment
         copy = self.copy()
         unitary_alignments = []
         disorders = []
+
+        take_units = max(2, take_units)
+
         while copy:
-            window = copy.get_first_window(dissimilarity)
+            window = copy.get_first_window(dissimilarity, take_units)
             # Window contains each annotator's first annotations
             # We retain only the leftmost unitary alignment in the best alignment of the window,
             # as it is the most likely to be in the global best alignment
-            chosen = window.get_best_alignment(dissimilarity).leftmost
-            unitary_alignments.append(chosen)
-            disorders.append(chosen.disorder)
-            for annotator, unit in chosen.n_tuple:
-                if unit is not None:
-                    copy.remove(annotator, unit)  # Now we remove the units from the chosen alignment.
+            for chosen in window.get_best_alignment(dissimilarity).n_leftmost(take_units):
+                unitary_alignments.append(chosen)
+                disorders.append(chosen.disorder)
+                for annotator, unit in chosen.n_tuple:
+                    if unit is not None:
+                        copy.remove(annotator, unit)  # Now we remove the units from the chosen alignment.
         return Alignment(unitary_alignments,
                          self,
                          check_validity=True,
@@ -795,67 +824,6 @@ class Continuum:
             precision_level=precision_level,
             dissimilarity=dissimilarity
         )
-
-    def compute_faster_gamma(self,dissimilarity: Optional['AbstractDissimilarity'] = None,
-                             n_samples: int = 30,
-                             precision_level: Optional[Union[float, PrecisionLevel]] = None,
-                             ground_truth_annotators: Optional[SortedSet] = None,
-                             sampler: 'AbstractContinuumSampler' = None):
-        from .dissimilarity import CombinedCategoricalDissimilarity
-        if dissimilarity is None:
-            dissimilarity = CombinedCategoricalDissimilarity(self.categories)
-
-        if sampler is None:
-            from .sampler import StatisticalContinuumSampler
-            sampler = StatisticalContinuumSampler()
-        sampler.init_sampling(self, ground_truth_annotators)
-
-        p = Pool()
-        # computation of best alignment in advance
-        best_alignment_task = p.apply_async(_faster_gamma_job,
-                                            (dissimilarity, self,))
-        result_pool = [
-            p.apply_async(_faster_gamma_job,
-                          (dissimilarity, sampler.sample_from_continuum,))
-            for _ in range(n_samples)
-        ]
-        chance_disorders: List[float] = []
-
-        observed_disorder = best_alignment_task.get()
-        logging.info("Best alignment obtained...")
-
-        logging.info(f"Starting computation for a batch of {n_samples} random samples...")
-        for i, result in enumerate(result_pool):
-            chance_disorders.append(result.get())
-            logging.info(f"finished computation of random sample dissimilarity {i + 1}/{n_samples}")
-        logging.info("done.")
-
-        if precision_level is not None:
-            if isinstance(precision_level, str):
-                precision_level = PRECISION_LEVEL[precision_level]
-            assert 0 < precision_level < 1.0
-            # If the variation of the disorders of the samples si too high, others are generated.
-            # taken from subsection 5.3 of the original paper
-            # confidence at 95%, i.e., 1.96
-            variation_coeff = np.std(chance_disorders) / np.mean(chance_disorders)
-            confidence = 1.96
-            required_samples = np.ceil((variation_coeff * confidence / precision_level) ** 2).astype(np.int32)
-            if required_samples > n_samples:
-                logging.info(f"Computing second batch of {required_samples - n_samples} "
-                             f"because variation was too high.")
-                result_pool = [
-                    p.apply_async(_faster_gamma_job,
-                                  (dissimilarity, sampler.sample_from_continuum,))
-                    for _ in range(required_samples - n_samples)
-                ]
-                for i, result in enumerate(result_pool):
-                    chance_disorders.append(result.get())
-                    logging.info(f"finished computation of additionnal random sample dissimilarity "
-                                 f"{i + 1}/{required_samples - n_samples}")
-                logging.info("done.")
-
-        p.close()
-        return 1 - (observed_disorder / np.mean(chance_disorders))
 
     def to_csv(self, path: Union[str, Path], delimiter=","):
         if isinstance(path, str):

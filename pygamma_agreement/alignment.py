@@ -186,6 +186,17 @@ class Alignment(AbstractAlignment):
         """Return the (or one of the) leftmost unitary alignments."""
         return min(self.unitary_alignments, key=(lambda unitary_alignment: unitary_alignment.bounds[0]))
 
+    def n_leftmost(self, n: int):
+        to_take = n * self.num_annotators
+        taken = 0
+        for unitary_align in sorted(self.unitary_alignments,
+                                    key=(lambda unitary_alignment: unitary_alignment.bounds[0])):
+            taken += unitary_align.nb_units
+            if taken >= to_take:
+                return
+            yield unitary_align
+
+
     @property
     def annotators(self):
         return SortedSet([annotator for annotator, _
