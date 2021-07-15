@@ -406,15 +406,14 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
                  beta: float = 1.0,
                  delta_empty: float = 1.0,
                  cat_dissim: CategoricalDissimilarity = None):
-        self.positional_dissim = PositionalDissimilarity(delta_empty)
+        self.positional_dissim: AbstractDissimilarity = PositionalDissimilarity(delta_empty)
         if cat_dissim is None:
-            cat_dissim = AbsoluteCategoricalDissimilarity(delta_empty)
+            cat_dissim = AbsoluteCategoricalDissimilarity()
 
         cat_dissim.delta_empty = delta_empty
-        self.categorical_dissim = cat_dissim
+        self.categorical_dissim: AbstractDissimilarity = cat_dissim
 
-        alphabeta = np.array([alpha, beta], dtype=np.float32)
-        self._alphabeta = alphabeta
+        self._alphabeta = np.array([alpha, beta], dtype=np.float32)
 
         super().__init__(delta_empty=delta_empty, categories=cat_dissim.categories)
 
