@@ -29,6 +29,7 @@ Continuum and corpus
 
 """
 import csv
+import itertools
 import logging
 import os
 from copy import deepcopy
@@ -36,7 +37,7 @@ from dataclasses import dataclass
 from functools import total_ordering
 from multiprocessing import Pool
 from pathlib import Path
-from typing import Optional, Tuple, List, Union, TYPE_CHECKING, Generator
+from typing import Optional, Tuple, List, Union, TYPE_CHECKING, Generator, Iterator
 
 import cvxpy as cp
 import numpy as np
@@ -544,25 +545,31 @@ class Continuum:
         return window
 
     def iter_windows(self, min_length: int):
-        iterators = []
-        for annotator in self.annotators:
-            iterators.append(self.iter_annotator(annotator))
-        while len(iterators) != 0:
+        sizes = {annotator: len(units) for annotator, units in self._annotations.items()}
+        indexes = {annotator: 0 for annotator in self._annotations.keys()}
+
+        while list(indexes.values()) != list(sizes.values()):
+            end_unit = None
             continuum = Continuum()
-            for i, iterator in enumerate(iterators):
-                continuum.add_annotator(f"annotator_{i}")
-                for _ in range(min_length):
-                    try:
-                        unit = next(iterator)
-                    except StopIteration:
-                        iterators = [it for it in iterators if it is not iterator]
-                        if len(iterators) == 0:
-                            return
+            for annotator in indexes.keys():
+                continuum.add_annotator(annotator)
+                if indexes[annotator] == sizes[annotator]:
+                    continue
+                for index in range(indexes[annotator], sizes[annotator]):
+                    unit = self._annotations[annotator][index]
+                    if end_unit is not None and unit.segment.start >= end_unit.segment.end:
+                        indexes[annotator] = index
                         break
-                    continuum.add(f"annotator_{i}", unit.segment, unit.annotation)
+                    continuum.add(annotator, unit.segment, unit.annotation)
+                    if end_unit is None and index == indexes[annotator] + min_length - 1:
+                        indexes[annotator] = index + 1
+                        end_unit = unit
+                        break
+                else:
+                    indexes[annotator] = sizes[annotator]
             yield continuum
 
-    def get_good_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
+    def get_fast_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
         """Returns an 'approximation' of the best alignment (Very likely to be the actual best alignment for
          continua with limited overlapping)"""
         from .alignment import Alignment
@@ -585,15 +592,17 @@ class Continuum:
                          check_validity=True,
                          disorder=np.sum(disorders) / self.avg_num_annotations_per_annotator)
 
-    def get_faster_disorder(self, dissimilarity: AbstractDissimilarity) -> float:
+    def get_faster_alignment(self, dissimilarity: AbstractDissimilarity, precision: int = 30) -> 'Alignment':
+        from .alignment import Alignment
+        faster_alignment = Alignment([], self)
         disorders = []
-        for window in self.iter_windows(20):
-            try:
-                disorders.append(window.get_best_alignment(dissimilarity).disorder)
-            except ValueError:
-                from .notebook import show_continuum
-                show_continuum(window)
-        return float(np.mean(disorders))
+        for window in self.iter_windows(precision):
+            window_best_alignment = window.get_best_alignment(dissimilarity)
+            faster_alignment.merge(window_best_alignment)
+            disorders.append(window_best_alignment.disorder * window.avg_num_annotations_per_annotator)
+        faster_alignment._disorder = np.sum(disorders) / self.avg_num_annotations_per_annotator
+        faster_alignment.check(self)
+        return faster_alignment
 
     def get_best_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
         """
@@ -691,7 +700,7 @@ class Continuum:
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[SortedSet] = None,
                       sampler: 'AbstractContinuumSampler' = None,
-                      fast: Optional[bool] = None) -> 'GammaResults':
+                      fast: Literal['normal', 'fast', 'faster'] = 'normal') -> 'GammaResults':
         """
 
         Parameters
@@ -714,8 +723,7 @@ class Continuum:
             Sampler object, which implements a sampling strategy for creating random continuua used
             to calculate the expected disorder. If not set, defaults to the Statistical continuum sampler
         fast:
-            If set, activates or not fast-gamma. If not, determines automatically which is faster an uses it.
-            Might not be faster for small continua (2 annotators - 8000 annotations for instance)
+            Sets the algorithm for computing gamma. The faster, the less precise.
         """
         from .dissimilarity import CombinedCategoricalDissimilarity
         if dissimilarity is None:
@@ -726,18 +734,12 @@ class Continuum:
             sampler = StatisticalContinuumSampler()
         sampler.init_sampling(self, ground_truth_annotators)
 
-        if fast is not None:
-            if fast:
-                logging.warning("Fast-gamma is activated. It might be inaccurate for continua with lots of "
-                                "overlapping, and slower for small continuua (< 3 annotators).")
-                job = _compute_good_alignment_job
-            else:
-                job = _compute_best_alignment_job
+        if fast == 'fast':
+            job = _compute_fast_alignment_job
+        elif fast == 'faster':
+            job = _compute_faster_alignment_job
         else:
-            if self.num_annotators > 2:
-                job = _compute_good_alignment_job
-            else:
-                job = _compute_best_alignment_job
+            job = _compute_best_alignment_job
         # Multiprocessed computation of sample disorder
         p = Pool()
         # computation of best alignment in advance
@@ -984,14 +986,14 @@ def _compute_best_alignment_job(dissimilarity: AbstractDissimilarity,
     return continuum.get_best_alignment(dissimilarity)
 
 
-def _compute_good_alignment_job(dissimilarity: AbstractDissimilarity,
+def _compute_fast_alignment_job(dissimilarity: AbstractDissimilarity,
                                 continuum: Continuum):
     """
     Function used to launch a multiprocessed job for calculating an approximation of
     the best aligment of a continuum, using the given dissimilarity.
     """
-    return continuum.get_good_alignment(dissimilarity)
+    return continuum.get_fast_alignment(dissimilarity)
 
-def _faster_gamma_job(dissimilarity: AbstractDissimilarity,
-                      continuum: Continuum):
-    return continuum.get_faster_disorder(dissimilarity)
+def _compute_faster_alignment_job(dissimilarity: AbstractDissimilarity,
+                                  continuum: Continuum):
+    return continuum.get_faster_alignment(dissimilarity)
