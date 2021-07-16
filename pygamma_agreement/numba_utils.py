@@ -104,7 +104,7 @@ def chunked_cartesian_product(sizes: List[int], chunk_size: int):
     sizes = np.array(sizes, dtype=np.int32)
     sorted_idx = np.argsort(sizes)[::-1]
     sizes = sizes[sorted_idx]
-    if chunk_size > prod:
+    if chunk_size >= prod:
         chunk_bounds = (np.array([0, prod])).astype(np.int64)
     else:
         num_chunks = np.maximum(np.ceil(prod / chunk_size), 2).astype(np.int32)
