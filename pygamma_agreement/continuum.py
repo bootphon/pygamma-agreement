@@ -609,14 +609,13 @@ class Continuum:
                     indexes[annotator] = sizes[annotator]
             yield continuum
 
-    def get_fast_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
+    def get_fast_alignment(self, dissimilarity: AbstractDissimilarity, window_size: int) -> 'Alignment':
         """Returns an 'approximation' of the best alignment (Very likely to be the actual best alignment for
          continua with limited overlapping)"""
         from .alignment import Alignment
         copy = self.copy()
         unitary_alignments = []
         disorders = []
-        print(self.best_window_size)
 
         while copy:
             window = copy.get_first_window(dissimilarity, self.best_window_size)
@@ -635,14 +634,17 @@ class Continuum:
                          disorder=np.sum(disorders) / self.avg_num_annotations_per_annotator)
 
     def measure_best_window_size(self, dissimilarity: AbstractDissimilarity):
-        # Precompilation to not mess up times
+        # Precompilation to not mess up times, and check for no additionnal time (only case where true gamma is faster)
         window = self.get_first_window(dissimilarity, 1)
+        if window.max_num_annotations_per_annotator <= 2:
+            self.best_window_size = np.inf
+            return
         best_align = window.get_best_alignment(dissimilarity)
         times = [np.inf]
         window_sizes = [0]
         min_time = 0
         step = max(1, int(self.avg_num_annotations_per_annotator * 0.01))
-        for window_size in itertools.count(step, step):
+        for window_size in range(step, step*21, step):
             window_sizes.append(window_size)
             window = self.get_first_window(dissimilarity, window_size)
             ttc = np.inf
@@ -651,21 +653,12 @@ class Continuum:
                 best_align = window.get_best_alignment(dissimilarity)
                 ttc = min((time.process_time_ns() - bp) / window_size, ttc)
             times.append(ttc)
-            print(times[-1])
             if times[-1] < times[min_time]:
                 min_time = len(times) - 1
             elif times[-1] >= 1.2 * times[min_time]:
-                self.best_window_size = window_size
-                times = np.array(times) * 1000000
-                fig: plt.Figure
-                ax: plt.Axes
-                fig, ax = plt.subplots(1, figsize=(8, 8))
-                ax.set_xlabel('Window size')
-                ax.set_ylabel('Time to compute the fast alignment (ms)')
-                ax.plot(window_sizes[1:], times[1:])
-                plt.show()
-
+                self.best_window_size = window_sizes[min_time]
                 return
+
 
 
     def get_faster_alignment(self, dissimilarity: AbstractDissimilarity, precision: int = 30) -> 'Alignment':
@@ -1012,7 +1005,9 @@ def _compute_fast_alignment_job(dissimilarity: AbstractDissimilarity,
     Function used to launch a multiprocessed job for calculating an approximation of
     the best aligment of a continuum, using the given dissimilarity.
     """
-    return continuum.get_fast_alignment(dissimilarity)
+    if continuum.best_window_size == np.inf:
+        return continuum.get_best_alignment(dissimilarity)
+    return continuum.get_fast_alignment(dissimilarity, continuum.best_window_size)
 
 def _compute_faster_alignment_job(dissimilarity: AbstractDissimilarity,
                                   continuum: Continuum):

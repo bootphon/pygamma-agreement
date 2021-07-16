@@ -41,8 +41,9 @@ for determining the best alignment of a disorder. Although there is no theory to
 we have found out that it gives the **exact** results for the best alignments for real data, and a good approximation
 with continua generated specifically to mess with the algorithm.
 
-It uses the fact that alignments are made using locality of annotations, so it is only precise with a positional
-dissimilarity or a combined dissimilarity with :math:`\alpha > 2 \times \beta`.
+It uses the fact that alignments are made using locality of annotations, so it is only precise with a dissimilarity that
+mainly takes positionning into account. Results are still good with a combined categorical dissimilarity where
+math:`\alpha > 2 \times \beta`.
 
 Here are the performance comparisons between the two algorithms :
 
@@ -60,15 +61,34 @@ Here are the performance comparisons between the two algorithms :
 
   **3 annotators**
 
-based on these graphs, we have decided that if unspecified, fast-gamma will be enabled by default when the number of
-annotators is **3** or more, because otherwise the time of computation explodes quickly.
-Based on intuition and the graphes, we have conjectured that the complexity of this algorithm is bounded by:
+
+The fast gamma algorithm uses some sort of *"windowing"* of the continuum, and we have determined an approximation of
+its computational complexity, with :math:`w` the number of annotation per annotator in a window :
+
 
 .. math::
 
-    O(N \times s'^p \times n) \leq C(N, n, p) \leq O(N \times s'^p \times np)
+    C(N, n, p) = N \times \frac{n}{w} \times ((w + s)^p + D(n, p, w, s))
 
-Which becomes a lot more interesting with a higher number of annotators.
+With :math:`D` an unknown additionnal complexity.
+
+This becomes a lot more interesting when the amount of annotations grows. One important thing to notice is that
+this complexity can be minimized with the right window size. However, with the exact formula being difficult to
+find, we have not found a rapid way to calcultate the optimal window.
+
+Instead, the method we chose is to estimate it by measuring the CPU time to compute the best alignment of the first
+window for different window sizes (divided by the size of the window) and stop before the time goes up (measures
+have show that there is only one global minimum for this computational complexity).
+
+.. figure:: images/windowestimation.png
+  :scale: 70%
+  :align: right
+
+  **This is the look of the time to compute fast-gamma to the size of the windows**. Fast-gamma determines
+  the optimum (using only the first window for each size) before starting the whole computation.
+
+
+
 
 
 As for the precision of the fast gamma, we have not yet found a proof of its
