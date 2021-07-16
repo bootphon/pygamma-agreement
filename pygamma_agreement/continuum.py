@@ -33,6 +33,8 @@ import logging
 import math
 import os
 import time
+
+import matplotlib.pyplot as plt
 from sympy import symbols, solve
 from copy import deepcopy
 from dataclasses import dataclass
@@ -128,6 +130,8 @@ class Continuum:
         self.bound_inf = 0.0
         self.bound_sup = 0.0
 
+        self.best_window_size = 20  # Default best window size. Re-measure it with self.measure_best_window_size
+
     @classmethod
     def from_csv(cls,
                  path: Union[str, Path],
@@ -195,6 +199,15 @@ class Continuum:
             continuum.add_annotation(uri, annot)
         return continuum
 
+    def copy_flush(self) -> 'Continuum':
+        """
+        Returns a copy of the continuum without any annotators/annotations, but with every other information
+        """
+        continuum = Continuum(self.uri)
+        continuum.bound_inf, continuum.bound_sup = self.bound_inf, self.bound_sup
+        continuum.best_window_size = self.best_window_size
+        return continuum
+
     def copy(self) -> 'Continuum':
         """
         Makes a copy of the current continuum.
@@ -206,6 +219,7 @@ class Continuum:
         continuum = Continuum(self.uri)
         continuum._annotations = deepcopy(self._annotations)
         continuum.bound_inf, continuum.bound_sup = self.bound_inf, self.bound_sup
+        continuum.best_window_size = self.best_window_size
         return continuum
 
     def __bool__(self):
@@ -595,22 +609,21 @@ class Continuum:
                     indexes[annotator] = sizes[annotator]
             yield continuum
 
-    def get_fast_alignment(self, dissimilarity: AbstractDissimilarity, take_units: int = 20) -> 'Alignment':
+    def get_fast_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
         """Returns an 'approximation' of the best alignment (Very likely to be the actual best alignment for
          continua with limited overlapping)"""
         from .alignment import Alignment
         copy = self.copy()
         unitary_alignments = []
         disorders = []
-
-        take_units = max(2, take_units)
+        print(self.best_window_size)
 
         while copy:
-            window = copy.get_first_window(dissimilarity, take_units)
+            window = copy.get_first_window(dissimilarity, self.best_window_size)
             # Window contains each annotator's first annotations
             # We retain only the leftmost unitary alignment in the best alignment of the window,
             # as it is the most likely to be in the global best alignment
-            for chosen in window.get_best_alignment(dissimilarity).n_leftmost(take_units):
+            for chosen in window.get_best_alignment(dissimilarity).n_leftmost(self.best_window_size):
                 unitary_alignments.append(chosen)
                 disorders.append(chosen.disorder)
                 for annotator, unit in chosen.n_tuple:
@@ -618,8 +631,42 @@ class Continuum:
                         copy.remove(annotator, unit)  # Now we remove the units from the chosen alignment.
         return Alignment(unitary_alignments,
                          self,
-                         check_validity=True,
+                         check_validity=False,
                          disorder=np.sum(disorders) / self.avg_num_annotations_per_annotator)
+
+    def measure_best_window_size(self, dissimilarity: AbstractDissimilarity):
+        # Precompilation to not mess up times
+        window = self.get_first_window(dissimilarity, 1)
+        best_align = window.get_best_alignment(dissimilarity)
+        times = [np.inf]
+        window_sizes = [0]
+        min_time = 0
+        step = max(1, int(self.avg_num_annotations_per_annotator * 0.01))
+        for window_size in itertools.count(step, step):
+            window_sizes.append(window_size)
+            window = self.get_first_window(dissimilarity, window_size)
+            ttc = np.inf
+            for _ in range(4):
+                bp = time.process_time_ns()
+                best_align = window.get_best_alignment(dissimilarity)
+                ttc = min((time.process_time_ns() - bp) / window_size, ttc)
+            times.append(ttc)
+            print(times[-1])
+            if times[-1] < times[min_time]:
+                min_time = len(times) - 1
+            elif times[-1] >= 1.2 * times[min_time]:
+                self.best_window_size = window_size
+                times = np.array(times) * 1000000
+                fig: plt.Figure
+                ax: plt.Axes
+                fig, ax = plt.subplots(1, figsize=(8, 8))
+                ax.set_xlabel('Window size')
+                ax.set_ylabel('Time to compute the fast alignment (ms)')
+                ax.plot(window_sizes[1:], times[1:])
+                plt.show()
+
+                return
+
 
     def get_faster_alignment(self, dissimilarity: AbstractDissimilarity, precision: int = 30) -> 'Alignment':
         from .alignment import Alignment
@@ -765,6 +812,7 @@ class Continuum:
 
         if fast == 'fast':
             job = _compute_fast_alignment_job
+            self.measure_best_window_size(dissimilarity)
         elif fast == 'faster':
             job = _compute_faster_alignment_job
         else:
@@ -781,6 +829,9 @@ class Continuum:
         ]
         chance_best_alignments: List[Alignment] = []
         chance_disorders: List[float] = []
+
+        p.close()
+        p.join()
 
         best_alignment = best_alignment_task.get()
         logging.info("Best alignment obtained...")
@@ -805,18 +856,19 @@ class Continuum:
             if required_samples > n_samples:
                 logging.info(f"Computing second batch of {required_samples - n_samples} "
                              f"because variation was too high.")
+                p = Pool()
                 result_pool = [
                     p.apply_async(job,
                                   (dissimilarity, sampler.sample_from_continuum,))
                     for _ in range(required_samples - n_samples)
                 ]
+                p.close()
+                p.join()
                 for i, result in enumerate(result_pool):
                     chance_best_alignments.append(result.get())
                     logging.info(f"finished computation of additionnal random sample dissimilarity "
                                  f"{i + 1}/{required_samples - n_samples}")
                 logging.info("done.")
-
-        p.close()
 
         return GammaResults(
             best_alignment=best_alignment,
