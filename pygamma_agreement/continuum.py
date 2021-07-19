@@ -130,7 +130,8 @@ class Continuum:
         self.bound_inf = 0.0
         self.bound_sup = 0.0
 
-        self.best_window_size = 20  # Default best window size. Re-measure it with self.measure_best_window_size
+        self.best_window_size = np.inf
+        # Default best window size. Re-measure it with self.measure_best_window_size
 
     @classmethod
     def from_csv(cls,
@@ -546,6 +547,7 @@ class Continuum:
         """
         sizes = {annotator: len(units) for annotator, units in self._annotations.items()}
         indexes = {annotator: 0 for annotator in self._annotations.keys()}
+        annotations = {annotator: list(units) for annotator, units in self._annotations.items()}
 
         # Take the n first units of an annotator and all those in the same timestamp from the others.
         end_unit = None
@@ -555,7 +557,7 @@ class Continuum:
             if indexes[annotator] == sizes[annotator]:
                 continue
             for index in range(indexes[annotator], sizes[annotator]):
-                unit = self._annotations[annotator][index]
+                unit = annotations[annotator][index]
                 if end_unit is not None and unit.segment.start >= end_unit.segment.end:
                     indexes[annotator] = index
                     break
@@ -571,8 +573,8 @@ class Continuum:
             indexes_end = {}
             for annotator in indexes_start.keys():
                 for index in range(indexes_start[annotator], sizes[annotator]):
-                    unit = self._annotations[annotator][index]
-                    if any(dissimilarity.d(unit, self._annotations[other_annot][indexes[other_annot]])
+                    unit = annotations[annotator][index]
+                    if any(dissimilarity.d(unit, annotations[other_annot][indexes[other_annot]])
                            <= dissimilarity.delta_empty * self.num_annotators for other_annot in indexes_start.keys()
                            if other_annot != annotator and indexes[other_annot] != sizes[other_annot]):
                         window.add(annotator, unit.segment, unit.annotation)
@@ -634,44 +636,36 @@ class Continuum:
                          disorder=np.sum(disorders) / self.avg_num_annotations_per_annotator)
 
     def measure_best_window_size(self, dissimilarity: AbstractDissimilarity):
-        # Precompilation to not mess up times, and check for no additionnal time (only case where true gamma is faster)
-        window = self.get_first_window(dissimilarity, 1)
-        if window.max_num_annotations_per_annotator <= 2:
-            self.best_window_size = np.inf
-            return
-        best_align = window.get_best_alignment(dissimilarity)
-        times = [np.inf]
-        window_sizes = [0]
-        min_time = 0
-        step = max(1, int(self.avg_num_annotations_per_annotator * 0.01))
-        for window_size in range(step, step*21, step):
-            window_sizes.append(window_size)
-            window = self.get_first_window(dissimilarity, window_size)
-            ttc = np.inf
-            for _ in range(4):
-                bp = time.process_time_ns()
-                best_align = window.get_best_alignment(dissimilarity)
-                ttc = min((time.process_time_ns() - bp) / window_size, ttc)
-            times.append(ttc)
-            if times[-1] < times[min_time]:
-                min_time = len(times) - 1
-            elif times[-1] >= 1.2 * times[min_time]:
-                self.best_window_size = window_sizes[min_time]
-                return
+        """
+        Sets the best window size for computing the fast-gamma of this continuum, by using the
+        sampling the computing complexity function.
+        """
+        smallest_window = self.get_first_window(dissimilarity, 1)
+        smallest_window.get_best_alignment(dissimilarity)
 
+        s = smallest_window.max_num_annotations_per_annotator - 1
+        n = int(self.avg_num_annotations_per_annotator)
+        p = int(self.num_annotators)
 
+        window_sizes = np.arange(1, max(2, self.max_num_annotations_per_annotator))
 
-    def get_faster_alignment(self, dissimilarity: AbstractDissimilarity, precision: int = 30) -> 'Alignment':
-        from .alignment import Alignment
-        faster_alignment = Alignment([], self)
-        disorders = []
-        for window in self.iter_windows(precision):
-            window_best_alignment = window.get_best_alignment(dissimilarity)
-            faster_alignment.merge(window_best_alignment)
-            disorders.append(window_best_alignment.disorder * window.avg_num_annotations_per_annotator)
-        faster_alignment._disorder = np.sum(disorders) / self.avg_num_annotations_per_annotator
-        faster_alignment.check(self)
-        return faster_alignment
+        def f(w):
+            return ((n - w) * p / 2 + 2 * p + (w + s * p) * p  # getting first window
+                    + (n - w) * p / 2 + 1 / 20 * (w + s) ** p  # getting best alignment ( times numba factor)
+                    + (w + s) * p * np.log2((w + s) * p) + w * p  # getting the w leftmost alignments & adding them
+                    ) * (n / w)
+
+        # adding the log factorial corresponds to the emptying-the-continuum-unit-by-unit time.
+        logfactorials = np.log2(window_sizes)
+        for i in range(1, len(logfactorials)):
+            logfactorials[i] += logfactorials[i - 1]
+
+        times = f(window_sizes) + p * logfactorials
+
+        self.best_window_size = window_sizes[np.argmin(times)]
+
+        if self.best_window_size >= self.avg_num_annotations_per_annotator / 2:
+            logging.warning("Fast-gamma disadvantageous, using normal gamma.")
 
     def get_best_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
         """
@@ -769,7 +763,7 @@ class Continuum:
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[SortedSet] = None,
                       sampler: 'AbstractContinuumSampler' = None,
-                      fast: Literal['normal', 'fast', 'faster'] = 'normal') -> 'GammaResults':
+                      fast: bool = False) -> 'GammaResults':
         """
 
         Parameters
@@ -803,11 +797,9 @@ class Continuum:
             sampler = StatisticalContinuumSampler()
         sampler.init_sampling(self, ground_truth_annotators)
 
-        if fast == 'fast':
+        if fast:
             job = _compute_fast_alignment_job
             self.measure_best_window_size(dissimilarity)
-        elif fast == 'faster':
-            job = _compute_faster_alignment_job
         else:
             job = _compute_best_alignment_job
         # Multiprocessed computation of sample disorder
@@ -1005,7 +997,7 @@ def _compute_fast_alignment_job(dissimilarity: AbstractDissimilarity,
     Function used to launch a multiprocessed job for calculating an approximation of
     the best aligment of a continuum, using the given dissimilarity.
     """
-    if continuum.best_window_size == np.inf:
+    if continuum.best_window_size >= continuum.avg_num_annotations_per_annotator / 2:
         return continuum.get_best_alignment(dissimilarity)
     return continuum.get_fast_alignment(dissimilarity, continuum.best_window_size)
 

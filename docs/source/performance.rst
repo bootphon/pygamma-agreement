@@ -43,7 +43,7 @@ with continua generated specifically to mess with the algorithm.
 
 It uses the fact that alignments are made using locality of annotations, so it is only precise with a dissimilarity that
 mainly takes positionning into account. Results are still good with a combined categorical dissimilarity where
-math:`\alpha > 2 \times \beta`.
+math:`\alpha = 2 \times \beta`.
 
 Here are the performance comparisons between the two algorithms :
 
@@ -68,24 +68,21 @@ its computational complexity, with :math:`w` the number of annotation per annota
 
 .. math::
 
-    C(N, n, p) = N \times \frac{n}{w} \times ((w + s)^p + D(n, p, w, s))
+    C(N, n, p) = N \times (\frac{n}{w} \times (f \times (w + s)^p + D(n, p, w, s))
 
-With :math:`D` an unknown additionnal complexity.
+With :math:`D` an additional complexity per window that we will not detail here, and
+:math:`f` the "numba factor", i.e the gain of speed obtained by using compiled numba functions, that we have
+estimated.
 
 This becomes a lot more interesting when the amount of annotations grows. One important thing to notice is that
-this complexity can be minimized with the right window size. However, with the exact formula being difficult to
-find, we have not found a rapid way to calcultate the optimal window.
-
-Instead, the method we chose is to estimate it by measuring the CPU time to compute the best alignment of the first
-window for different window sizes (divided by the size of the window) and stop before the time goes up (measures
-have show that there is only one global minimum for this computational complexity).
+this complexity can be minimized with the right window size.
 
 .. figure:: images/windowestimation.png
   :scale: 70%
   :align: right
 
-  **This is the look of the time to compute fast-gamma to the size of the windows**. Fast-gamma determines
-  the optimum (using only the first window for each size) before starting the whole computation.
+  **This is the look of the time to compute fast-gamma to the size of the windows**. Thus, before starting to compute
+  fast-gamma, the algorithm determines the optimal window size by sampling the complexity function.
 
 
 
@@ -112,6 +109,9 @@ Here's an explanation of what the overlapping value means on average :
 - **0**: there is no gap between two consecutive annotations from the same annotator.
 - **1**: the gap between two consecutive annotations from the same annotator is equal to their
   length.
+
+For real input though, it is established from experience that fast-gamma is more than reliable. Thus, it is advised to
+prioritize it since the gain in computing time is signficant.
 
 
 Memory usage
