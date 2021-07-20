@@ -38,6 +38,7 @@ from pathlib import Path
 from typing import Optional, Tuple, List, Union, TYPE_CHECKING, Generator
 
 import cvxpy as cp
+import matplotlib.pyplot as plt
 import numpy as np
 from pyannote.core import Annotation, Segment, Timeline
 from pyannote.database.util import load_rttm
@@ -637,17 +638,19 @@ class Continuum:
         smallest_window = self.get_first_window(dissimilarity, 1)
         smallest_window.get_best_alignment(dissimilarity)
 
-        s = smallest_window.max_num_annotations_per_annotator - 1
+        s = smallest_window.max_num_annotations_per_annotator
         n = int(self.avg_num_annotations_per_annotator)
         p = int(self.num_annotators)
 
         window_sizes = np.arange(1, max(2, self.max_num_annotations_per_annotator))
+        numba_factor = 1/20
 
         def f(w):
-            return ((n - w) * p / 2 + 2 * p + (w + s * p) * p  # getting first window
-                    + (n - w) * p / 2 + 1 / 20 * (w + s) ** p  # getting best alignment ( times numba factor)
-                    + (w + s) * p * np.log2((w + s) * p) + w * p  # getting the w leftmost alignments & adding them
-                    ) * (n / w)
+            return (n * p + # Copying the continuum
+                    + ((n - w) * p / 2 + 2 * p + (w + s * p) * p  # getting first window
+                        + (n - w) * p / 2 + numba_factor * (w + s) ** p  # getting best alignment
+                        + (w + s) * p * np.log2((w + s) * p) + w * p  # getting the w leftmost alignments & adding them
+                       ) * (n / w))
 
         # adding the log factorial corresponds to the emptying-the-continuum-unit-by-unit time.
         logfactorials = np.log2(window_sizes)
@@ -656,9 +659,10 @@ class Continuum:
 
         times = f(window_sizes) + p * logfactorials
 
-        self.best_window_size = window_sizes[np.argmin(times)]
-
-        if self.best_window_size >= self.avg_num_annotations_per_annotator / 2:
+        min_index = np.argmin(times)
+        if times[min_index] < n * p + numba_factor * n**p:  # Check is fast-gamma is advantageous compared to gamma
+            self.best_window_size = window_sizes[min_index]
+        else:
             logging.warning("Fast-gamma disadvantageous, using normal gamma.")
 
     def get_best_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
@@ -991,10 +995,6 @@ def _compute_fast_alignment_job(dissimilarity: AbstractDissimilarity,
     Function used to launch a multiprocessed job for calculating an approximation of
     the best aligment of a continuum, using the given dissimilarity.
     """
-    if continuum.best_window_size >= continuum.avg_num_annotations_per_annotator / 2:
+    if continuum.best_window_size == np.inf:
         return continuum.get_best_alignment(dissimilarity)
     return continuum.get_fast_alignment(dissimilarity, continuum.best_window_size)
-
-def _compute_faster_alignment_job(dissimilarity: AbstractDissimilarity,
-                                  continuum: Continuum):
-    return continuum.get_faster_alignment(dissimilarity)
