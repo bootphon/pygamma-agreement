@@ -64,14 +64,21 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         self.delta_empty = np.float32(delta_empty)
         self.categories = categories
 
-    @property
+        self.d_mat: Callable[[np.ndarray, np.ndarray], float] = None
+
     @abc.abstractmethod
-    def d_mat(self) -> Callable[[np.ndarray, np.ndarray], np.float32]:
+    def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], np.float32]:
         """
-        Must return the cfunc (decorated with @dissimilarity_dec) function that corresponds to the
+        Must set self.d_mat to the the cfunc (decorated with @dissimilarity_dec) function that corresponds to the
         unit-to-unit, (in arrays form) disorder given by the dissimilarity.
         """
         raise NotImplemented()
+
+    def del_d_mat(self):
+        """
+        Deletes the compiled d_mat function. This prevents pickling errors & errors emerging from change of attributes
+        """
+        self.d_mat = None
 
     def __build_arrays_continuum(self, continuum: 'Continuum') -> nb.typed.List:
         """
@@ -209,6 +216,8 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         potentially be in the best alignment of the continuum (based on the criterium detailed
         in section 5.1.1 of the gamma paper (https://aclanthology.org/J15-3003.pdf).
         """
+        if self.d_mat is None:
+            raise AttributeError("Error: please call dissimilarity.compile_d_mat() before any computation.")
         units_array = self.__build_arrays_continuum(continuum)
         return self.__get_all_valid_alignments(units_array, self.d_mat, self.delta_empty)
 
@@ -216,6 +225,8 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         """
         Returns the disorder of the given alignment.
         """
+        if self.d_mat is None:
+            raise AttributeError("Error: please call dissimilarity.compile_d_mat() before any computation.")
         alignment_arrays = self.__build_arrays_alignment(alignment)
         return self.__compute_alignment_disorders(alignment_arrays, self.d_mat, self.delta_empty)
 
@@ -231,8 +242,7 @@ class PositionalDissimilarity(AbstractDissimilarity):
     def __init__(self, delta_empty: float = 1.0):
         super().__init__(delta_empty=delta_empty)
 
-    @property
-    def d_mat(self):
+    def compile_d_mat(self):
         delta_empty = self.delta_empty
 
         @dissimilarity_dec
@@ -240,7 +250,7 @@ class PositionalDissimilarity(AbstractDissimilarity):
             dist = ((np.abs(unit1[0] - unit2[0]) + np.abs(unit1[1] - unit2[1])) /
                     (unit1[2] + unit2[2]))
             return dist * dist * delta_empty
-        return d_mat
+        self.d_mat = d_mat
 
     def d(self, unit1: 'Unit', unit2: 'Unit'):
         pos = ((abs(unit1.segment.start - unit2.segment.start) + abs(unit1.segment.end - unit2.segment.end)) /
@@ -277,15 +287,14 @@ class PrecomputedCategoricalDissimilarity(CategoricalDissimilarity, metaclass=ab
     def cat_dissim_func(self, str1: str, str2: str):
         raise NotImplemented()
 
-    @property
-    def d_mat(self):
+    def compile_d_mat(self):
         matrix = self.matrix
         delta_empty = self.delta_empty
 
         @dissimilarity_dec
         def d_mat(unit1: np.ndarray, unit2: np.ndarray):
             return matrix[np.int8(unit1[3]), np.int8(unit2[3])] * delta_empty
-        return d_mat
+        self.d_mat = d_mat
 
     def d(self, unit1: 'Unit', unit2: 'Unit'):
         return self.matrix[self.categories.index(unit1.annotation),
@@ -300,18 +309,17 @@ class MatrixCategoricalDissimilarity(CategoricalDissimilarity):
     def __init__(self, categories: SortedSet, matrix: np.ndarray, delta_empty: float = 1.0):
         assert matrix.shape == (len(categories), len(categories)), \
             "Provided categorical dissimilarity matrix's shape doesn't match number of categories."
-        super().__init__(categories, delta_empty)
         self.matrix = matrix
+        super().__init__(categories, delta_empty)
 
-    @property
-    def d_mat(self):
+    def compile_d_mat(self):
         matrix = self.matrix
         delta_empty = self.delta_empty
 
         @dissimilarity_dec
         def d_mat(unit1: np.ndarray, unit2: np.ndarray):
             return matrix[np.int8(unit1[3]), np.int8(unit2[3])] * delta_empty
-        return d_mat
+        self.d_mat = d_mat
 
     def d(self, unit1: 'Unit', unit2: 'Unit'):
         return self.matrix[self.categories.index(unit1.annotation),
@@ -325,14 +333,14 @@ class AbsoluteCategoricalDissimilarity(AbstractDissimilarity):
     def __init__(self, delta_empty: float = 1.0):
         super().__init__(delta_empty=delta_empty)
 
-    @property
-    def d_mat(self):
+    def compile_d_mat(self):
         delta_empty = self.delta_empty
 
         @dissimilarity_dec
         def d_mat(unit1: np.ndarray, unit2: np.ndarray):
             return (0 if unit1[3] == unit2[3] else 1) * delta_empty
-        return d_mat
+
+        self.d_mat = d_mat
 
     def d(self, unit1: 'Unit', unit2: 'Unit'):
         return float(unit1.annotation != unit2.annotation) * self.delta_empty
@@ -413,39 +421,26 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         cat_dissim.delta_empty = delta_empty
         self.categorical_dissim: AbstractDissimilarity = cat_dissim
 
-        self._alphabeta = np.array([alpha, beta], dtype=np.float32)
+        self.alpha = alpha
+        self.beta = beta
 
         super().__init__(delta_empty=delta_empty, categories=cat_dissim.categories)
 
-    @property
-    def d_mat(self):
+    def compile_d_mat(self):
+        self.categorical_dissim.compile_d_mat()
+        self.positional_dissim.compile_d_mat()
+
         pos = self.positional_dissim.d_mat
         cat = self.categorical_dissim.d_mat
-        alphabeta = self._alphabeta
+        alpha = self.alpha
+        beta = self.beta
 
         @dissimilarity_dec
         def d_mat(unit1: np.ndarray, unit2: np.ndarray):
-            return (alphabeta[0] * pos(unit1, unit2) +
-                    alphabeta[1] * cat(unit1, unit2))
+            return (alpha * pos(unit1, unit2) +
+                    beta * cat(unit1, unit2))
 
-        return d_mat
-
-
-    @property
-    def alpha(self) -> float:
-        return self._alphabeta[0]
-
-    @property
-    def beta(self) -> float:
-        return self._alphabeta[1]
-
-    @alpha.setter
-    def alpha(self, alpha: float):
-        self._alphabeta[0] = alpha
-
-    @beta.setter
-    def beta(self, beta):
-        self._alphabeta[1] = beta
+        self.d_mat = d_mat
 
     def d(self, unit1: 'Unit', unit2: 'Unit'):
         return self.alpha * self.positional_dissim.d(unit1, unit2) + \

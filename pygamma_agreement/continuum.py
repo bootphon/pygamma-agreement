@@ -520,7 +520,7 @@ class Continuum:
         """
         return iter(self._annotations[annotator])
 
-    def get_best_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
+    def get_best_alignment(self, dissimilarity: AbstractDissimilarity, compile=True) -> 'Alignment':
         """
         Returns the best alignment of the continuum for the given dissimilarity. This alignment comes
         with the associated disorder, so you can obtain it in constant time with alignment.disorder.
@@ -544,7 +544,12 @@ class Continuum:
         all_disorders = []
         all_valid_tuples = []
 
+        if compile:
+            dissimilarity.compile_d_mat()
+
         disorders, possible_unitary_alignments = dissimilarity.valid_alignments(self)
+
+        dissimilarity.del_d_mat()
 
         # Definition of the integer linear program
         n = len(disorders)
@@ -815,6 +820,7 @@ def _compute_best_alignment_job(dissimilarity: AbstractDissimilarity,
     Function used to launch a multiprocessed job for calculating the best aligment of a continuum
     using the given dissimilarity.
     """
+    dissimilarity.compile_d_mat()
     return continuum.get_best_alignment(dissimilarity)
 
 
