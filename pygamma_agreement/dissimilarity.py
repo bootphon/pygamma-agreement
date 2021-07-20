@@ -442,6 +442,11 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
 
         self.d_mat = d_mat
 
+    def del_d_mat(self):
+        self.d_mat = None
+        self.categorical_dissim.del_d_mat()
+        self.positional_dissim.del_d_mat()
+
     def d(self, unit1: 'Unit', unit2: 'Unit'):
         return self.alpha * self.positional_dissim.d(unit1, unit2) + \
                self.beta * self.categorical_dissim.d(unit1, unit2)
