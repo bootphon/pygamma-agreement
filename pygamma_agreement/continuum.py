@@ -646,7 +646,7 @@ class Continuum:
         numba_factor = 1/20
 
         def f(w):
-            return (n * p + # Copying the continuum
+            return (n * p +  # Copying the continuum
                     + ((n - w) * p / 2 + 2 * p + (w + s * p) * p  # getting first window
                         + (n - w) * p / 2 + numba_factor * (w + s) ** p  # getting best alignment
                         + (w + s) * p * np.log2((w + s) * p) + w * p  # getting the w leftmost alignments & adding them
@@ -995,6 +995,6 @@ def _compute_fast_alignment_job(dissimilarity: AbstractDissimilarity,
     Function used to launch a multiprocessed job for calculating an approximation of
     the best aligment of a continuum, using the given dissimilarity.
     """
-    if continuum.best_window_size == np.inf:
+    if continuum.best_window_size == np.inf:  # window size is set to infinity when normal gamma is better.
         return continuum.get_best_alignment(dissimilarity)
     return continuum.get_fast_alignment(dissimilarity, continuum.best_window_size)
