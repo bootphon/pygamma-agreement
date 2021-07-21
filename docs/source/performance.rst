@@ -43,24 +43,7 @@ with continua generated specifically to mess with the algorithm.
 
 It uses the fact that alignments are made using locality of annotations, so it is only precise with a dissimilarity that
 mainly takes positionning into account. Results are still good with a combined categorical dissimilarity where
-math:`\alpha = 2 \times \beta`.
-
-Here are the performance comparisons between the two algorithms :
-
-.. figure:: images/time2annotators.png
-  :scale: 70%
-  :alt: time to compute gamma (8 CPUs, 2 annotators)
-  :align: right
-
-  **2 annotators**
-
-.. figure:: images/time3annotators.png
-  :scale: 70%
-  :alt: time to compute gamma (8 CPUs, 3 annotators)
-  :align: left
-
-  **3 annotators**
-
+:math:`\alpha = 2 \times \beta`.
 
 The fast gamma algorithm uses some sort of *"windowing"* of the continuum, and we have determined an approximation of
 its computational complexity, with :math:`w` the number of annotation per annotator in a window :
@@ -70,9 +53,12 @@ its computational complexity, with :math:`w` the number of annotation per annota
 
     C(N, n, p) = N \times (\frac{n}{w} \times (f \times (w + s)^p + D(n, p, w, s))
 
-With :math:`D` an additional complexity per window that we will not detail here, and
-:math:`f` the "numba factor", i.e the gain of speed obtained by using compiled numba functions, that we have
-estimated.
+With :
+
+- :math:`D` an additional complexity per window that we will not detail here.
+- :math:`f` the *"numba factor"*, i.e the gain of speed obtained by using compiled numba functions, that we have
+  estimated.
+- :math:`s` the *"additionnal window size"*, which is higher when the continuum has lots of overlapping.
 
 This becomes a lot more interesting when the amount of annotations grows. One important thing to notice is that
 this complexity can be minimized with the right window size.
@@ -84,16 +70,30 @@ this complexity can be minimized with the right window size.
   **This is the look of the time to compute fast-gamma to the size of the windows**. Thus, before starting to compute
   fast-gamma, the algorithm determines the optimal window size by sampling the complexity function.
 
+Here are the performance comparisons between the two algorithms :
 
+.. figure:: images/time2annotators.png
+  :scale: 72%
+  :alt: time to compute gamma (8 CPUs, 2 annotators)
+  :align: right
 
+  **2 annotators**
 
+.. figure:: images/time3annotators.png
+  :scale: 72%
+  :alt: time to compute gamma (8 CPUs, 3 annotators)
+  :align: left
+
+  **3 annotators**
+
+The gain in computation time is incredibly interesting and we strongly advise to use the fast-gamma every time.
 
 As for the precision of the fast gamma, we have not yet found a proof of its
 accuracy, but we have reasons to believe that if the overlapping of the annotations from
 a single annotator is limited, the fast-gamma has the exact same value as the gamma.
 
 The algorithm used by fast-gamma assumes that for three annotation segments :math:`A`, :math:`B` and :math:`C`,
-if :math:`A < B < C` (alphanumerical order), then :math:`d_{pos}(A, B) < d_pos(A, C)`. It is however not true in
+if :math:`A < B < C` (alphanumerical order), then :math:`d_{pos}(A, B) < d_{pos}(A, C)`. It is however not true in
 general, and especially not when units overlap a lot.
 
 This is confirmed in some extent by measures :
