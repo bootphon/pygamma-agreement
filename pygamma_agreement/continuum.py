@@ -930,9 +930,8 @@ class GammaResults:
         using the same random samples' best alignments
         as for gamma (the mean of the sampled continuua's gamma-cat disorders)
         """
-        return float(np.mean(list(filter((lambda x: x is not np.NaN),
-                                         (align.gamma_k_disorder(self.dissimilarity, None)
-                                          for align in self.chance_alignments)))))
+        return float(np.mean([align.gamma_k_disorder(self.dissimilarity, None)
+                              for align in self.chance_alignments]))
 
     def expected_k_disorder(self, category: str) -> float:
         """
@@ -940,9 +939,8 @@ class GammaResults:
         using the same random samples' best alignments
         as for gamma (the mean of the sampled continuua's gamma-k disorders)
         """
-        return float(np.mean(list(filter((lambda x: x is not np.NaN),
-                                         (align.gamma_k_disorder(self.dissimilarity, category)
-                                          for align in self.chance_alignments)))))
+        return float(np.mean([align.gamma_k_disorder(self.dissimilarity, category)
+                              for align in self.chance_alignments]))
 
     @property
     def approx_gamma_range(self):
