@@ -536,50 +536,52 @@ class Continuum:
         """
         return iter(self._annotations[annotator])
 
-    def get_first_window(self, dissimilarity: AbstractDissimilarity, n: int = 1) -> 'Continuum':
+    def get_first_window(self, dissimilarity: AbstractDissimilarity, w: int = 1) -> Tuple['Continuum', float]:
         """
-        Returns a continuum containing the n first annotations from each annotator.
+        Returns a tuple (continuum, x_limit), with the continuum being the extended head of size w of
+        self, and x_limit being its right bound.
         """
-        sizes = {annotator: len(units) for annotator, units in self._annotations.items()}
-        indexes = {annotator: 0 for annotator in self._annotations.keys()}
-        annotations = {annotator: list(units) for annotator, units in self._annotations.items()}
+        annotators = list(self.annotators)
+        annotations = list(self._annotations.values())
+        sizes = list(map(len, annotations))
+        indexes = [0] * len(annotators)
 
-        # Take the n first units of an annotator and all those in the same timestamp from the others.
-        end_unit = None
+        smallest_unit = Unit(Segment(-np.inf, -np.inf), None)
+
         window = Continuum()
-        for annotator in indexes.keys():
+        for annotator in annotators:
             window.add_annotator(annotator)
-            if indexes[annotator] == sizes[annotator]:
-                continue
-            for index in range(indexes[annotator], sizes[annotator]):
-                unit = annotations[annotator][index]
-                if end_unit is not None and unit.segment.start >= end_unit.segment.end:
-                    indexes[annotator] = index
+        taken_units = 0
+        rightmost_unit = smallest_unit
+        to_take = min(float(np.sum(sizes)), w * self.num_annotators)
+        while taken_units < to_take:
+            x_limit = np.inf
+            for units, index, size in zip(annotations, indexes, sizes):
+                if index >= size:  # All annotations have been consumed
+                    continue
+                unit = units[index]
+                x_limit = min(x_limit, unit.segment.end)
+            for i, (annotator, units, index, size) in enumerate(zip(annotators, annotations, indexes, sizes)):
+                if index >= size:  # All annotations have been consumed
+                    continue
+                unit = units[index]
+                if unit.segment.end <= x_limit:
+                    window.add(annotator, unit.segment, unit.annotation)
+                    rightmost_unit = max(unit, rightmost_unit)
+                    taken_units += 1
+                    indexes[i] += 1
+
+        x_limit = window.bound_sup
+
+        # Now we add the additionnal annotations
+        for annotator, units, index, size in zip(annotators, annotations, indexes, sizes):
+            while index < size:
+                unit = units[index]
+                if dissimilarity.d(rightmost_unit, unit) > dissimilarity.delta_empty * self.num_annotators:
                     break
                 window.add(annotator, unit.segment, unit.annotation)
-                if end_unit is None and index == indexes[annotator] + n - 1:
-                    indexes[annotator] = index + 1
-                    end_unit = unit
-                    break
-            else:
-                indexes[annotator] = sizes[annotator]
-
-        def take_until_criterium(indexes_start):
-            indexes_end = {}
-            for annotator in indexes_start.keys():
-                for index in range(indexes_start[annotator], sizes[annotator]):
-                    unit = annotations[annotator][index]
-                    if any(dissimilarity.d(unit, annotations[other_annot][indexes[other_annot]])
-                           <= dissimilarity.delta_empty * self.num_annotators for other_annot in indexes_start.keys()
-                           if other_annot != annotator and indexes[other_annot] != sizes[other_annot]):
-                        window.add(annotator, unit.segment, unit.annotation)
-                    else:
-                        indexes_end[annotator] = index
-                        break
-            return indexes_end
-        take_until_criterium(take_until_criterium(indexes))
-
-        return window
+                index += 1
+        return window, x_limit
 
     def iter_windows(self, min_length: int):
         sizes = {annotator: len(units) for annotator, units in self._annotations.items()}
@@ -615,11 +617,13 @@ class Continuum:
         disorders = []
 
         while copy:
-            window = copy.get_first_window(dissimilarity, self.best_window_size)
+            window, x_limit = copy.get_first_window(dissimilarity, window_size)
             # Window contains each annotator's first annotations
             # We retain only the leftmost unitary alignment in the best alignment of the window,
             # as it is the most likely to be in the global best alignment
-            for chosen in window.get_best_alignment(dissimilarity).n_leftmost(self.best_window_size):
+            best_alignment = window.get_best_alignment(dissimilarity)
+            chosens =  list(best_alignment.take_until_limit(x_limit))
+            for chosen in chosens:
                 unitary_alignments.append(chosen)
                 disorders.append(chosen.disorder)
                 for annotator, unit in chosen.n_tuple:
@@ -635,7 +639,7 @@ class Continuum:
         Sets the best window size for computing the fast-gamma of this continuum, by using the
         sampling the computing complexity function.
         """
-        smallest_window = self.get_first_window(dissimilarity, 1)
+        smallest_window, _ = self.get_first_window(dissimilarity, 1)
         smallest_window.get_best_alignment(dissimilarity)
 
         s = smallest_window.max_num_annotations_per_annotator

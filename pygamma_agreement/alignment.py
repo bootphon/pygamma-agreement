@@ -181,20 +181,12 @@ class Alignment(AbstractAlignment):
     def __iter__(self) -> Iterator[UnitaryAlignment]:
         return iter(self.unitary_alignments)
 
-    @property
-    def leftmost(self):
-        """Return the (or one of the) leftmost unitary alignments."""
-        return min(self.unitary_alignments, key=(lambda unitary_alignment: unitary_alignment.bounds[0]))
+    def take_until_limit(self, x_limit):
+        for unitary_alignment in sorted(self.unitary_alignments, key=lambda unit_align: unit_align.bounds[1]):
+            if unitary_alignment.bounds[1] > x_limit:
+                break
+            yield unitary_alignment
 
-    def n_leftmost(self, n: int):
-        to_take = n * self.num_annotators
-        taken = 0
-        for unitary_align in sorted(self.unitary_alignments,
-                                    key=(lambda unitary_alignment: unitary_alignment.bounds[0])):
-            taken += unitary_align.nb_units
-            if taken >= to_take:
-                return
-            yield unitary_align
 
 
     @property

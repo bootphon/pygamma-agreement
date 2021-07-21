@@ -48,7 +48,7 @@ dissimilarity,
 - Let :math:`\breve{a}(\mathcal{U})` be any one of its best alignments.
 - For :math:`x` a real number, let :math:`\mathcal{U}[x] = \{u \in \mathcal{U}, end(u) \leq x\}`.
 - For :math:`w` an integer, let
-  :math:`\mathcal{U}_w = \mathcal{U}[max\{x, |\mathcal{U}| \leq w \times |\mathcal{A}| \}]`,
+  :math:`\mathcal{U}_w = \mathcal{U}[min\{x, |\mathcal{U}| \seq w \times |\mathcal{A}| \}]`,
   the "Head of size :math:`w` of :math:`\mathcal{U}`".
 - For :math:`w` an integer, let
   :math:`\epsilon_w(\mathcal{U}) = \{ u \in \mathcal{U}, \exists u' \in \mathcal{U}_w, d(u, u') \leq \Delta_{\emptyset} |\mathcal{A}| \}`
