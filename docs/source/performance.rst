@@ -37,13 +37,36 @@ Fast option
 ~~~~~~~~~~~
 
 The ``Continuum.compute_gamma()`` method allows to set the *"fast"* option, which uses a different algorithm
-for determining the best alignment of a disorder. Although there is no theory to back the precision of the algorithm,
+for determining the best alignment of a disorder. Although there is no found theory to back the precision of the algorithm,
 we have found out that it gives the **exact** results for the best alignments for real data, and a good approximation
 with continua generated specifically to mess with the algorithm.
 
+Let's explain how this works with the notations of [mathet2015]_. The algorithm creates an alignment recursively,
+each time eliminating a certain number of units in the continuum : for :math:`\mathcal{U}` a set of units and :math:`d` a
+dissimilarity,
+
+- Let :math:`\breve{a}(\mathcal{U})` be any one of its best alignments.
+- For :math:`x` a real number, let :math:`\mathcal{U}[x] = \{u \in \mathcal{U}, end(u) \leq x\}`.
+- For :math:`w` an integer, let
+  :math:`\mathcal{U}_w = \mathcal{U}[max\{x, |\mathcal{U}| \leq w \times |\mathcal{A}| \}]`,
+  the "Head of size :math:`w` of :math:`\mathcal{U}`".
+- For :math:`w` an integer, let
+  :math:`\epsilon_w(\mathcal{U}) = \{ u \in \mathcal{U}, \exists u' \in \mathcal{U}_w, d(u, u') \leq \Delta_{\emptyset} |\mathcal{A}| \}`
+  and :math:`\mathcal{U}_w^+ = \mathcal{U}_w \cup \epsilon_w(\mathcal{U})`, the "hxtended head of size :math:`w` of :math:`\mathcal{U}`".
+
+Finally, let us define the "fast alignment of window :math:`w`" :math:`\breve{\alpha}_w(\mathcal{U})` recursively :
+
+:math:`\breve{\alpha}_w(\emptyset) = \emptyset`, and
+:math:`\breve{\alpha}_w(\mathcal{U}) = (\breve{a}(\mathcal{U}_w^+) \cap \mathcal{U}_w \mathcal{A}) \cup \breve{\alpha}_w(\mathcal{U} \setminus \mathcal{U}_w)`
+
+(:math:`\mathcal{U}_n \mathcal{A}` being the set of unitary alignments of :math:`\mathcal{U}_n`).
+
+The fast-gamma is simply the gamma with the best alignment of a each continuum (input and samples) replaced by the fast
+alignment with a certain window size.
+
 It uses the fact that alignments are made using locality of annotations, so it is only precise with a dissimilarity that
 mainly takes positionning into account. Results are still good with a combined categorical dissimilarity where
-:math:`\alpha = 2 \times \beta`.
+:math:`\alpha = 2 \times \beta`, and the window size doesn't seem to affect precision.
 
 The fast gamma algorithm uses some sort of *"windowing"* of the continuum, and we have determined an approximation of
 its computational complexity, with :math:`w` the number of annotation per annotator in a window :
@@ -125,3 +148,6 @@ As memory usage is very difficult to measure & predict, we have unfortunately no
 handle this.
 
 
+..  [mathet2015] Yann Mathet et Al.
+    The Unified and Holistic Method Gamma (γ) for Inter-Annotator Agreement
+    Measure and Alignment (Yann Mathet, Antoine Widlöcher, Jean-Philippe Métivier)
