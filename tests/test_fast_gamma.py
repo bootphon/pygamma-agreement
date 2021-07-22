@@ -21,7 +21,7 @@ def test_fast_gamma():
     for nb_annotator in [2, 3, 4]:
         max_nb_annot = (2000**2)**(1/nb_annotator)
 
-        for nb_annotation in  [max_nb_annot // 2, max_nb_annot]:
+        for nb_annotation in [max_nb_annot // 2, max_nb_annot]:
 
             sampler._avg_nb_units_per_annotator = nb_annotation
             sample = sampler.sample_from_continuum
