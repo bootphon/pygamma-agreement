@@ -309,7 +309,7 @@ You can also create your own Categorical dissimilarity using any (str, str) -> f
     from Levenshtein import distance as lev
 
     class MyCategoricalDissimilarity(PrecomputedCategoricalDissimilarity):
-        def cat_dissim_func(self, str1: str, str2: str):
+        def cat_dissim_func(self, str1: str, str2: str) -> float:
             return ... # any distance between category strings
 
 

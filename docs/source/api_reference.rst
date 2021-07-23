@@ -37,11 +37,46 @@ Data structures
 Dissimilarities
 ---------------
 
+
+.. autoclass:: pygamma_agreement.AbstractDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
 .. autoclass:: pygamma_agreement.PositionalDissimilarity
     :members:
     :special-members:
     :exclude-members: __weakref__
 
+.. autoclass:: pygamma_agreement.CategoricalDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. autoclass:: pygamma_agreement.PrecomputedCategoricalDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. autoclass:: pygamma_agreement.MatrixCategoricalDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. autoclass:: pygamma_agreement.AbsoluteCategoricalDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. autoclass:: pygamma_agreement.LevenshteinCategoricalDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. autoclass:: pygamma_agreement.OrdinalCategoricalDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
 
 .. autoclass:: pygamma_agreement.CombinedCategoricalDissimilarity
     :members:

@@ -123,7 +123,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
                             nb.float32))
     def _compute_alignment_disorders(alignment_array: np.ndarray, d_mat, delta_empty: float):
         """
-        Returns the array of the disorders of each unitary alignment of the prodived
+        Returns the array of the disorders of each unitary alignment of the provided
         alignment (in matrix form) using given matrix-form disorder.
         """
         nb_alignments, nb_annotators, _ = alignment_array.shape
