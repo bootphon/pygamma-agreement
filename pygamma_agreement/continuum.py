@@ -34,7 +34,7 @@ import os
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import total_ordering
-from multiprocessing import Pool
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional, Tuple, List, Union, TYPE_CHECKING, Generator
 
@@ -520,7 +520,7 @@ class Continuum:
         """
         return iter(self._annotations[annotator])
 
-    def get_best_alignment(self, dissimilarity: AbstractDissimilarity, compile=True) -> 'Alignment':
+    def get_best_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
         """
         Returns the best alignment of the continuum for the given dissimilarity. This alignment comes
         with the associated disorder, so you can obtain it in constant time with alignment.disorder.
@@ -541,15 +541,7 @@ class Continuum:
             # assert len(arr) > 0, f"Disorder cannot be computed because annotator {annotator} has no annotations."
             nb_unit_per_annot.append(len(arr) + 1)
 
-        all_disorders = []
-        all_valid_tuples = []
-
-        if compile:
-            dissimilarity.compile_d_mat()
-
         disorders, possible_unitary_alignments = dissimilarity.valid_alignments(self)
-
-        dissimilarity.del_d_mat()
 
         # Definition of the integer linear program
         n = len(disorders)
@@ -643,54 +635,52 @@ class Continuum:
         sampler.init_sampling(self, ground_truth_annotators)
 
         # Multiprocessed computation of sample disorder
-        p = Pool()
-        # computation of best alignment in advance
-        best_alignment_task = p.apply_async(_compute_best_alignment_job,
-                                            (dissimilarity, self,))
-        result_pool = [
-            # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
-            p.apply_async(_compute_best_alignment_job,
-                          (dissimilarity, sampler.sample_from_continuum,))
-            for _ in range(n_samples)
-        ]
-        chance_best_alignments: List[Alignment] = []
-        chance_disorders: List[float] = []
+        with ThreadPoolExecutor(max_workers=os.cpu_count()) as p:
+            # computation of best alignment in advance
+            best_alignment_task = p.submit(_compute_best_alignment_job,
+                                           *(dissimilarity, self))
+            best_alignment = best_alignment_task.result()
+            logging.info("Best alignment obtained...")
 
-        best_alignment = best_alignment_task.get()
-        logging.info("Best alignment obtained...")
+            result_pool = [
+                # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
+                p.submit(_compute_best_alignment_job,
+                         *(dissimilarity, sampler.sample_from_continuum))
+                for _ in range(n_samples)
+            ]
+            chance_best_alignments: List[Alignment] = []
+            chance_disorders: List[float] = []
 
-        logging.info(f"Starting computation for a batch of {n_samples} random samples...")
-        for i, result in enumerate(result_pool):
-            chance_best_alignments.append(result.get())
-            logging.info(f"finished computation of random sample dissimilarity {i + 1}/{n_samples}")
-            chance_disorders.append(chance_best_alignments[-1].disorder)
-        logging.info("done.")
+            logging.info(f"Starting computation for a batch of {n_samples} random samples...")
+            for i, result in enumerate(result_pool):
+                chance_best_alignments.append(result.result())
+                logging.info(f"finished computation of random sample dissimilarity {i + 1}/{n_samples}")
+                chance_disorders.append(chance_best_alignments[-1].disorder)
+            logging.info("done.")
 
-        if precision_level is not None:
-            if isinstance(precision_level, str):
-                precision_level = PRECISION_LEVEL[precision_level]
-            assert 0 < precision_level < 1.0
-            # If the variation of the disorders of the samples si too high, others are generated.
-            # taken from subsection 5.3 of the original paper
-            # confidence at 95%, i.e., 1.96
-            variation_coeff = np.std(chance_disorders) / np.mean(chance_disorders)
-            confidence = 1.96
-            required_samples = np.ceil((variation_coeff * confidence / precision_level) ** 2).astype(np.int32)
-            if required_samples > n_samples:
-                logging.info(f"Computing second batch of {required_samples - n_samples} "
-                             f"because variation was too high.")
-                result_pool = [
-                    p.apply_async(_compute_best_alignment_job,
-                                  (dissimilarity, sampler.sample_from_continuum,))
-                    for _ in range(required_samples - n_samples)
-                ]
-                for i, result in enumerate(result_pool):
-                    chance_best_alignments.append(result.get())
-                    logging.info(f"finished computation of additionnal random sample dissimilarity "
-                                 f"{i + 1}/{required_samples - n_samples}")
-                logging.info("done.")
-
-        p.close()
+            if precision_level is not None:
+                if isinstance(precision_level, str):
+                    precision_level = PRECISION_LEVEL[precision_level]
+                assert 0 < precision_level < 1.0
+                # If the variation of the disorders of the samples si too high, others are generated.
+                # taken from subsection 5.3 of the original paper
+                # confidence at 95%, i.e., 1.96
+                variation_coeff = np.std(chance_disorders) / np.mean(chance_disorders)
+                confidence = 1.96
+                required_samples = np.ceil((variation_coeff * confidence / precision_level) ** 2).astype(np.int32)
+                if required_samples > n_samples:
+                    logging.info(f"Computing second batch of {required_samples - n_samples} "
+                                 f"because variation was too high.")
+                    result_pool = [
+                        p.submit(_compute_best_alignment_job,
+                                 *(dissimilarity, sampler.sample_from_continuum))
+                        for _ in range(required_samples - n_samples)
+                    ]
+                    for i, result in enumerate(result_pool):
+                        chance_best_alignments.append(result.result())
+                        logging.info(f"finished computation of additionnal random sample dissimilarity "
+                                     f"{i + 1}/{required_samples - n_samples}")
+                    logging.info("done.")
 
         return GammaResults(
             best_alignment=best_alignment,
@@ -777,41 +767,40 @@ class GammaResults:
     @property
     def gamma_cat(self) -> float:
         """Returns the gamma-cat value"""
-        p = Pool()
+        with ThreadPoolExecutor(max_workers=os.cpu_count()) as p:
 
-        observed_disorder_job = p.apply_async(_compute_gamma_k_job,
-                                              (self.dissimilarity, self.best_alignment, None))
+            observed_disorder_job = p.submit(_compute_gamma_k_job,
+                                             *(self.dissimilarity, self.best_alignment, None))
 
-        chance_disorders_jobs = [
-            p.apply_async(_compute_gamma_k_job,
-                          (self.dissimilarity, alignment, None))
-            for alignment in self.chance_alignments
-        ]
-        observed_disorder = observed_disorder_job.get()
-        if observed_disorder == 0:
-            return 1
-        p.close()
-        p.join()
-        return 1 - observed_disorder / float(np.mean(np.array([job_res.get() for job_res in chance_disorders_jobs])))
+            chance_disorders_jobs = [
+                p.submit(_compute_gamma_k_job,
+                         *(self.dissimilarity, alignment, None))
+                for alignment in self.chance_alignments
+            ]
+            observed_disorder = observed_disorder_job.result()
+            if observed_disorder == 0:
+                return 1
+            expected_disorder = float(np.mean(np.array([job_res.result() for job_res in chance_disorders_jobs])))
+
+        return 1 - observed_disorder / expected_disorder
 
     def gamma_k(self, category: str) -> float:
         """Returns the gamma-k value for the given category"""
-        p = Pool()
+        with ThreadPoolExecutor(max_workers=os.cpu_count()) as p:
+            observed_disorder_job = p.submit(_compute_gamma_k_job,
+                                             *(self.dissimilarity, self.best_alignment, category))
 
-        observed_disorder_job = p.apply_async(_compute_gamma_k_job,
-                                              (self.dissimilarity, self.best_alignment, category))
+            chance_disorders_jobs = [
+                p.submit(_compute_gamma_k_job,
+                         *(self.dissimilarity, alignment, category))
+                for alignment in self.chance_alignments
+            ]
+            observed_disorder = observed_disorder_job.result()
+            if observed_disorder == 0:
+                return 1
+            expected_disorder = float(np.mean(np.array([job_res.result() for job_res in chance_disorders_jobs])))
 
-        chance_disorders_jobs = [
-            p.apply_async(_compute_gamma_k_job,
-                          (self.dissimilarity, alignment, category))
-            for alignment in self.chance_alignments
-        ]
-        observed_disorder = observed_disorder_job.get()
-        if observed_disorder == 0:
-            return 1
-        p.close()
-        p.join()
-        return 1 - observed_disorder / float(np.mean(np.array([job_res.get() for job_res in chance_disorders_jobs])))
+        return 1 - observed_disorder / expected_disorder
 
 
 def _compute_best_alignment_job(dissimilarity: AbstractDissimilarity,
@@ -820,7 +809,6 @@ def _compute_best_alignment_job(dissimilarity: AbstractDissimilarity,
     Function used to launch a multiprocessed job for calculating the best aligment of a continuum
     using the given dissimilarity.
     """
-    dissimilarity.compile_d_mat()
     return continuum.get_best_alignment(dissimilarity)
 
 

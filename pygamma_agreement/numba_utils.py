@@ -43,14 +43,13 @@ def levenshtein(str1: str, str2: str):
                                                 matrix_lev[i-1, j-1] + cost]))
     return matrix_lev[-1, -1]
 
-
-@nb.njit
+@nb.njit()
 def iter_tuples(sizes: np.ndarray):
     nb_annotators = len(sizes)
     current = np.zeros(nb_annotators, dtype=np.int16)
     while True:
         yield current
-        for i in range(len(current)):
+        for i in range(nb_annotators):
             current[i] += 1
             if current[i] < sizes[i]:
                 break

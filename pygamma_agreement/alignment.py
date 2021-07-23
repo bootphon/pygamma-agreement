@@ -231,9 +231,7 @@ class Alignment(AbstractAlignment):
         Recalculates the disorder of this alignment using the given dissimilarity computer.
         Usually not needed since most alignment are generated from a minimal disorder.
         """
-        dissimilarity.compile_d_mat()
         disorders = dissimilarity.compute_disorder(self)
-        dissimilarity.del_d_mat()
         for i, disorder in enumerate(disorders):
             self.unitary_alignments[i].disorder = disorder
         self._disorder = (np.sum(disorders)

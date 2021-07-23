@@ -18,7 +18,7 @@ def test_categorical_dissimilarity():
                     [0.3, 0.6, 0., 0.7], [0.7, 0.4, 0.7, 0.]])
 
     cat_dis = CombinedCategoricalDissimilarity(
-        cat_dissim=MatrixCategoricalDissimilarity(categories, cat),
+        cat_dissim=MatrixCategoricalDissimilarity(categories, cat, delta_empty=0.5),
         delta_empty=0.5,
         alpha=0.0,
         beta=1.0)
@@ -138,7 +138,7 @@ def test_combi_categorical_dissimilarity():
 
     combi_dis = CombinedCategoricalDissimilarity(
         delta_empty=0.5,
-        cat_dissim=MatrixCategoricalDissimilarity(categories, cat),
+        cat_dissim=MatrixCategoricalDissimilarity(categories, cat, delta_empty=0.5),
         alpha=3, beta=1)
     list_dis = []
     for liza_unit in continuum['liza']:
