@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from .continuum import Continuum
     from .alignment import Alignment
 
-dissimilarity_dec = nb.cfunc(nb.float32(nb.float32[:], nb.float32[:]), nopython=True)
+dissimilarity_dec = nb.njit(nb.float32(nb.float32[:], nb.float32[:]), nopython=True)
 
 
 class AbstractDissimilarity(metaclass=ABCMeta):
@@ -74,6 +74,9 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         unit-to-unit, (in arrays form) disorder given by the dissimilarity.
         """
         raise NotImplemented()
+
+    def recompile(self):
+        self.d_mat = self.compile_d_mat()
 
     def _build_arrays_continuum(self, continuum: 'Continuum') -> nb.typed.List:
         """
@@ -134,7 +137,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         return alignment_array
 
     @staticmethod
-    @nb.cfunc(nb.float32[:](nb.float32[:, :, ::1],
+    @nb.njit(nb.float32[:](nb.float32[:, :, ::1],
                             nb.types.FunctionType(nb.float32(nb.float32[:],
                                                              nb.float32[:])),
                             nb.float32))
