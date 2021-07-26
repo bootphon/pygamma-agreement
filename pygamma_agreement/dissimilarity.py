@@ -330,8 +330,8 @@ class LambdaCategoricalDissimilarity(PrecomputedCategoricalDissimilarity, metacl
             for j in range(i):
                 dist_cat = self.cat_dissim_func(categories[i], categories[j])
                 max_val = max(max_val, dist_cat)
-                self._matrix[i, j] = dist_cat
-                self._matrix[j, i] = dist_cat
+                matrix[i, j] = dist_cat
+                matrix[j, i] = dist_cat
         matrix /= max_val
 
         super().__init__(categories, matrix, delta_empty)

@@ -64,7 +64,7 @@ If you have trouble during the two last steps, pygamma-agreement should work any
 although significantly slower for larger input.
 
 
-| ⚠️   |  Warning : A bug in GLPK causes the standart ouput to be polluted by non-deactivable messages. |
+| ⚠️   |  Warning : A bug in GLPK causes the standart ouput to be polluted by non-deactivable messages. It is strongly advised to use the CBC solver. |
 |-----|----------------------------------------------------------------------------------|
 
 ## Tests

@@ -7,7 +7,9 @@ import pytest
 from pygamma_agreement.continuum import Continuum
 from pygamma_agreement.dissimilarity import (CombinedCategoricalDissimilarity,
                                              PositionalDissimilarity,
-                                             NumericalCategoricalDissimilarity)
+                                             NumericalCategoricalDissimilarity,
+                                             LevenshteinCategoricalDissimilarity,
+                                             OrdinalCategoricalDissimilarity)
 from pygamma_agreement.sampler import ShuffleContinuumSampler
 
 
@@ -102,3 +104,9 @@ def test_gamma_alexpaulsuzan_otherdissims():
     except:
         pass
 
+    dissimilarity = LevenshteinCategoricalDissimilarity(continuum.categories)
+    best_alignment = continuum.get_best_alignment(dissimilarity)
+
+
+    dissimilarity = OrdinalCategoricalDissimilarity(continuum.categories)
+    best_alignment = continuum.get_best_alignment(dissimilarity)
