@@ -286,11 +286,11 @@ here's how to instanciate a categorical dissimilarity:
                [0.5, 0. , 1. ],
                [1. , 1. , 0. ]])
 
-    from pygamma_agreement import CategoricalDissimilarity
+    from pygamma_agreement import PrecomputedCategoricalDissimilarity
     from sortedcontainers import SortedSet
 
     categories = SortedSet(('Noun', 'Verb', 'Adj'))
-    dissim_cat = MatrixCategoricalDissimilarity(categories,
+    dissim_cat = PrecomputedCategoricalDissimilarity(categories,
                                                 matrix=D,
                                                 delta_empty=1.0)
 
@@ -304,12 +304,13 @@ You can also create your own Categorical dissimilarity using any (str, str) -> f
 
 .. code-block:: python
 
-    from pygamma_agreement import PrecomputedCategoricalDissimilarity
+    from pygamma_agreement import LambdaCategoricalDissimilarity
     from sortedcontainers import SortedSet
     from Levenshtein import distance as lev
 
-    class MyCategoricalDissimilarity(PrecomputedCategoricalDissimilarity):
-        def cat_dissim_func(self, str1: str, str2: str) -> float:
+    class MyCategoricalDissimilarity(LambdaCategoricalDissimilarity):
+        @staticmethod
+        def cat_dissim_func(str1: str, str2: str) -> float:
             return ... # any distance between category strings
 
 

@@ -37,7 +37,7 @@ from typing import Dict, List
 
 from pygamma_agreement import (Continuum,
                                LevenshteinCategoricalDissimilarity,
-                               OrdinalCategoricalDissimilarity,
+                               NumericalCategoricalDissimilarity,
                                ShuffleContinuumSampler,
                                CombinedCategoricalDissimilarity)
 
@@ -103,7 +103,7 @@ argparser.add_argument("-n", "--n-samples",
                        help="Number of random continuua to be sampled for the \n"
                             "gamma computation. Warning : additionnal continuua \n"
                             "will be sampled if precision level is not satisfied.\n")
-argparser.add_argument("-d", "--cat-dissim", type=str, choices={"absolute", "ordinal", "levenshtein"},
+argparser.add_argument("-d", "--cat-dissim", type=str, choices={"absolute", "numerical", "levenshtein"},
                        default="absolute",
                        help="Categorical dissimilarity to use for measuring \n"
                             "inter-annotation disorder. The default one gives 1.0\n"
@@ -162,7 +162,7 @@ def pygamma_cmd():
         if args.cat_dissim == "levenshtein":
             cat_dissim = LevenshteinCategoricalDissimilarity(continuum.categories)
         elif args.cat_dissim == "ordinal":
-            cat_dissim = OrdinalCategoricalDissimilarity(continuum.categories)
+            cat_dissim = NumericalCategoricalDissimilarity(continuum.categories)
 
         dissim = CombinedCategoricalDissimilarity(alpha=args.alpha,
                                                   beta=args.beta,

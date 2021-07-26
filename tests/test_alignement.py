@@ -7,7 +7,7 @@ from pyannote.core import Annotation, Segment
 from pygamma_agreement.alignment import SetPartitionError
 from pygamma_agreement.alignment import UnitaryAlignment, Alignment
 from pygamma_agreement.continuum import Continuum, Unit
-from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity, MatrixCategoricalDissimilarity
+from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity, PrecomputedCategoricalDissimilarity
 from sortedcontainers import SortedSet
 
 def test_alignment_checking():
@@ -63,7 +63,7 @@ def test_unitary_alignment():
                     [0.7, 0.4, 0.7, 0.]])
     combi_dis = CombinedCategoricalDissimilarity(
         delta_empty=0.5,
-        cat_dissim=MatrixCategoricalDissimilarity(categories, cat, delta_empty=0.5),
+        cat_dissim=PrecomputedCategoricalDissimilarity(categories, cat, delta_empty=0.5),
         alpha=1)
     n_tuple = [('liza', Unit(Segment(12, 18), "Carol")),
                ('pierrot', Unit(Segment(12, 18), "Alice")),
@@ -109,7 +109,7 @@ def test_alignment():
     combi_dis = CombinedCategoricalDissimilarity(
         delta_empty=0.5,
         alpha=3,
-        cat_dissim=MatrixCategoricalDissimilarity(categories, cat, delta_empty=0.5))
+        cat_dissim=PrecomputedCategoricalDissimilarity(categories, cat, delta_empty=0.5))
     set_unitary_alignments = []
 
     n_tuple = [('liza', Unit(Segment(1, 5), 'Carol')),
@@ -189,7 +189,7 @@ def test_best_alignment():
     combi_dis = CombinedCategoricalDissimilarity(
         delta_empty=0.5,
         alpha=3,
-        cat_dissim=MatrixCategoricalDissimilarity(categories, cat, delta_empty=0.5))
+        cat_dissim=PrecomputedCategoricalDissimilarity(categories, cat, delta_empty=0.5))
     set_unitary_alignments = []
 
     n_tuple = [('liza', Unit(Segment(1, 5), 'Carol')),

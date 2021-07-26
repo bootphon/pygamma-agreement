@@ -38,6 +38,7 @@ import numpy as np
 
 from sortedcontainers import SortedSet
 from .numba_utils import iter_tuples
+from typing import Iterable
 
 if TYPE_CHECKING:
     from .continuum import Continuum
@@ -77,6 +78,14 @@ class AbstractDissimilarity(metaclass=ABCMeta):
     def _build_arrays_continuum(self, continuum: 'Continuum') -> nb.typed.List:
         """
         Builds the compact, array-shaped representation of a continuum.
+        It is a list of 2D arrays where :
+            - Each array corresponds to an annotator (alphabetical order)
+            - Each array[i] of an array corresponds to a unit
+            - array[i, 0 to 3] correspond respectively to:
+                - Start of the segment
+                - End of the segment
+                - Duration of the segment
+                - Annotation of the unit (index of categories in alphabetical order)
         """
         categories = continuum.categories if self.categories is None else self.categories
 
@@ -98,6 +107,14 @@ class AbstractDissimilarity(metaclass=ABCMeta):
     def _build_arrays_alignment(self, alignment: 'Alignment') -> np.ndarray:
         """
         Builds the compact, array-shaped representation of an alignment.
+        It is a 3D array where:
+            - each array[u] corresponds to a unitary alignment
+            - each array[u, a] corresponds to the unit of annotator a in the unitary alignment (alphabetical order)
+            - each array[u, a, 0 - 3] correspond respectively to:
+                - Start of the segment
+                - End of the segment
+                - Duration of the segment
+                - Annotation of the unit (index of categories in alphabetical order) (-1.0 if empty unit)
         """
         categories = alignment.categories if self.categories is None else self.categories
         assert categories.issuperset(alignment.categories)
@@ -123,7 +140,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
                             nb.float32))
     def _compute_alignment_disorders(alignment_array: np.ndarray, d_mat, delta_empty: float):
         """
-        Returns the array of the disorders of each unitary alignment of the provided
+        Returns the array of the disorder of each unitary alignment of the provided
         alignment (in matrix form) using given matrix-form disorder.
         """
         nb_alignments, nb_annotators, _ = alignment_array.shape
@@ -148,7 +165,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
     def _get_all_valid_alignments(unit_arrays: nb.typed.List,
                                   d_mat,
                                   delta_empty: float):
-        chunk_size = (10**5) // 8
+        chunk_size = 10000
         nb_annotators = len(unit_arrays)
         c2n = (nb_annotators * (nb_annotators - 1) // 2)
         criterium = c2n * delta_empty * nb_annotators
@@ -160,11 +177,13 @@ class AbstractDissimilarity(metaclass=ABCMeta):
             sizes_with_null[annotator_id] = len(unit_arrays[annotator_id]) + 1
 
         # PRECOMPUTATION OF ALL INTER-ANNOTATOR COUPLES OF UNITS
+        # list (2D) of all inter-annotator unit-to-unit dissimilarity
         precomputation = nb.typed.List([nb.typed.List([np.zeros((1, 1), dtype=np.float32) for _ in range(i)])
                                         for i in range(nb_annotators)])
         for annotator_a in range(nb_annotators):
             for annotator_b in range(annotator_a):
                 nb_annot_a, nb_annot_b = sizes[annotator_a], sizes[annotator_b]
+                # Empty units are at index nb_annot_x, so matrix is filled with delta-empties.
                 matrix = np.full((nb_annot_a + 1, nb_annot_b + 1), fill_value=delta_empty, dtype=np.float32)
                 for annot_a in range(nb_annot_a):
                     for annot_b in range(nb_annot_b):
@@ -180,16 +199,15 @@ class AbstractDissimilarity(metaclass=ABCMeta):
             disorder = 0
             for annot_a in range(nb_annotators):
                 for annot_b in range(annot_a):
-                    # this block looks a bit slow (because of all the variables
-                    # declarations) but should be fairly sped up automatically
-                    # by the LLVM optimization pass
-                    unit_a_id, unit_b_id = unitary_alignment[annot_a], unitary_alignment[annot_b]
-                    disorder += precomputation[annot_a][annot_b][unit_a_id, unit_b_id]
+                    disorder += precomputation[annot_a][annot_b]\
+                                              [unitary_alignment[annot_a], unitary_alignment[annot_b]]
             if disorder <= criterium:
                 disorders[i_chosen] = disorder
                 alignments[i_chosen] = unitary_alignment
                 i_chosen += 1
                 if i_chosen == chunk_size:
+                    # Increasing the size of the result array if full (security, doesn't happen often since chunk size
+                    # is high)
                     disorders = np.concatenate((disorders, np.zeros(chunk_size // 2, dtype=np.float32)))
                     alignments = np.concatenate((alignments, np.zeros((chunk_size // 2, nb_annotators), dtype=np.int16)))
                     chunk_size += chunk_size // 2
@@ -226,8 +244,8 @@ class PositionalDissimilarity(AbstractDissimilarity):
     Positional-sporadic dissimilarity. Takes only the position of annotations into account.
     This distance is :
      - 0 when segments are equal
-     - < 1 when segments completely overlap :math:`A \cup B = A` or :math:`B`)
-     - > 1 when segments are separated (:math:`A \cap B = \emptyset`)
+     - < delta_empty when segments completely overlap :math:`A \cup B = A` or :math:`B`)
+     - > delta_empty when segments are separated (:math:`A \cap B = \emptyset`)
     """
     def __init__(self, delta_empty: float = 1.0):
         super().__init__(delta_empty=delta_empty)
@@ -254,45 +272,26 @@ class CategoricalDissimilarity(AbstractDissimilarity, metaclass=abc.ABCMeta):
         super().__init__(categories, delta_empty)
 
 
-class PrecomputedCategoricalDissimilarity(CategoricalDissimilarity, metaclass=abc.ABCMeta):
+class AbsoluteCategoricalDissimilarity(CategoricalDissimilarity):
     """
-    Categorical dissimilarity, whose values are precomputed from a (str, str) -> float function
-    (the `cat_dissim_func` method) and the list of categories provided.
+    Basic categorical dissimilarity. Worth 0.0 when categories are identical, delta_empty otherwise.
     """
-    def __init__(self, categories: SortedSet, delta_empty: float = 1.0):
-        nb_categories = len(categories)
-        self._matrix = np.zeros((nb_categories, nb_categories), dtype=np.float32)
-        max_val = 1.0
-        for i in range(nb_categories):
-            for j in range(i):
-                dist_cat = self.cat_dissim_func(categories[i], categories[j])
-                max_val = max(max_val, dist_cat)
-                self._matrix[i, j] = dist_cat
-                self._matrix[j, i] = dist_cat
-        self._matrix /= max_val
-
-        super().__init__(categories, delta_empty)
-
-    @staticmethod
-    @abc.abstractmethod
-    def cat_dissim_func(str1: str, str2: str):
-        raise NotImplemented()
+    def __init__(self, delta_empty: float = 1.0):
+        super().__init__(None, delta_empty=delta_empty)
 
     def compile_d_mat(self):
-        matrix = self._matrix
         delta_empty = self.delta_empty
 
         @dissimilarity_dec
         def d_mat(unit1: np.ndarray, unit2: np.ndarray):
-            return matrix[np.int16(unit1[3]), np.int16(unit2[3])] * delta_empty
+            return (0 if unit1[3] == unit2[3] else 1) * delta_empty
         return d_mat
 
     def d(self, unit1: 'Unit', unit2: 'Unit'):
-        return self._matrix[self.categories.index(unit1.annotation),
-                            self.categories.index(unit2.annotation)] * self.delta_empty
+        return float(unit1.annotation != unit2.annotation) * self.delta_empty
 
 
-class MatrixCategoricalDissimilarity(CategoricalDissimilarity):
+class PrecomputedCategoricalDissimilarity(CategoricalDissimilarity):
     """
     Categorical dissimilarity with a provided matrix that contains all the category-to-category dissimilarity.
     The indexes of the matrix correspond to the **categories in alphabetical order**.
@@ -317,32 +316,38 @@ class MatrixCategoricalDissimilarity(CategoricalDissimilarity):
                             self.categories.index(unit2.annotation)] * self.delta_empty
 
 
-class AbsoluteCategoricalDissimilarity(AbstractDissimilarity):
+class LambdaCategoricalDissimilarity(PrecomputedCategoricalDissimilarity, metaclass=abc.ABCMeta):
     """
-    Basic categorical dissimilarity. Worth 0.0 when categories are identical, delta_empty otherwise.
+    Categorical dissimilarity, whose values are precomputed from a (str, str) -> float function
+    (the `cat_dissim_func` method) and the list of categories provided.
     """
-    def __init__(self, delta_empty: float = 1.0):
-        super().__init__(delta_empty=delta_empty)
+    def __init__(self, labels: Iterable[str], delta_empty: float = 1.0):
+        categories = SortedSet(labels)
+        nb_categories = len(categories)
+        matrix = np.zeros((nb_categories, nb_categories), dtype=np.float32)
+        max_val = 1.0
+        for i in range(nb_categories):
+            for j in range(i):
+                dist_cat = self.cat_dissim_func(categories[i], categories[j])
+                max_val = max(max_val, dist_cat)
+                self._matrix[i, j] = dist_cat
+                self._matrix[j, i] = dist_cat
+        matrix /= max_val
 
-    def compile_d_mat(self):
-        delta_empty = self.delta_empty
+        super().__init__(categories, matrix, delta_empty)
 
-        @dissimilarity_dec
-        def d_mat(unit1: np.ndarray, unit2: np.ndarray):
-            return (0 if unit1[3] == unit2[3] else 1) * delta_empty
-        return d_mat
+    @staticmethod
+    @abc.abstractmethod
+    def cat_dissim_func(str1: str, str2: str):
+        raise NotImplemented()
 
-    def d(self, unit1: 'Unit', unit2: 'Unit'):
-        return float(unit1.annotation != unit2.annotation) * self.delta_empty
-
-
-class LevenshteinCategoricalDissimilarity(PrecomputedCategoricalDissimilarity):
+class LevenshteinCategoricalDissimilarity(LambdaCategoricalDissimilarity):
     """
     Precomputed categorical dissimilarity whose value is the proportional levenshtein
     distance between the category labels.
     """
-    def __init__(self, categories: SortedSet, delta_empty: float = 1.0):
-        super().__init__(categories, delta_empty)
+    def __init__(self, labels: Iterable[str], delta_empty: float = 1.0):
+        super().__init__(labels, delta_empty)
 
     @staticmethod
     @nb.cfunc(nb.float32(nb.types.string, nb.types.string))
@@ -368,20 +373,54 @@ class LevenshteinCategoricalDissimilarity(PrecomputedCategoricalDissimilarity):
 
 class OrdinalCategoricalDissimilarity(PrecomputedCategoricalDissimilarity):
     """
+    Categorical dissimilarity where each label is given a position on the real axis, and the disorder between
+    categories of positions 'a' and 'b' being |a - b|/m * delta_empty with m the maximum position. If not provided,
+    positions are 0, 1, 2...
+    """
+    def __init__(self, labels: Iterable[str], p: Iterable[float] = None, delta_empty=1.0):
+        """
+
+        Parameters
+        ----------
+        labels: Iterable of str
+            The categories involved in the dissimilarity
+        p: Iterable of floats
+            The real numbers associated with each label, in the same order.
+        """
+        labels = np.array(labels, dtype=str)
+        if len(labels) != len(np.unique(labels)):
+            raise ValueError("Prodided labels must not have duplicates.")
+
+        if p is None:
+            p = np.arange(len(labels), dtype=np.float32)
+
+        if len(p) != len(labels):
+            raise ValueError("Labels' and their associated numbers' iterables have not the same length")
+
+        indexes = np.argsort(labels)
+        matrix = np.zeros((len(labels), len(labels)), dtype=np.float32)
+        max_val = 1.0
+        for i in indexes:
+            for j in indexes:
+                matrix[i, j] = abs(p[i] - p[j])
+                max_val = max(matrix[i, j], max_val)
+        matrix /= max_val
+
+        super().__init__(SortedSet(labels), matrix, delta_empty)
+
+
+class NumericalCategoricalDissimilarity(OrdinalCategoricalDissimilarity):
+    """
     Categorical dissimilarity made for numerical categories (i.e a category is a float or int literal).
     The disorder between categories 'a' and 'b' being |a - b|/m * delta_empty with m the maximum category.
     """
-    def __init__(self, categories: SortedSet, delta_empty: float = 1.0):
+    def __init__(self, labels: Iterable[str], delta_empty: float = 1.0):
         try:
-            np.array(list(categories), dtype=np.float32)
+            labels_num = np.array(list(labels), dtype=np.float32)
         except ValueError:
-            raise ValueError("Cannot-use ordinal dissimilarity on non-numeric categories.")
+            raise ValueError("Cannot use ordinal dissimilarity on non-numeric categories.")
 
-        super().__init__(categories, delta_empty)
-
-    @staticmethod
-    def cat_dissim_func(str1: str, str2: str):
-        return abs(float(str1) - float(str2))
+        super().__init__(labels, labels_num, delta_empty)
 
 
 class CombinedCategoricalDissimilarity(AbstractDissimilarity):
@@ -411,7 +450,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
             cat_dissim = AbsoluteCategoricalDissimilarity()
 
         cat_dissim.delta_empty = delta_empty
-        self.categorical_dissim: AbstractDissimilarity = cat_dissim
+        self.categorical_dissim: CategoricalDissimilarity = cat_dissim
         self._alpha = alpha
         self._beta = beta
 

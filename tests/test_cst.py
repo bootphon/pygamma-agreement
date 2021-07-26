@@ -1,7 +1,7 @@
 """Tests for the CST & random reference generation"""
 from pathlib import Path
 from pygamma_agreement.continuum import Continuum
-from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity, OrdinalCategoricalDissimilarity
+from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity, NumericalCategoricalDissimilarity
 from pygamma_agreement.cst import CorpusShufflingTool
 from pygamma_agreement.sampler import StatisticalContinuumSampler, ShuffleContinuumSampler
 import numpy as np
@@ -43,7 +43,7 @@ def test_cst_0():
     dissim = CombinedCategoricalDissimilarity(delta_empty=1,
                                               alpha=3,
                                               beta=1,
-                                              cat_dissim=OrdinalCategoricalDissimilarity(categories))
+                                              cat_dissim=NumericalCategoricalDissimilarity(categories))
     cst_alex = CorpusShufflingTool(0.0, continuum)  # alex is reference
 
     # A shuffle with magnitude 0.0 just copies the reference.
@@ -75,7 +75,7 @@ def test_cst_1():
     dissim = CombinedCategoricalDissimilarity(delta_empty=1,
                                               alpha=3,
                                               beta=1,
-                                              cat_dissim=OrdinalCategoricalDissimilarity(categories))
+                                              cat_dissim=NumericalCategoricalDissimilarity(categories))
     cst_alex = CorpusShufflingTool(1.0, continuum)  # alex is reference
     shuffled = cst_alex.corpus_shuffle(["Martino", "Martingale"],
                                        shift=True,
@@ -101,7 +101,7 @@ def test_cst_cat():
     dissim = CombinedCategoricalDissimilarity(delta_empty=1,
                                               alpha=1,
                                               beta=3,
-                                              cat_dissim=OrdinalCategoricalDissimilarity(categories))
+                                              cat_dissim=NumericalCategoricalDissimilarity(categories))
     cst_alex = CorpusShufflingTool(1.0, continuum)  # alex is reference
     # We test the category shuffle independently for the special options.
     shuffled_cat = cst_alex.corpus_from_reference(["martino", "Martingale", "Martine"])
@@ -125,7 +125,7 @@ def test_cst_cat():
     dissim = CombinedCategoricalDissimilarity(delta_empty=1,
                                               alpha=1,
                                               beta=3,  # higher beta should make the gamma fall a lot since categories
-                                              cat_dissim=OrdinalCategoricalDissimilarity(categories))  # are now a mess
+                                              cat_dissim=NumericalCategoricalDissimilarity(categories))  # are now a mess
     assert shuffled_cat.compute_gamma(dissim).gamma < 0.7
 
 

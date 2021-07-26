@@ -45,6 +45,9 @@ def levenshtein(str1: str, str2: str):
 
 @nb.njit()
 def iter_tuples(sizes: np.ndarray):
+    """
+    Iterates over all the arrays of {0..sizes[0]-1} * {0..size[1]-1} * ... * {0..size[n-1]-1}
+    """
     nb_annotators = len(sizes)
     current = np.zeros(nb_annotators, dtype=np.int16)
     while True:
