@@ -49,5 +49,6 @@ then:
    principles
    cli
    api_reference
+   how-to-s
    issues
    changelog
