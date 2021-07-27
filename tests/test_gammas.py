@@ -6,7 +6,7 @@ import pytest
 
 from pygamma_agreement.continuum import Continuum
 from pygamma_agreement.dissimilarity import (CombinedCategoricalDissimilarity,
-                                             PositionalDissimilarity,
+                                             PositionalSporadicDissimilarity,
                                              NumericalCategoricalDissimilarity,
                                              LevenshteinCategoricalDissimilarity,
                                              OrdinalCategoricalDissimilarity)
@@ -82,7 +82,7 @@ def test_gamma_alexpaulsuzan():
 def test_gamma_alexpaulsuzan_otherdissims():
     np.random.seed(4772)
     continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
-    dissimilarity = PositionalDissimilarity()
+    dissimilarity = PositionalSporadicDissimilarity()
 
     gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.05)
 

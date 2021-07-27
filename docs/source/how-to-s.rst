@@ -35,7 +35,7 @@ It is made this way to optimize as much as possible the very costly computation 
 This is essentially the minimum skeleton needed to define a new positional dissimilarity. You can also use additionnal
 attributes to make your dissimilarity more parametrizable.
 
-For this example, the dissimilarity we'll be implementing will be defined as such : for :math:`p` an integer,
+For this example, the dissimilarity we'll be implementing will be defined as such : for an integer :math:`p`,
 
 .. math::
 
@@ -86,7 +86,7 @@ Let's write the ``MyPositionalDissimilarity.compile_d_mat`` method to better exp
         from pygamma_agreement import dissimilarity_dec
 
         @dissimilarity_dec  # This decorator specifies that this function will be compiled.
-        def d_mat(unit1: np.ndarray, unit2: np.ndarray):
+        def d_mat(unit1: np.ndarray, unit2: np.ndarray) -> float:
             # We're in numba environment here, which means that only python/numpy types and operations will work.
             return (abs(unit1[0] - unit2[0])**p
                     + abs(unit1[1] - unit2[1])**p)**(1 / p) * delta_empty
@@ -122,7 +122,8 @@ interface avaible : You just need to inherit the ``LambdaCategoricalDissimilarit
 ``cat_dissim_func`` static method :
 
 .. code-block:: python
-    class LevenshteinCategoricalDissimilarity(LambdaCategoricalDissimilarity):
+
+    class MyCategoricalDissimilarity(LambdaCategoricalDissimilarity):
     # Precomputation requires the category labels to be saved. Don't use this dissimilarity with
     # a continuum containing unspecified categories
     def __init__(self, labels: Iterable[str], delta_empty: float = 1.0):
@@ -135,7 +136,154 @@ interface avaible : You just need to inherit the ``LambdaCategoricalDissimilarit
 Beware that in reality, the resulting dissimilarity between categories ``a`` and ``b`` will be
 ``cat_dissim_func(a, b) * delta_empty``
 
+Your new categorical dissimilarity is now ready. You can, for instance, use it in a combined categorical dissimilarity :
+
+.. code-block:: python
+
+    from pygamma_agreement import CombinedCategoricalDissimilarity, Continuum
+
+    continuum: Continuum
+    dissim = CombinedCategoricalDissimilarity(alpha=3, beta=1,
+                                              cat_dissim=MyCategoricalDissimilarity(continuum.categories))
+    gamma_results = continuum.compute_gamma(dissim)
+
+Combining dissimilarities
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The only combined dissimilarity (a dissmilarity that considers both positionning and categorizing of units)
+natively available in ``pygamma-agreement`` is the one introduced by [mathet2015]_
+(``CombinedCategoricalDissimilarity``):
+
+.. math::
+
+    d_{\alpha, \beta}(u, v) = \alpha d_{pos}(u, v) + \beta d_{cat}(u, v)
+
+.. math::
+
+    d_{\alpha, \beta}(u_{\emptyset}, u) = d_{\alpha, \beta}(u, u_{\emptyset}) = \Delta_{\emptyset}
+
+Imagine instead that you want to adapt this this dissimilarity geometrically :
+
+.. math::
+
+    d_{\alpha, \beta}(u, v) = d_{pos}(u, v)^{\alpha} \times d_{cat}(u, v)^{\beta}
+
+.. math::
+
+    d_{\alpha, \beta}(u_{\emptyset}, u) = d_{\alpha, \beta}(u, u_{\emptyset}) = \Delta_{\emptyset}
+
+
+Let's start by using the same skeleton as for a simple positional dissimilarity :
+
+.. code-block:: python
+
+    from pygamma_agreement import AbstractDissimilarity, Unit
+    import numpy as np
+    from typing import Callable
+
+    class MyCombinedDissimilarity(AbstractDissimilarity):
+        def __init__(self, alpha: float, beta: float,
+                     pos_dissim: AbstractDissimilarity,
+                     cat_dissim: CategoricalDissimilarity,
+                     delta_empty=1.0):
+            self.alpha, self.beta = alpha, beta
+            self.pos_dissim, self.cat_dissim = pos_dissim, cat_dissim
+            super().__init__(delta_empty=delta_empty)
+
+        # Abstract methods overrides
+        def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], np.float32]:
+            ...
+
+        def d(self, unit1: Unit, unit2: Unit) -> float:
+            ...
+
+The ``d`` method can simply make use of the other dissimilarities' ``d`` s :
+
+.. code-block::
+
+    def d(self, unit1: Unit, unit2: Unit) -> float:
+            return ( self.pos_dissim.d(unit1, unit2)**(self.alpha)
+                     * self.cat_dissim.d(unit1, unit2)**(self.beta) )
+
+Moreover, you can access a dissimilarity's ``numba``-compiled function from the ``d_mat`` attribute, which is
+usable in ``numba``-compiled environment. Thus, compiling the dissimilarity function is pretty simple, and very
+similar to a simple dissimilarity with only arithmetic operations. Let's illustrate this :
+
+.. code-block:: python
+
+    def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], np.float32]:
+            alpha, beta = self.alpha, self.beta
+            pos, cat = self.pos_dissim.d_mat, self.cat_dissim.d_mat
+            # d_mat attribute contains the numba-compiled functions
+
+            from pygamma_agreement import dissimilarity_dec
+            @dissimilarity_dec
+            def d_mat(unit1: np.ndarray, unit2: np.ndarray) -> float:
+                return pos(unit1, unit2)**alpha * cat(unit1, unit2)**beta
+
+            return d_mat
+
+And that's it ! Now, in theory, you have all the tools you need to compute the gamma-agreement with any dissimilarity.
+
+Generating random continua for comparison using the Statistical Sampler and the Corpus Shuffling Tool
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For a situation where you need to measure your dissimilarity's influence on the gamma-agreement depending on
+certain possible errors between annotations, ``pygamma-agreement`` contains all the the needed tools :
+the ``StatisticalContinuumSampler``, which generates totally random continuua, and the
+``CorpusShufflingTool``, that simulates errors when annotating a resource.
+
+First, let's generate a random reference for the corpus shuffling tool :
+
+.. code-block:: python
+
+    from pygamma_agreement import StatisticalContinuumSampler, CorpusShufflingTool, Continuum
+
+    sampler = StatisticalContinuumSampler()
+    # avg stands for average, std stands for standart deviation. All values are generated using normal distribution.
+    sampler.init_sampling_custom(["annotator_ref"],
+                                 avg_num_units_per_annotator=100, std_num_units_per_annotator=10,
+                                 avg_duration=15, std_duration=3,
+                                 avg_gap=5, std_gap=1,
+                                 categories=["Speaker1", "Speaker2", "Speaker3"],
+                                 categories_weight=[0.5, 0.3, 0.2])  # Proportions of annotations per speaker
+    reference_continuum: Continuum = sampler.sample_from_continuum
+
+You could also measure the behavior of the gamma with your dissimilarity by tweaking the values in the sampler.
+Now, let's use the corpus shuffling tool to generate a continuum with several annotators, with the selected errors
+with a given magnitude :math:`m`:
+
+.. code-block:: python
+
+    cst = CorpusShufflingTool(magnitude=m,  # m is a float in [0, 1]
+                              reference_continuum=reference_continuum)
+    generated_continuum: Continuum = cst.corpus_shuffle(
+                                         ["Annotator1", "Annotator2", "Annotator3"],
+                                         shift=True,  # annotations are randomly translated proportionally to m
+                                         false_pos=True,  # random annotations are added, amount propotional to m
+                                         false_neg=True,  # random annotations are discarded, amount propotional to m
+                                         split=True,  # segments are splitted in two, number of splits propotional to m
+                                         cat_shuffle=True)  # annotation categories are changed, amount propotional to m
+
+
+
+
+
+
+.. code-block:: python
+
+
+
+
+
+
+
+
+
+
 ..  [mathet2015] Yann Mathet et Al.
     The Unified and Holistic Method Gamma (γ) for Inter-Annotator Agreement
     Measure and Alignment (Yann Mathet, Antoine Widlöcher, Jean-Philippe Métivier)
+
+
 

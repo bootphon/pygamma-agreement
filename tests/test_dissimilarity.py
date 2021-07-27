@@ -7,7 +7,7 @@ from sortedcontainers import SortedSet
 
 from pygamma_agreement.alignment import (UnitaryAlignment)
 from pygamma_agreement.continuum import Continuum, Unit
-from pygamma_agreement.dissimilarity import (PositionalDissimilarity,
+from pygamma_agreement.dissimilarity import (PositionalSporadicDissimilarity,
                                              CombinedCategoricalDissimilarity,
                                              PrecomputedCategoricalDissimilarity)
 
@@ -56,7 +56,7 @@ def test_positional_dissimilarity():
     annotation[Segment(7, 19)] = 'Jeremy'
     continuum.add_annotation('pierrot', annotation)
 
-    pos_dis = PositionalDissimilarity(delta_empty=0.5)
+    pos_dis = PositionalSporadicDissimilarity(delta_empty=0.5)
 
     list_dis = []
     for liza_unit in continuum['liza']:
@@ -87,7 +87,7 @@ def test_positional_dissimilarity():
 
 
 def test_positional_dissimilarity_figure10():
-    pos_dis = PositionalDissimilarity(delta_empty=1.0)
+    pos_dis = PositionalSporadicDissimilarity(delta_empty=1.0)
     segments = {
         (Segment(4, 14), Segment(40, 44)): 22.2,
         (Segment(4, 14), Segment(4, 14)): 0.,
@@ -103,7 +103,7 @@ def test_positional_dissimilarity_figure10():
 
 
 def test_positional_dissimilarity_figure20_scale_effect():
-    pos_dis = PositionalDissimilarity(delta_empty=1.0)
+    pos_dis = PositionalSporadicDissimilarity(delta_empty=1.0)
     unit_align_a = UnitaryAlignment([("pierrot", Unit(Segment(0, 7), "cat_a")),
                                      ("liza", Unit(Segment(0, 10), "cat_b"))])
     unit_align_b = UnitaryAlignment([("pierrot", Unit(Segment(0, 21), "cat_a")),

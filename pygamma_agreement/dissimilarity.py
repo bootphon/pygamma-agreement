@@ -242,7 +242,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         return self._compute_alignment_disorders(alignment_arrays, self.d_mat, self.delta_empty)
 
 
-class PositionalDissimilarity(AbstractDissimilarity):
+class PositionalSporadicDissimilarity(AbstractDissimilarity):
     """
     Positional-sporadic dissimilarity. Takes only the position of annotations into account.
     This distance is :
@@ -447,23 +447,26 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
                  alpha: float = 1.0,
                  beta: float = 1.0,
                  delta_empty: float = 1.0,
+                 pos_dissim: AbstractDissimilarity = None,
                  cat_dissim: CategoricalDissimilarity = None):
-        self.positional_dissim: AbstractDissimilarity = PositionalDissimilarity(delta_empty)
+        if pos_dissim is None:
+            pos_dissim = PositionalSporadicDissimilarity(delta_empty)
         if cat_dissim is None:
             cat_dissim = AbsoluteCategoricalDissimilarity()
 
         cat_dissim.delta_empty = delta_empty
+        self.positional_dissim: AbstractDissimilarity = pos_dissim
         self.categorical_dissim: CategoricalDissimilarity = cat_dissim
-        self._alpha = alpha
-        self._beta = beta
+        self.alpha = alpha
+        self.beta = beta
 
         super().__init__(delta_empty=delta_empty, categories=cat_dissim.categories)
 
     def compile_d_mat(self):
         pos = self.positional_dissim.d_mat
         cat = self.categorical_dissim.d_mat
-        alpha = self._alpha
-        beta = self._beta
+        alpha = self.alpha
+        beta = self.beta
 
         @dissimilarity_dec
         def d_mat(unit1: np.ndarray, unit2: np.ndarray):
@@ -474,22 +477,4 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
     def d(self, unit1: 'Unit', unit2: 'Unit'):
         return (self.alpha * self.positional_dissim.d(unit1, unit2)
                 + self.beta * self.categorical_dissim.d(unit1, unit2))
-
-    @property
-    def alpha(self):
-        return self._alpha
-
-    @property
-    def beta(self):
-        return self._beta
-
-    @alpha.setter
-    def alpha(self, alpha):
-        self._alpha = alpha
-        self.d_mat = self.compile_d_mat()
-
-    @beta.setter
-    def beta(self, beta):
-        self._beta = beta
-        self.d_mat = self.compile_d_mat()
 
