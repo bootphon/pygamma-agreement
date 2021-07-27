@@ -341,7 +341,7 @@ class LambdaCategoricalDissimilarity(PrecomputedCategoricalDissimilarity, metacl
 
     @staticmethod
     @abc.abstractmethod
-    def cat_dissim_func(str1: str, str2: str):
+    def cat_dissim_func(str1: str, str2: str) -> float:
         raise NotImplemented()
 
 class LevenshteinCategoricalDissimilarity(LambdaCategoricalDissimilarity):
@@ -353,8 +353,8 @@ class LevenshteinCategoricalDissimilarity(LambdaCategoricalDissimilarity):
         super().__init__(labels, delta_empty)
 
     @staticmethod
-    @nb.cfunc(nb.float32(nb.types.string, nb.types.string))
-    def levenshtein(str1: str, str2: str):
+    @nb.njit(nb.float32(nb.types.string, nb.types.string))
+    def levenshtein(str1: str, str2: str) -> float:
         n1, n2 = len(str1) + 1, len(str2) + 1
         matrix_lev = np.zeros((n1, n2), dtype=np.int16)
         for i in range(1, n1):
@@ -370,7 +370,7 @@ class LevenshteinCategoricalDissimilarity(LambdaCategoricalDissimilarity):
         return matrix_lev[-1, -1] / np.maximum(n1, n2)
 
     @staticmethod
-    def cat_dissim_func(str1: str, str2: str):
+    def cat_dissim_func(str1: str, str2: str) -> float:
         return LevenshteinCategoricalDissimilarity.levenshtein(str1, str2)
 
 

@@ -74,6 +74,8 @@ The package comes with a unit-tests suit. To run it, first install *pytest* on y
     $ pip install pytest
     $ pytest test/
 
+*Beware that tests require `cylp` and the `CBC` solver to pass.*
+
 ## Submitting and issue or contributing
 
 Please read `CONTRIBUTING.md` before submitting and issue or writing some contribution 
