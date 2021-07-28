@@ -216,8 +216,11 @@ Right now, there are three types of dissimilarities available :
 
 Positional Dissimilarity
 ------------------------
-The positional dissimilarity is used to measure the *positional* or *temporal* disagreement
-between two annotated units :math:`u` and :math:`v`. Its formula is :
+A positional dissimilarity is used to measure the *positional* or *temporal* disagreement
+between two annotated units :math:`u` and :math:`v`.
+
+[mathet2015]_ introduces the positional sporadic dissimilarity as the reference positional dissimilarity
+for the gamma-agreement. Its formula is :
 
 .. math::
     d_{pos}(u,v) = \left(
@@ -227,22 +230,23 @@ between two annotated units :math:`u` and :math:`v`. Its formula is :
 
 
 
-Here's how to instanciate a ``PositionnalDissimilarity`` object :
+Here's how to instanciate a ``PositionnalSporadicDissimilarity`` object :
 
 .. code-block:: python
 
     from pygamma_agreement import PositionalDissimilarity
-    dissim_pos = PositionalDissimilarity(delta_empty=1.0)
+    dissim_pos = PositionalSporadicDissimilarity(delta_empty=1.0)
 
 
 and that's it.
 You can also use ``dissim_pos.d(unit1, unit2)`` to obtain directly the value of the dissimilarity between two units.
 It is however very unlikely that one would need to use it, as this value is only needed in the very low end of the
 gamma computation algorithm.
+
 Categorical Dissimilarity
 -------------------------
 
-The categorical dissimilarity is used to measure the *categorical* disagreement
+A categorical dissimilarity is used to measure the *categorical* disagreement
 between two annotated units :math:`u` and :math:`v`.
 
 
@@ -282,9 +286,9 @@ here's how to instanciate a categorical dissimilarity:
 
 .. code-block:: python
 
-    D = array([[0. , 0.5, 1. ],
-               [0.5, 0. , 1. ],
-               [1. , 1. , 0. ]])
+    D = array([[ 0.,   0.5,    1. ],
+               [0.5,    0.,  0.75 ],
+               [ 1.,  0.75,    0. ]])
 
     from pygamma_agreement import PrecomputedCategoricalDissimilarity
     from sortedcontainers import SortedSet
@@ -294,43 +298,29 @@ here's how to instanciate a categorical dissimilarity:
                                                 matrix=D,
                                                 delta_empty=1.0)
 
-It's important to note that the index of each category in the categorical dissimilarity matrix is its index in
-**alphabetecial order**.
+.. warning::
+    It's important to note that the index of each category in the categorical dissimilarity matrix is its index in
+    **alphabetecial order**. In this example, the considered dissimilarity will be:
+        - :math:`dist_{cat}('Adj', 'Noun') = 0.5`
+        - :math:`dist_{cat}('Adj', 'Verb') = 1.0`
+        - :math:`dist_{cat}('Noun', 'Verb') = 0.75`
 
-There are other other available categorical dissimilarity, such as the ``LevenshteinCategoricalDissimilarity`` which
+You can also use the default categorical dissimilarity, the ``AbsoluteCategoricalDissimilarity``;
+there are also other available categorical dissimilarities, such as the ``LevenshteinCategoricalDissimilarity`` which
 is based on the levenshtein distance.
-
-You can also create your own Categorical dissimilarity using any (str, str) -> float function :
-
-.. code-block:: python
-
-    from pygamma_agreement import LambdaCategoricalDissimilarity
-    from sortedcontainers import SortedSet
-    from Levenshtein import distance as lev
-
-    class MyCategoricalDissimilarity(LambdaCategoricalDissimilarity):
-        @staticmethod
-        def cat_dissim_func(str1: str, str2: str) -> float:
-            return ... # any distance between category strings
-
-
-    categories = SortedSet(('Noun', 'Verb', 'Adj'))
-    dissim_cat = MyCategoricalDissimilarity(categories,
-                                            delta_empty=1.0)
-
 
 .. _combined-dissim:
 
 Combined Dissimilarity
 ----------------------
 
-The combined dissimilarity uses a linear combination of the two previous
+The combined categorical dissimilarity uses a linear combination of the two previous
 *categorical* and *positional* dissimilarities. The two coefficients used to
 weight the importance of each dissimilarity are :math:`\alpha` and :math:`\beta` :
 
 .. math::
 
-    d_{combi}^{\alpha,\beta}(u,v) = \alpha . d_{pos} + \beta . d_{cat}
+    d_{combi}^{\alpha,\beta}(u,v) = \alpha . d_{pos}(u,v) + \beta . d_{cat}(u,v)
 
 This is the dissimilarity recommended by [mathet2015]_ for computing gamma.
 
@@ -340,10 +330,11 @@ It takes the same parameters as the two other dissimilarities, plus :math:`\alph
 
     from pygamma_agreement import CombinedCategoricalDissimilarity, LevenshteinCategoricalDissimilarity
 
-    categories = SortedSet(('Noun', 'Verb', 'Adj'))
+    categories = ['Noun', 'Verb', 'Adj']
     dissim = CombinedCategoricalDissimilarity(alpha=3,
                                               beta=1,
                                               delta_empty=1.0,
+                                              pos_dissim=PositionalSporadicDissimilarity()
                                               cat_dissim=LevenshteinCategoricalDissimilarity(categories))
 
 
@@ -373,10 +364,10 @@ The gamma agreement's formula is finally:
 
     \gamma = 1 - \frac{\delta_{best}}{\delta_{random}}
 
-Several points that should be made about that value:
+Several points that should be clarified about that value:
 
-* it is bounded by :math:`]-\infty,1]` but for most "regular" situations it should be contained in :math:`[0, 1]`
-* the higher and the closer it is to 1, the better.
+* it is bounded by :math:`]-\infty,1]` but for most "regular" situations it should be contained within :math:`[0, 1]`
+* the higher and the closer it is to 1, the more similar the annotators' annotations are.
 
 the gamma value is computed from a ``Continuum`` object, using a given ``Dissimilarity`` object :
 

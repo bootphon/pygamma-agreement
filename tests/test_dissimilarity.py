@@ -9,7 +9,10 @@ from pygamma_agreement.alignment import (UnitaryAlignment)
 from pygamma_agreement.continuum import Continuum, Unit
 from pygamma_agreement.dissimilarity import (PositionalSporadicDissimilarity,
                                              CombinedCategoricalDissimilarity,
-                                             PrecomputedCategoricalDissimilarity)
+                                             PrecomputedCategoricalDissimilarity,
+                                             AbstractDissimilarity,
+                                             CategoricalDissimilarity,
+                                             LambdaCategoricalDissimilarity)
 
 
 def test_categorical_dissimilarity():
@@ -166,3 +169,100 @@ def test_combi_categorical_dissimilarity():
                                    ("pierrot", Unit(Segment(1, 5), "Carol"))])
 
     assert same_align.compute_disorder(combi_dis) == np.float32(0.0)
+
+
+def test_custom_dissimilarity():
+    from pygamma_agreement import AbstractDissimilarity, Unit
+    import numpy as np
+    from typing import Callable
+
+    continuum = Continuum.from_csv("tests/data/AlexPaulSuzan.csv")
+
+    class MyPositionalDissimilarity(AbstractDissimilarity):
+        def __init__(self, p: int, delta_empty=1.0):
+            self.p = p
+            assert p > 0
+            super().__init__(delta_empty=delta_empty)
+
+        def d(self, unit1: Unit, unit2: Unit) -> float:
+            return (abs(unit1.segment.start - unit2.segment.start) ** self.p
+                    + abs(unit1.segment.end - unit2.segment.end) ** self.p) ** (1 / self.p)
+
+        def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], float]:
+            # Calling self inside d_mat makes the compiler choke, so you need to copy attributes in locals.
+            p = self.p
+            delta_empty = self.delta_empty
+            from pygamma_agreement import dissimilarity_dec
+
+            @dissimilarity_dec  # This decorator specifies that this function will be compiled.
+            def d_mat(unit1: np.ndarray, unit2: np.ndarray) -> float:
+                # We're in numba environment here, which means that only python/numpy types and operations will work.
+                return (abs(unit1[0] - unit2[0]) ** p + abs(unit1[1] - unit2[1]) ** p) ** (1 / p) * delta_empty
+            return d_mat
+
+    pos_dissim = MyPositionalDissimilarity(p=2, delta_empty=1.0)
+    np.random.seed(4556)
+    gamma_results_1 = continuum.compute_gamma(pos_dissim)
+    np.random.seed(4556)
+    gamma_results_2 = continuum.compute_gamma(PositionalSporadicDissimilarity())
+    pos_dissim.p = 10
+    pos_dissim.recompile()
+    np.random.seed(4556)
+    gamma_results_3 = continuum.compute_gamma(pos_dissim)
+
+    assert gamma_results_1.gamma != gamma_results_2.gamma
+    assert gamma_results_2.gamma != gamma_results_3.gamma
+    assert gamma_results_3.gamma != gamma_results_1.gamma
+
+    class MyCombinedDissimilarity(AbstractDissimilarity):
+        def __init__(self, alpha: float, beta: float,
+                     pos_dissim: AbstractDissimilarity,
+                     cat_dissim: CategoricalDissimilarity,
+                     delta_empty=1.0):
+            self.alpha, self.beta = alpha, beta
+            self.pos_dissim, self.cat_dissim = pos_dissim, cat_dissim
+            super().__init__(delta_empty=delta_empty)
+
+        def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], float]:
+            alpha, beta = self.alpha, self.beta
+            pos, cat = self.pos_dissim.d_mat, self.cat_dissim.d_mat
+            # d_mat attribute contains the numba-compiled function
+
+            from pygamma_agreement import dissimilarity_dec
+
+            @dissimilarity_dec
+            def d_mat(unit1: np.ndarray, unit2: np.ndarray) -> float:
+                return pos(unit1, unit2) ** alpha * cat(unit1, unit2) ** beta
+
+            return d_mat
+
+        def d(self, unit1: Unit, unit2: Unit):
+            return (self.pos_dissim.d(unit1, unit2) ** self.alpha *
+                    self.cat_dissim.d(unit1, unit2) ** self.beta)
+
+    class MyCategoricalDissimilarity(LambdaCategoricalDissimilarity):
+        @staticmethod
+        def cat_dissim_func(str1: str, str2: str) -> float:
+            for i in range(min(len(str1), len(str2))):
+                if str1[:i] != str2[:i]:
+                    return 1 - 2*(i - 1) / (len(str1) + len(str2))
+            return 1 if max(len(str1), len(str2)) > 0 else 0
+
+    cat_dissim = MyCategoricalDissimilarity(continuum.categories)
+
+    dissim1 = MyCombinedDissimilarity(3, 1, pos_dissim, cat_dissim)
+    dissim2 = CombinedCategoricalDissimilarity(3, 1, pos_dissim=pos_dissim, cat_dissim=cat_dissim)
+
+    np.random.seed(4556)
+    gamma_results_1 = continuum.compute_gamma(dissim1)
+    np.random.seed(4556)
+    gamma_results_2 = continuum.compute_gamma(dissim2)
+
+    assert gamma_results_1.gamma != gamma_results_2.gamma
+
+
+
+
+
+
+

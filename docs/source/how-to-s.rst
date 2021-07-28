@@ -25,7 +25,7 @@ It is made this way to optimize as much as possible the very costly computation 
             super().__init__(delta_empty=delta_empty)
 
         # Abstract methods overrides
-        def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], np.float32]:
+        def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], float]:
             ...
 
         def d(self, unit1: Unit, unit2: Unit) -> float:
@@ -79,7 +79,7 @@ Let's write the ``MyPositionalDissimilarity.compile_d_mat`` method to better exp
 
 .. code-block:: python
 
-    def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], np.float32]:
+    def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], float]:
         # Calling self inside d_mat makes the compiler choke, so you need to copy attributes in locals.
         p = self.p
         delta_empty = self.delta_empty
@@ -113,10 +113,19 @@ Now, the dissimilarity is ready to be used !
     dissim = MyPositionalDissimilarity(p=2, delta_empty=1.0)
     gamma_results = continuum.compute_gamma(dissim)
 
+Additionnally, if you want to re-use your dissimilarity with different parameneters, a simple call to ``recompile``
+will update the compiled function :
+
+.. code-block:: python
+
+    dissim.p = 3
+    dissim.recompile()
+    gamma_results = continuum.compute_gamma(dissim)
+
 Setting up your own categorical dissimilarity
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For compatibility reasons, it is not possible to manipulate string types in a ``numba``-compiled environment.
+For many reasons, it is not easy to manipulate string types in a ``numba``-compiled environment.
 Instead, category-to-category dissimilarities are pre-computed in python environment. Thus, there is a very simple
 interface avaible : You just need to inherit the ``LambdaCategoricalDissimilarity``, and override the
 ``cat_dissim_func`` static method :
@@ -152,7 +161,7 @@ Combining dissimilarities
 
 The only combined dissimilarity (a dissmilarity that considers both positionning and categorizing of units)
 natively available in ``pygamma-agreement`` is the one introduced by [mathet2015]_
-(``CombinedCategoricalDissimilarity``):
+(the ``CombinedCategoricalDissimilarity``):
 
 .. math::
 
@@ -191,7 +200,7 @@ Let's start by using the same skeleton as for a simple positional dissimilarity 
             super().__init__(delta_empty=delta_empty)
 
         # Abstract methods overrides
-        def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], np.float32]:
+        def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], float]:
             ...
 
         def d(self, unit1: Unit, unit2: Unit) -> float:
@@ -211,10 +220,10 @@ similar to a simple dissimilarity with only arithmetic operations. Let's illustr
 
 .. code-block:: python
 
-    def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], np.float32]:
+    def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], float]:
             alpha, beta = self.alpha, self.beta
             pos, cat = self.pos_dissim.d_mat, self.cat_dissim.d_mat
-            # d_mat attribute contains the numba-compiled functions
+            # d_mat attribute contains the numba-compiled function
 
             from pygamma_agreement import dissimilarity_dec
             @dissimilarity_dec
@@ -223,17 +232,49 @@ similar to a simple dissimilarity with only arithmetic operations. Let's illustr
 
             return d_mat
 
+Then, there's only the ``d`` method left to code.
+
+.. code-block:: python
+
+    def d(self, unit1: Unit, unit2: Unit):
+        return (self.pos_dissim.d(unit1, unit2)**self.alpha *
+                self.cat_dissim.d(unit1, unit2)**self.beta)
+
+
 And that's it ! Now, in theory, you have all the tools you need to compute the gamma-agreement with any dissimilarity.
+
+.. code-block:: python
+
+    continuum: Continuum
+    dissim = MyCombinedDissimilarity(alpha=3, beta=2,
+                                     pos_dissim=MyPositionalDissimilarity(),
+                                     cat_dissim=MyCategoricalDissimilarity(continuum.categories))
+    gamma_results = continuum.compute_gamma(dissim)
+
+.. warning::
+    Since ``numba`` compilation copies all globals by value (even collections / functions), you can't edit the ``d_mat``
+    function's parameters without compiling it again. If you want to change any of the dissimilarity's attributes,
+    it's important to call the ``recompile`` method to update the compiled dissimilarity before using it again in a
+    gamma computation :
+
+    .. code-block:: python
+
+
+        dissim.beta = 1
+        dissim.cat_dissim = OtherCategoricalDissimilarity(continuum.categories)
+        dissim.recompile()
+        gamma_results = continuum.compute_gamma(dissim)
 
 Generating random continua for comparison using the Statistical Sampler and the Corpus Shuffling Tool
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For a situation where you need to measure your dissimilarity's influence on the gamma-agreement depending on
+If you want to measure your dissimilarity's influence on the gamma-agreement depending on
 certain possible errors between annotations, ``pygamma-agreement`` contains all the the needed tools :
 the ``StatisticalContinuumSampler``, which generates totally random continuua, and the
 ``CorpusShufflingTool``, that simulates errors when annotating a resource.
 
-First, let's generate a random reference for the corpus shuffling tool :
+First, let's generate a random reference for the corpus shuffling tool, which will act as the perfectly accurate
+annotation:
 
 .. code-block:: python
 
@@ -242,7 +283,7 @@ First, let's generate a random reference for the corpus shuffling tool :
     sampler = StatisticalContinuumSampler()
     # avg stands for average, std stands for standart deviation. All values are generated using normal distribution.
     sampler.init_sampling_custom(["annotator_ref"],
-                                 avg_num_units_per_annotator=100, std_num_units_per_annotator=10,
+                                 avg_num_units_per_annotator=50, std_num_units_per_annotator=10,
                                  avg_duration=15, std_duration=3,
                                  avg_gap=5, std_gap=1,
                                  categories=["Speaker1", "Speaker2", "Speaker3"],
@@ -263,14 +304,15 @@ with a given magnitude :math:`m`:
                                          false_pos=True,  # random annotations are added, amount propotional to m
                                          false_neg=True,  # random annotations are discarded, amount propotional to m
                                          split=True,  # segments are splitted in two, number of splits propotional to m
-                                         cat_shuffle=True)  # annotation categories are changed, amount propotional to m
+                                         cat_shuffle=True,  # annotation categories are changed, amount propotional to m
+                                         include_ref=False) # If true, copies the reference's annotations.
 
+    dissim: AbstractDissimilarity
+    gamma_results = generated_continuum.compute_gamma(dissim)
 
-
-
-
-
-.. code-block:: python
+Beware that a lot of randomness is involved in gamma computation and continuum generation, so you might want to seed
+using ``np.seed`` if you're making graphs. Averaging several values computed from continua generated with the same
+parameters might be better too.
 
 
 

@@ -65,10 +65,10 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         self.delta_empty = np.float32(delta_empty)
         self.categories = categories
 
-        self.d_mat: Callable[[np.ndarray, np.ndarray], np.float32] = self.compile_d_mat()
+        self.d_mat: Callable[[np.ndarray, np.ndarray], float] = self.compile_d_mat()
 
     @abc.abstractmethod
-    def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], np.float32]:
+    def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], float]:
         """
         Must set self.d_mat to the the cfunc (decorated with @dissimilarity_dec) function that corresponds to the
         unit-to-unit, (in arrays form) disorder given by the dissimilarity.
@@ -257,7 +257,7 @@ class PositionalSporadicDissimilarity(AbstractDissimilarity):
         delta_empty = self.delta_empty
 
         @dissimilarity_dec
-        def d_mat(unit1: np.ndarray, unit2: np.ndarray):
+        def d_mat(unit1: np.ndarray, unit2: np.ndarray) -> float:
             dist = ((np.abs(unit1[0] - unit2[0]) + np.abs(unit1[1] - unit2[1])) /
                     (unit1[2] + unit2[2]))
             return dist * dist * delta_empty
@@ -286,7 +286,7 @@ class AbsoluteCategoricalDissimilarity(CategoricalDissimilarity):
         delta_empty = self.delta_empty
 
         @dissimilarity_dec
-        def d_mat(unit1: np.ndarray, unit2: np.ndarray):
+        def d_mat(unit1: np.ndarray, unit2: np.ndarray) -> float:
             return (0 if unit1[3] == unit2[3] else 1) * delta_empty
         return d_mat
 
@@ -310,7 +310,7 @@ class PrecomputedCategoricalDissimilarity(CategoricalDissimilarity):
         delta_empty = self.delta_empty
 
         @dissimilarity_dec
-        def d_mat(unit1: np.ndarray, unit2: np.ndarray):
+        def d_mat(unit1: np.ndarray, unit2: np.ndarray) -> float:
             return matrix[np.int8(unit1[3]), np.int8(unit2[3])] * delta_empty
         return d_mat
 
@@ -469,7 +469,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         beta = self.beta
 
         @dissimilarity_dec
-        def d_mat(unit1: np.ndarray, unit2: np.ndarray):
+        def d_mat(unit1: np.ndarray, unit2: np.ndarray) -> float:
             return (alpha * pos(unit1, unit2) +
                     beta * cat(unit1, unit2))
         return d_mat
