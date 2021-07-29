@@ -10,7 +10,7 @@ explanation of how these classes can be built and used together.
 
   A great part of this page is just a rehash of concepts that are explained
   in a much clearer and more detailed way in the original γ-agreement paper  [mathet2015]_.
-  This documentation is mainly aimed to giving the reader a better understanding of our API's core
+  This documentation is mainly aimed at giving the reader a better understanding of our API's core
   principles.
   If you want a deeper understanding of the gamma agreement, we strongly advise that
   you take a look at this paper.
