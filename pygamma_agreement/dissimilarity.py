@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from .continuum import Continuum
     from .alignment import Alignment
 
-dissimilarity_dec = nb.njit(nb.float32(nb.float32[:], nb.float32[:]), nopython=True)
+dissimilarity_dec = nb.njit(nb.float32(nb.float32[:], nb.float32[:]))
 
 
 class AbstractDissimilarity(metaclass=ABCMeta):
