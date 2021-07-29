@@ -538,8 +538,12 @@ class Continuum:
 
     def get_first_window(self, dissimilarity: AbstractDissimilarity, w: int = 1) -> Tuple['Continuum', float]:
         """
-        Returns a tuple (continuum, x_limit), with the continuum being the extended head of size w of
-        self, and x_limit being its right bound.
+        Returns a tuple (continuum, x_limit), where :
+            - Before x_limit, there are the (w * nb_annotators) annotations leftmost annotations
+              from the continuum.
+            - After x_limit, there are (approximately) all the annotations from the continuum
+              that have a dissimilarity lower than (delta_empty * nb_annotators) with a annotation
+              before x_limit.
         """
         annotators = list(self.annotators)
         annotations = list(self._annotations.values())
@@ -583,31 +587,6 @@ class Continuum:
                 index += 1
         return window, x_limit
 
-    def iter_windows(self, min_length: int):
-        sizes = {annotator: len(units) for annotator, units in self._annotations.items()}
-        indexes = {annotator: 0 for annotator in self._annotations.keys()}
-
-        while list(indexes.values()) != list(sizes.values()):
-            end_unit = None
-            continuum = Continuum()
-            for annotator in indexes.keys():
-                continuum.add_annotator(annotator)
-                if indexes[annotator] == sizes[annotator]:
-                    continue
-                for index in range(indexes[annotator], sizes[annotator]):
-                    unit = self._annotations[annotator][index]
-                    if end_unit is not None and unit.segment.start >= end_unit.segment.end:
-                        indexes[annotator] = index
-                        break
-                    continuum.add(annotator, unit.segment, unit.annotation)
-                    if end_unit is None and index == indexes[annotator] + min_length - 1:
-                        indexes[annotator] = index + 1
-                        end_unit = unit
-                        break
-                else:
-                    indexes[annotator] = sizes[annotator]
-            yield continuum
-
     def get_fast_alignment(self, dissimilarity: AbstractDissimilarity, window_size: int) -> 'Alignment':
         """Returns an 'approximation' of the best alignment (Very likely to be the actual best alignment for
          continua with limited overlapping)"""
@@ -622,8 +601,7 @@ class Continuum:
             # We retain only the leftmost unitary alignment in the best alignment of the window,
             # as it is the most likely to be in the global best alignment
             best_alignment = window.get_best_alignment(dissimilarity)
-            chosens =  list(best_alignment.take_until_limit(x_limit))
-            for chosen in chosens:
+            for chosen in best_alignment.take_until_limit(x_limit):
                 unitary_alignments.append(chosen)
                 disorders.append(chosen.disorder)
                 for annotator, unit in chosen.n_tuple:
@@ -631,7 +609,7 @@ class Continuum:
                         copy.remove(annotator, unit)  # Now we remove the units from the chosen alignment.
         return Alignment(unitary_alignments,
                          self,
-                         check_validity=False,
+                         check_validity=False,  # Validity has been thoroughly tested
                          disorder=np.sum(disorders) / self.avg_num_annotations_per_annotator)
 
     def measure_best_window_size(self, dissimilarity: AbstractDissimilarity):

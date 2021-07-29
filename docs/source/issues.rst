@@ -102,7 +102,8 @@ The MIP solver used is ``liblpsolve``
 **In pygamma-agreement:**
 The MIP solver used is ``GLPK``, or the faster ``CBC`` if it is installed.
 
-Although this doesn't weight on the value of gamma, it slightly does on gamma-cat and gamma-k's.
+Although this doesn't weight on the value of gamma, it slightly does on gamma-cat and gamma-k's. Thus, there is no way
+to obtain for sure the same results as the Gamma Software for gamma-cat/k.
 
 
 How to obtain the results from the Gamma Software

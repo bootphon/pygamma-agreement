@@ -106,8 +106,9 @@ this complexity can be minimized with the right window size.
   :scale: 75%
   :align: right
 
-  **This is the look of the time to compute fast-gamma to the size of the windows**. Thus, before starting to compute
-  fast-gamma, the algorithm determines the optimal window size by sampling the complexity function.
+  **This is the look of the time to compute fast-gamma depending on the size of the windows**. Thus, before
+  starting to compute fast-gamma, the algorithm determines the optimal window size by sampling the complexity
+  function.
 
 Here are the performance comparisons between the two algorithms :
 
@@ -126,11 +127,11 @@ Here are the performance comparisons between the two algorithms :
   **3 annotators**
 
 
-The gain in computation time is incredibly interesting, and the precision is
-correct, so we strongly advise to use the fast-gamma every time.
+The gain in computation time is incredibly interesting, and the precision is more than
+sufficient, so we strongly advise to use the fast-gamma every time.
 
-As for the precision of the fast gamma, we have not yet found a proof of its
-accuracy, but we have reasons to believe that if the overlapping of the annotations from
+Although we have not found any theoretical proofs to backup our intuition that fast-gamma is accurate enough,
+we have reasons to believe that if the overlapping of the annotations from
 a single annotator is limited, the fast-gamma has the exact same value as the gamma.
 
 The algorithm used by fast-gamma assumes that for three annotation segments :math:`A`, :math:`B` and :math:`C`,
@@ -151,19 +152,9 @@ Here's an explanation of what the overlapping value means on average :
 - **1**: the gap between two consecutive annotations from the same annotator is equal to their
   length.
 
-For real input though, it is established from experience that fast-gamma is more than reliable. Thus, it is advised to
-prioritize it since the gain in computing time is signficant.
-
-
-Memory usage
-~~~~~~~~~~~~
-
-Additionnaly to computing time, the memory usage's growth of the classical gamma algorithm can be problematic. For
-instance, with 2 annotators each with 7000 annotations, a 8GB memory has trouble handling it.
-
-It is advised to use fast-gamma, whose memory usage is very low in comparison, when memory starts to overflow.
-As memory usage is very difficult to measure & predict, we have unfortunately not found a way to automatically
-handle this.
+The innacurate fast-gammas were measured on continua generated specifically to mess with the algorithm.
+For real input though, it is established from experience that fast-gamma is more than reliable. Thus,
+it is advised to prioritize it since the gain in computing time is significant.
 
 
 ..  [mathet2015] Yann Mathet et Al.
