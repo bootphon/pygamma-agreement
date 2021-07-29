@@ -27,7 +27,7 @@ import numba as nb
 import numpy as np
 
 
-@nb.cfunc(nb.float32(nb.types.string, nb.types.string))
+@nb.njit(nb.float32(nb.types.string, nb.types.string))
 def levenshtein(str1: str, str2: str):
     n1, n2 = len(str1) + 1, len(str2) + 1
     matrix_lev = np.zeros((n1, n2), dtype=np.int16)
@@ -42,6 +42,21 @@ def levenshtein(str1: str, str2: str):
                                                 matrix_lev[i, j-1] + 1,
                                                 matrix_lev[i-1, j-1] + cost]))
     return matrix_lev[-1, -1]
+
+
+@nb.njit(nb.int16[:, ::1](nb.int16[:, ::1], nb.int64))
+def extend_right_alignments(arr: np.ndarray, n: int):
+    i, j = arr.shape
+    new_array = np.zeros((i, j + n), dtype=np.int16)
+    new_array[:, :j] = arr
+    return new_array
+
+
+@nb.njit(nb.float32[:](nb.float32[:], nb.int64))
+def extend_right_disorders(arr: np.ndarray, n: int):
+    new_array = np.zeros(len(arr) + n, dtype=np.float32)
+    new_array[:len(arr)] = arr
+    return new_array
 
 @nb.njit()
 def iter_tuples(sizes: np.ndarray):

@@ -37,7 +37,7 @@ import numba as nb
 import numpy as np
 
 from sortedcontainers import SortedSet
-from .numba_utils import iter_tuples
+from .numba_utils import iter_tuples, extend_right_alignments, extend_right_disorders
 from typing import Iterable
 
 if TYPE_CHECKING:
@@ -211,9 +211,10 @@ class AbstractDissimilarity(metaclass=ABCMeta):
                 if i_chosen == chunk_size:
                     # Increasing the size of the result array if full (security, doesn't happen often since chunk size
                     # is high)
-                    disorders = np.concatenate((disorders, np.zeros(chunk_size // 2, dtype=np.float32)))
-                    alignments = np.concatenate((alignments, np.zeros((chunk_size // 2, nb_annotators), dtype=np.int16)))
-                    chunk_size += chunk_size // 2
+                    add_size = chunk_size // 2
+                    disorders = extend_right_disorders(disorders, add_size)
+                    alignments = extend_right_alignments(alignments, add_size)
+                    chunk_size += add_size
         disorders, alignments = disorders[:i_chosen], alignments[:i_chosen]
         disorders /= c2n
         return disorders, alignments
