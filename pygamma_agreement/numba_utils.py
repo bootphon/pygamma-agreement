@@ -30,7 +30,7 @@ import numpy as np
 @nb.njit(nb.float32(nb.types.string, nb.types.string))
 def levenshtein(str1: str, str2: str):
     n1, n2 = len(str1) + 1, len(str2) + 1
-    matrix_lev = np.zeros((n1, n2), dtype=np.int16)
+    matrix_lev = np.empty((n1, n2), dtype=np.int16)
     for i in range(1, n1):
         matrix_lev[i, 0] = i
     for j in range(1, n2):
@@ -44,17 +44,17 @@ def levenshtein(str1: str, str2: str):
     return matrix_lev[-1, -1]
 
 
-@nb.njit(nb.int16[:, ::1](nb.int16[:, ::1], nb.int64))
+@nb.njit(nb.int16[:, ::1](nb.int16[:, ::1], nb.int64), parallel=True)
 def extend_right_alignments(arr: np.ndarray, n: int):
     i, j = arr.shape
-    new_array = np.zeros((i, j + n), dtype=np.int16)
+    new_array = np.empty((i, j + n), dtype=np.int16)
     new_array[:, :j] = arr
     return new_array
 
 
-@nb.njit(nb.float32[:](nb.float32[:], nb.int64))
+@nb.njit(nb.float32[:](nb.float32[:], nb.int64), parallel=True)
 def extend_right_disorders(arr: np.ndarray, n: int):
-    new_array = np.zeros(len(arr) + n, dtype=np.float32)
+    new_array = np.empty(len(arr) + n, dtype=np.float32)
     new_array[:len(arr)] = arr
     return new_array
 

@@ -35,6 +35,7 @@ from abc import ABCMeta
 
 import numba as nb
 import numpy as np
+import random
 
 from sortedcontainers import SortedSet
 from .numba_utils import iter_tuples, extend_right_alignments, extend_right_disorders
@@ -63,9 +64,12 @@ class AbstractDissimilarity(metaclass=ABCMeta):
 
     def __init__(self, categories: Optional[SortedSet] = None, delta_empty: float = 1.0):
         self.delta_empty = np.float32(delta_empty)
+        if categories is not None and len(categories) == 0:
+            raise ValueError("Cannot declare categorical dissimilarity with no categories.")
         self.categories = categories
 
         self.d_mat: Callable[[np.ndarray, np.ndarray], float] = self.compile_d_mat()
+        self.check_if_dissim()
 
     @abc.abstractmethod
     def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], float]:
@@ -75,8 +79,25 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         """
         raise NotImplemented()
 
-    def recompile(self):
-        self.d_mat = self.compile_d_mat()
+    def check_if_dissim(self):
+        nb_cat = 10000 if self.categories is None else len(self.categories)
+        # random (not np.random) will be used to not mess up seeding.
+        for _ in range(3):
+            start_1, len_1, cat_1 = random.uniform(0, 1000), random.uniform(1, 1000), random.randrange(0, nb_cat)
+            start_2, len_2, cat_2 = random.uniform(0, 1000), random.uniform(1, 1000), random.randrange(0, nb_cat)
+
+            unit1 = np.array([start_1, start_1 + len_1, len_1, cat_1], dtype=np.float32)
+            unit2 = np.array([start_2, start_2 + len_2, len_2, cat_2], dtype=np.float32)
+
+            if self.d_mat(unit1, unit2) != self.d_mat(unit2, unit1):
+                raise ValueError(f"Compiled dissimilarity function is not symmetrical. Exception found :\n"
+                                 f"d({unit1}, {unit2}) = {self.d_mat(unit1, unit2)}  and "
+                                 f"d({unit2}, {unit1}) = {self.d_mat(unit2, unit1)}")
+            for unit in (unit1, unit2):
+                if self.d_mat(unit, unit) != 0:
+                    raise ValueError(f"Compiled dissimilarity d_mat does not respect d_mat(u, u) = 0. "
+                                     f"Exception found :\n "
+                                     f"d({unit}, {unit}) = {self.d_mat(unit, unit)}")
 
     def _build_arrays_continuum(self, continuum: 'Continuum') -> nb.typed.List:
         """
@@ -97,8 +118,8 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         unit_arrays = nb.typed.List()
         for annotator_id, (annotator, units) in enumerate(continuum._annotations.items()):
             # dim x : segment
-            # dim y : (start, end, dur) / annotation
-            unit_array = np.zeros((len(units), 4), dtype=np.float32)
+            # dim y : (start, end, dur, annotation)
+            unit_array = np.empty((len(units), 4), dtype=np.float32)
             for unit_id, unit in enumerate(units):
                 unit_array[unit_id][0] = unit.segment.start
                 unit_array[unit_id][1] = unit.segment.end
@@ -124,24 +145,28 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         nb_unitary_alignments = len(alignment.unitary_alignments)
         annotators = alignment.annotators
         nb_annotators = len(annotators)
-        alignment_array = np.full((nb_unitary_alignments, nb_annotators, 4),
-                                  fill_value=-1, dtype=np.float32)
+        alignment_array = np.empty((nb_unitary_alignments, nb_annotators, 4), dtype=np.float32)
         for i, unitary_alignment in enumerate(alignment.unitary_alignments):
             for annotator, unit in unitary_alignment.n_tuple:
+                annotator_i = annotators.index(annotator)
                 if unit is not None:
-                    annotator_i = annotators.index(annotator)
                     alignment_array[i, annotator_i, 0] = unit.segment.start
                     alignment_array[i, annotator_i, 1] = unit.segment.end
                     alignment_array[i, annotator_i, 2] = unit.segment.duration
                     alignment_array[i, annotator_i, 3] = categories.index(unit.annotation)
+                else:
+                    alignment_array[i, annotator_i] = np.array([-1, -1, -1, -1], dtype=np.float32)
         return alignment_array
 
     @staticmethod
     @nb.njit(nb.float32[:](nb.float32[:, :, ::1],
-                            nb.types.FunctionType(nb.float32(nb.float32[:],
-                                                             nb.float32[:])),
-                            nb.float32))
-    def _compute_alignment_disorders(alignment_array: np.ndarray, d_mat, delta_empty: float):
+                           nb.types.FunctionType(nb.float32(nb.float32[:],
+                                                            nb.float32[:])),
+                           nb.float32),
+             parallel=True)
+    def _compute_alignment_disorders(alignment_array: np.ndarray,
+                                     d_mat: Callable[[np.ndarray, np.ndarray], float],
+                                     delta_empty: float):
         """
         Returns the array of the disorder of each unitary alignment of the provided
         alignment (in matrix form) using given matrix-form disorder.
@@ -149,10 +174,10 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         nb_alignments, nb_annotators, _ = alignment_array.shape
         res = np.zeros(nb_alignments, dtype=np.float32)
         c2n = nb_annotators * (nb_annotators - 1) // 2
-        for unitary_alignment_i in range(nb_alignments):
+        for unitary_alignment_i in nb.prange(nb_alignments):
             unitary_alignment = alignment_array[unitary_alignment_i]
-            for i in range(nb_annotators):
-                for j in range(i):
+            for i in nb.prange(nb_annotators):
+                for j in nb.prange(i):
                     if unitary_alignment[i, 3] == -1 or unitary_alignment[j, 3] == -1:
                         res[unitary_alignment_i] += delta_empty
                     else:
@@ -164,46 +189,50 @@ class AbstractDissimilarity(metaclass=ABCMeta):
     @nb.njit(nb.types.Tuple((nb.float32[:], nb.int16[:, :]))(nb.types.ListType(nb.float32[:, ::1]),
                                                              nb.types.FunctionType(nb.float32(nb.float32[:],
                                                                                    nb.float32[:])),
-                                                             nb.float32))
+                                                             nb.float32),
+             parallel=True)
     def _get_all_valid_alignments(unit_arrays: nb.typed.List,
-                                  d_mat,
+                                  d_mat: Callable[[np.ndarray, np.ndarray], float],
                                   delta_empty: float):
         chunk_size = 10000
         nb_annotators = len(unit_arrays)
         c2n = (nb_annotators * (nb_annotators - 1) // 2)
         criterium = c2n * delta_empty * nb_annotators
 
-        sizes_with_null = np.zeros(nb_annotators).astype(np.int16)
-        sizes = np.zeros(nb_annotators).astype(np.int16)
-        for annotator_id in range(nb_annotators):
+        sizes_with_null = np.empty(nb_annotators).astype(np.int16)
+        sizes = np.empty(nb_annotators).astype(np.int16)
+        for annotator_id in nb.prange(nb_annotators):
             sizes[annotator_id] = len(unit_arrays[annotator_id])
             sizes_with_null[annotator_id] = len(unit_arrays[annotator_id]) + 1
 
         # PRECOMPUTATION OF ALL INTER-ANNOTATOR COUPLES OF UNITS
         # list (2D) of all inter-annotator unit-to-unit dissimilarity
-        precomputation = nb.typed.List([nb.typed.List([np.zeros((1, 1), dtype=np.float32) for _ in range(i)])
+        precomputation = nb.typed.List([nb.typed.List([np.empty((1, 1), dtype=np.float32) for _ in range(i)])
                                         for i in range(nb_annotators)])
-        for annotator_a in range(nb_annotators):
-            for annotator_b in range(annotator_a):
+        for annotator_a in nb.prange(nb_annotators):
+            for annotator_b in nb.prange(annotator_a):
                 nb_annot_a, nb_annot_b = sizes[annotator_a], sizes[annotator_b]
-                # Empty units are at index nb_annot_x, so matrix is filled with delta-empties.
-                matrix = np.full((nb_annot_a + 1, nb_annot_b + 1), fill_value=delta_empty, dtype=np.float32)
-                for annot_a in range(nb_annot_a):
-                    for annot_b in range(nb_annot_b):
+                matrix = np.empty((nb_annot_a + 1, nb_annot_b + 1), dtype=np.float32)  # +1 for empty units
+                for annot_a in nb.prange(nb_annot_a):
+                    for annot_b in nb.prange(nb_annot_b):
                         matrix[annot_a, annot_b] = d_mat(unit_arrays[annotator_a][annot_a],
                                                          unit_arrays[annotator_b][annot_b])
+                # Empty units are at index nb_annot_x, so matrix is filled with delta-empties.
+                for annot_b in nb.prange(nb_annot_b + 1):
+                    matrix[nb_annot_a, annot_b] = delta_empty
+                for annot_a in nb.prange(nb_annot_a + 1):
+                    matrix[annot_a, nb_annot_b] = delta_empty
                 precomputation[annotator_a][annotator_b] = matrix
 
-        disorders = np.zeros(chunk_size, dtype=np.float32)
-        alignments = np.zeros((chunk_size, nb_annotators), dtype=np.int16)
+        disorders = np.empty(chunk_size, dtype=np.float32)
+        alignments = np.empty((chunk_size, nb_annotators), dtype=np.int16)
         i_chosen = 0
         for unitary_alignment in iter_tuples(sizes_with_null):
             # for each tuple (corresponding to a unitary alignment), compute disorder
             disorder = 0
             for annot_a in range(nb_annotators):
                 for annot_b in range(annot_a):
-                    disorder += precomputation[annot_a][annot_b]\
-                                              [unitary_alignment[annot_a], unitary_alignment[annot_b]]
+                    disorder += precomputation[annot_a][annot_b][unitary_alignment[annot_a], unitary_alignment[annot_b]]
             if disorder <= criterium:
                 disorders[i_chosen] = disorder
                 alignments[i_chosen] = unitary_alignment
@@ -344,6 +373,7 @@ class LambdaCategoricalDissimilarity(PrecomputedCategoricalDissimilarity, metacl
     @abc.abstractmethod
     def cat_dissim_func(str1: str, str2: str) -> float:
         raise NotImplemented()
+
 
 class LevenshteinCategoricalDissimilarity(LambdaCategoricalDissimilarity):
     """

@@ -206,7 +206,7 @@ def test_custom_dissimilarity():
     np.random.seed(4556)
     gamma_results_2 = continuum.compute_gamma(PositionalSporadicDissimilarity())
     pos_dissim.p = 10
-    pos_dissim.recompile()
+    pos_dissim = MyPositionalDissimilarity(p=10, delta_empty=1.0)
     np.random.seed(4556)
     gamma_results_3 = continuum.compute_gamma(pos_dissim)
 
@@ -221,7 +221,7 @@ def test_custom_dissimilarity():
                      delta_empty=1.0):
             self.alpha, self.beta = alpha, beta
             self.pos_dissim, self.cat_dissim = pos_dissim, cat_dissim
-            super().__init__(delta_empty=delta_empty)
+            super().__init__(cat_dissim.categories, delta_empty=delta_empty)
 
         def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], float]:
             alpha, beta = self.alpha, self.beta

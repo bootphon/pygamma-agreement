@@ -113,14 +113,17 @@ Now, the dissimilarity is ready to be used !
     dissim = MyPositionalDissimilarity(p=2, delta_empty=1.0)
     gamma_results = continuum.compute_gamma(dissim)
 
-Additionnally, if you want to re-use your dissimilarity with different parameneters, a simple call to ``recompile``
-will update the compiled function :
 
-.. code-block:: python
+.. warning::
 
-    dissim.p = 3
-    dissim.recompile()
-    gamma_results = continuum.compute_gamma(dissim)
+    A very important thing to note is that the structure of dissimilarities is not really compatible with changing
+    attributes, because of the class structure and of compilation. It is advised do **redefine** your dissimilarities if
+    you want to change attributes.
+
+    .. code-block:: python
+
+        dissim.p = 3 # DON'T do that !
+        dissim = MyPositionalDissimilarity(p=3, delta_empty=1.0) # Redefine it instead.
 
 Setting up your own categorical dissimilarity
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -197,7 +200,7 @@ Let's start by using the same skeleton as for a simple positional dissimilarity 
                      delta_empty=1.0):
             self.alpha, self.beta = alpha, beta
             self.pos_dissim, self.cat_dissim = pos_dissim, cat_dissim
-            super().__init__(delta_empty=delta_empty)
+            super().__init__(cat_dissim.categories, delta_empty=delta_empty)
 
         # Abstract methods overrides
         def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], float]:
@@ -205,6 +208,14 @@ Let's start by using the same skeleton as for a simple positional dissimilarity 
 
         def d(self, unit1: Unit, unit2: Unit) -> float:
             ...
+
+.. note::
+
+    One important thing to note that if your dissimilarity takes categories into account, you **must** specify a set
+    of categories to the super constructor. Here in this example, the cat_dissim part does take it into account, so
+    its categories can be obtained directly.
+
+
 
 The ``d`` method can simply make use of the other dissimilarities' ``d`` s :
 
@@ -251,19 +262,6 @@ And that's it ! Now, in theory, you have all the tools you need to compute the g
                                      cat_dissim=MyCategoricalDissimilarity(continuum.categories))
     gamma_results = continuum.compute_gamma(dissim)
 
-.. warning::
-    Since ``numba`` compilation copies all globals by value (even collections / functions), you can't edit the ``d_mat``
-    function's parameters without compiling it again. If you want to change any of the dissimilarity's attributes,
-    it's important to call the ``recompile`` method to update the compiled dissimilarity before using it again in a
-    gamma computation :
-
-    .. code-block:: python
-
-
-        dissim.beta = 1
-        dissim.cat_dissim = OtherCategoricalDissimilarity(continuum.categories)
-        dissim.recompile()
-        gamma_results = continuum.compute_gamma(dissim)
 
 Generating random continua for comparison using the Statistical Sampler and the Corpus Shuffling Tool
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
