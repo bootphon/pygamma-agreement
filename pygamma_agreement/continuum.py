@@ -562,9 +562,11 @@ class Continuum:
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
         chosen_alignments_ids, = np.where(x.value > 0.0)
 
-        chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
-        factors: np.ndarray = x.value[chosen_alignments_ids]
-        alignments_disorders: np.ndarray = disorders[chosen_alignments_ids] * x.value[chosen_alignments_ids]
+        chosen_alignments: np.ndarray = possible_unitary_alignments[:-1]
+        factors: np.ndarray = np.ones(len(chosen_alignments), dtype=np.float32)
+        alignments_disorders: np.ndarray = disorders[:-1]
+
+        print(factors)
 
         from .alignment import UnitaryAlignment, SoftAlignment
 
