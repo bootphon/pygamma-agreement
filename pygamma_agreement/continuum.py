@@ -48,7 +48,7 @@ from typing_extensions import Literal
 from .dissimilarity import AbstractDissimilarity
 
 if TYPE_CHECKING:
-    from .alignment import UnitaryAlignment, Alignment
+    from .alignment import UnitaryAlignment, Alignment, SoftAlignment
     from .sampler import AbstractContinuumSampler, StatisticalContinuumSampler
 
 CHUNK_SIZE = (10**6) // os.cpu_count()
@@ -519,6 +519,73 @@ class Continuum:
         ...     # do something with the unit
         """
         return iter(self._annotations[annotator])
+
+
+    def get_best_soft_alignment(self,  dissimilarity: AbstractDissimilarity) -> 'SoftAlignment':
+        assert len(self.annotators) >= 2 and self, "Disorder cannot be computed with less than two annotators, or " \
+                                                   "without annotations."
+
+        nb_unit_per_annot = []
+        for annotator, arr in self._annotations.items():
+            # assert len(arr) > 0, f"Disorder cannot be computed because annotator {annotator} has no annotations."
+            nb_unit_per_annot.append(len(arr) + 1)
+
+        disorders, possible_unitary_alignments = dissimilarity.valid_alignments(self)
+
+        # Definition of the integer linear program
+        n = len(disorders)
+
+        true_units_ids = []
+        num_units = 0
+        for units in self._annotations.values():
+            true_units_ids.append(np.arange(num_units, num_units + len(units)).astype(np.int32))
+            num_units += len(units)
+
+        # Constraints matrix ("every unit must appear once and only once")
+        A = np.zeros((num_units, n))
+        for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
+            for annotator_id, unit_id in enumerate(unit_ids_tuple):
+                if unit_id != len(true_units_ids[annotator_id]):  # Non-null unit
+                    A[true_units_ids[annotator_id][unit_id], p_id] = 1
+
+        # we don't actually care about the optimal loss value
+        x = cp.Variable(shape=(n,), boolean=False)
+        try:
+            import cylp
+            cp.Problem(cp.Minimize(disorders.T @ x), [A @ x == 1, 0 <= x, x <= 1]).solve(solver=cp.CBC)
+        except (ImportError, cp.SolverError):
+            logging.warning("CBC solver not installed. Using GLPK.")
+            matmul = A @ x
+            cp.Problem(cp.Minimize(disorders.T @ x), [1 <= matmul, matmul <= 1, 0 <= x, x <= 1]).solve(solver=cp.GLPK_MI)
+        assert x.value is not None, "The linear solver couldn't find an alignment with minimal disorder " \
+                                    "(likely because the amount of possible unitary alignments was too high)"
+        # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
+        chosen_alignments_ids, = np.where(x.value > 0.0)
+
+        chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
+        factors: np.ndarray = x.value[chosen_alignments_ids]
+        alignments_disorders: np.ndarray = disorders[chosen_alignments_ids] * x.value[chosen_alignments_ids]
+
+        from .alignment import UnitaryAlignment, SoftAlignment
+
+        set_unitary_alignements = []
+        for alignment_id, alignment in enumerate(chosen_alignments):
+            u_align_tuple = []
+            for annotator_id, unit_id in enumerate(alignment):
+                annotator, units = self._annotations.peekitem(annotator_id)
+                try:
+                    unit = units[unit_id]
+                    u_align_tuple.append((annotator, unit))
+                except IndexError:  # it's a "null unit"
+                    u_align_tuple.append((annotator, None))
+            unitary_alignment = UnitaryAlignment(list(u_align_tuple))
+            unitary_alignment.disorder = alignments_disorders[alignment_id]
+            set_unitary_alignements.append(unitary_alignment)
+        return SoftAlignment(set_unitary_alignements,
+                             factors,
+                             continuum=self,
+                             check_validity=True,
+                             disorder=alignments_disorders.sum() / self.avg_num_annotations_per_annotator)
 
     def get_best_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
         """
