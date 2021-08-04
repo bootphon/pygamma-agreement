@@ -173,7 +173,6 @@ def test_combi_categorical_dissimilarity():
 
 def test_custom_dissimilarity():
     from pygamma_agreement import AbstractDissimilarity, Unit
-    import numpy as np
     from typing import Callable
 
     continuum = Continuum.from_csv("tests/data/AlexPaulSuzan.csv")

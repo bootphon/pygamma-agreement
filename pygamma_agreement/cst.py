@@ -126,7 +126,7 @@ class CorpusShufflingTool:
         avg_dur = np.average([unit.segment.end - unit.segment.start for unit in ref_units])
         var_dur = np.std([unit.segment.end - unit.segment.start for unit in ref_units])
         category_weights = self._reference_continuum.category_weights
-        bounds_inf, bounds_sup = (next(iter(ref_units)).segment.start, next(reversed(ref_units)).segment.end)
+        bounds_inf, bounds_sup = self._reference_continuum.bound_inf, self._reference_continuum.bound_sup
         for annotator in continuum.annotators:
             for _ in range(int(self.magnitude * self.FALSE_POS_FACTOR * len(self._reference_continuum))):
                 # a random unit is generated from a (all random) central point, duration, and category

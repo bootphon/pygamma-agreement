@@ -207,7 +207,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
 
         # PRECOMPUTATION OF ALL INTER-ANNOTATOR COUPLES OF UNITS
         # list (2D) of all inter-annotator unit-to-unit dissimilarity
-        precomputation = nb.typed.List([nb.typed.List([np.empty((1, 1), dtype=np.float32) for _ in range(i)])
+        precomputation = nb.typed.List([nb.typed.List([np.empty((0, 0), dtype=np.float32)] * i)
                                         for i in range(nb_annotators)])
         for annotator_a in nb.prange(nb_annotators):
             for annotator_b in nb.prange(annotator_a):
