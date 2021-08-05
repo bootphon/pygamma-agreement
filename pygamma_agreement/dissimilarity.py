@@ -134,7 +134,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         It is a 3D array where:
             - each array[u] corresponds to a unitary alignment
             - each array[u, a] corresponds to the unit of annotator a in the unitary alignment (alphabetical order)
-            - each array[u, a, 0 - 3] correspond respectively to:
+            - each array[u, a, 0:3] correspond respectively to:
                 - Start of the segment
                 - End of the segment
                 - Duration of the segment
@@ -205,8 +205,12 @@ class AbstractDissimilarity(metaclass=ABCMeta):
             sizes[annotator_id] = len(unit_arrays[annotator_id])
             sizes_with_null[annotator_id] = len(unit_arrays[annotator_id]) + 1
 
-        # PRECOMPUTATION OF ALL INTER-ANNOTATOR COUPLES OF UNITS
-        # list (2D) of all inter-annotator unit-to-unit dissimilarity
+        # PRECOMPUTATION OF ALL INTER-ANNOTATOR COUPLES OF UNITS:
+        # This block computes a nested list of lists of inter-annotator dissim matrix between units.
+        # Each distance matrix is a 2D array where
+        # D[i,j] = dissim(AnnotatorA.Units[i], AnnotatorB.Units[j])
+
+        # this is a list of lists of "placeholder" arrays as to play nice with numba
         precomputation = nb.typed.List([nb.typed.List([np.empty((0, 0), dtype=np.float32)] * i)
                                         for i in range(nb_annotators)])
         for annotator_a in nb.prange(nb_annotators):
@@ -222,8 +226,11 @@ class AbstractDissimilarity(metaclass=ABCMeta):
                     matrix[nb_annot_a, annot_b] = delta_empty
                 for annot_a in nb.prange(nb_annot_a + 1):
                     matrix[annot_a, nb_annot_b] = delta_empty
+
+                # replacing "placeholder" array with the actual precomputation array
                 precomputation[annotator_a][annotator_b] = matrix
 
+        # Now, computing disorders for each potential alignments
         disorders = np.empty(chunk_size, dtype=np.float32)
         alignments = np.empty((chunk_size, nb_annotators), dtype=np.int16)
         i_chosen = 0
@@ -232,14 +239,16 @@ class AbstractDissimilarity(metaclass=ABCMeta):
             disorder = 0
             for annot_a in range(nb_annotators):
                 for annot_b in range(annot_a):
-                    disorder += precomputation[annot_a][annot_b][unitary_alignment[annot_a], unitary_alignment[annot_b]]
+                    disorder += precomputation[annot_a][annot_b][unitary_alignment[annot_a],
+                                                                 unitary_alignment[annot_b]]
             if disorder <= criterium:
                 disorders[i_chosen] = disorder
                 alignments[i_chosen] = unitary_alignment
                 i_chosen += 1
                 if i_chosen == chunk_size:
-                    # Increasing the size of the result array if full (security, doesn't happen often since chunk size
-                    # is high)
+                    # Increasing the size of the result array if full
+                    # (security, doesn't happen often since chunk size
+                    # is already decently high by default)
                     add_size = chunk_size // 2
                     disorders = extend_right_disorders(disorders, add_size)
                     alignments = extend_right_alignments(alignments, add_size)
@@ -423,7 +432,7 @@ class OrdinalCategoricalDissimilarity(PrecomputedCategoricalDissimilarity):
         """
         labels = np.array(labels, dtype=str)
         if len(labels) != len(np.unique(labels)):
-            raise ValueError("Prodided labels must not have duplicates.")
+            raise ValueError("Provided labels must not have duplicates.")
 
         if p is None:
             p = np.arange(len(labels), dtype=np.float32)
