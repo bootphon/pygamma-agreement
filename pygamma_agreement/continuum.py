@@ -520,7 +520,6 @@ class Continuum:
         """
         return iter(self._annotations[annotator])
 
-
     def get_best_soft_alignment(self,  dissimilarity: AbstractDissimilarity) -> 'SoftAlignment':
         assert len(self.annotators) >= 2 and self, "Disorder cannot be computed with less than two annotators, or " \
                                                    "without annotations."
@@ -530,7 +529,10 @@ class Continuum:
             # assert len(arr) > 0, f"Disorder cannot be computed because annotator {annotator} has no annotations."
             nb_unit_per_annot.append(len(arr) + 1)
 
-        disorders, possible_unitary_alignments = dissimilarity.valid_alignments(self)
+        units_array = dissimilarity._build_arrays_continuum(self)
+        disorders, possible_unitary_alignments = dissimilarity._get_all_valid_alignments(units_array,
+                                                                                         dissimilarity.d_mat,
+                                                                                         dissimilarity.delta_empty)
 
         # Definition of the integer linear program
         n = len(disorders)
@@ -543,30 +545,28 @@ class Continuum:
 
         # Constraints matrix ("every unit must appear once and only once")
         A = np.zeros((num_units, n))
+        D = np.zeros((num_units, num_units))
         for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
             for annotator_id, unit_id in enumerate(unit_ids_tuple):
                 if unit_id != len(true_units_ids[annotator_id]):  # Non-null unit
                     A[true_units_ids[annotator_id][unit_id], p_id] = 1
 
         # we don't actually care about the optimal loss value
-        x = cp.Variable(shape=(n,), boolean=False)
+        x = cp.Variable(shape=(n,), boolean=True)
         try:
             import cylp
-            cp.Problem(cp.Minimize(disorders.T @ x), [A @ x == 1, 0 <= x, x <= 1]).solve(solver=cp.CBC)
+            cp.Problem(cp.Minimize(disorders.T @ x), [A @ x >= 1]).solve(solver=cp.CBC)
         except (ImportError, cp.SolverError):
             logging.warning("CBC solver not installed. Using GLPK.")
-            matmul = A @ x
-            cp.Problem(cp.Minimize(disorders.T @ x), [1 <= matmul, matmul <= 1, 0 <= x, x <= 1]).solve(solver=cp.GLPK_MI)
+            cp.Problem(cp.Minimize(disorders.T @ x), [A @ x >= 1]).solve(solver=cp.GLPK_MI)
         assert x.value is not None, "The linear solver couldn't find an alignment with minimal disorder " \
                                     "(likely because the amount of possible unitary alignments was too high)"
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
-        chosen_alignments_ids, = np.where(x.value > 0.0)
+        chosen_alignments_ids, = np.where(x.value > 0.9)
+        print(A @ x.value @ A)
 
-        chosen_alignments: np.ndarray = possible_unitary_alignments[:-1]
-        factors: np.ndarray = np.ones(len(chosen_alignments), dtype=np.float32)
-        alignments_disorders: np.ndarray = disorders[:-1]
-
-        print(factors)
+        chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
+        alignments_disorders: np.ndarray = disorders[chosen_alignments_ids]
 
         from .alignment import UnitaryAlignment, SoftAlignment
 
@@ -584,7 +584,6 @@ class Continuum:
             unitary_alignment.disorder = alignments_disorders[alignment_id]
             set_unitary_alignements.append(unitary_alignment)
         return SoftAlignment(set_unitary_alignements,
-                             factors,
                              continuum=self,
                              check_validity=True,
                              disorder=alignments_disorders.sum() / self.avg_num_annotations_per_annotator)
@@ -671,7 +670,8 @@ class Continuum:
                       n_samples: int = 30,
                       precision_level: Optional[Union[float, PrecisionLevel]] = None,
                       ground_truth_annotators: Optional[SortedSet] = None,
-                      sampler: 'AbstractContinuumSampler' = None) -> 'GammaResults':
+                      sampler: 'AbstractContinuumSampler' = None,
+                      soft: bool = False) -> 'GammaResults':
         """
 
         Parameters
@@ -703,17 +703,22 @@ class Continuum:
             sampler = StatisticalContinuumSampler()
         sampler.init_sampling(self, ground_truth_annotators)
 
+        job = _compute_best_alignment_job
+        if soft:
+            job = _compute_soft_alignment_job
+
+
         # Multiprocessed computation of sample disorder
         with ThreadPoolExecutor(max_workers=os.cpu_count()) as p:
             # computation of best alignment in advance
-            best_alignment_task = p.submit(_compute_best_alignment_job,
+            best_alignment_task = p.submit(job,
                                            *(dissimilarity, self))
             best_alignment = best_alignment_task.result()
             logging.info("Best alignment obtained...")
 
             result_pool = [
                 # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
-                p.submit(_compute_best_alignment_job,
+                p.submit(job,
                          *(dissimilarity, sampler.sample_from_continuum))
                 for _ in range(n_samples)
             ]
@@ -741,7 +746,7 @@ class Continuum:
                     logging.info(f"Computing second batch of {required_samples - n_samples} "
                                  f"because variation was too high.")
                     result_pool = [
-                        p.submit(_compute_best_alignment_job,
+                        p.submit(job,
                                  *(dissimilarity, sampler.sample_from_continuum))
                         for _ in range(required_samples - n_samples)
                     ]
@@ -879,6 +884,11 @@ def _compute_best_alignment_job(dissimilarity: AbstractDissimilarity,
     using the given dissimilarity.
     """
     return continuum.get_best_alignment(dissimilarity)
+
+
+def _compute_soft_alignment_job(dissimilarity: AbstractDissimilarity,
+                                continuum: Continuum):
+    return continuum.get_best_soft_alignment(dissimilarity)
 
 
 def _compute_gamma_k_job(dissimilarity: AbstractDissimilarity,

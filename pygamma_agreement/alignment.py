@@ -369,18 +369,10 @@ class SoftAlignment(Alignment):
 
     def __init__(self,
                  unitary_alignments: Iterable[UnitaryAlignment],
-                 factors: Iterable[float],
                  continuum: Optional['Continuum'] = None,
                  check_validity: bool = False,
                  disorder: Optional[float] = None
                  ):
-        factors = list(factors)
-        unitary_alignments = list(unitary_alignments)
-        assert len(factors) == len(unitary_alignments), "Numbers of unitary alignments and number of " \
-                                                                  "factors don't match."
-        assert all(map(lambda x: 0.0 < x <= 1, factors))
-
-        self.factors = factors
         super().__init__(unitary_alignments, continuum, check_validity, disorder)
 
     def check(self, continuum: Optional[Continuum] = None):
@@ -412,20 +404,20 @@ class SoftAlignment(Alignment):
                     f"Unitary alignments {self.unitary_alignments[0]} and"
                     f"{unit_align} don't have the same amount of units tuples")
 
-        continuum_factors = SortedDict({annotator: SortedDict({unit: 0.0 for unit in units})
-                                        for annotator, units in continuum._annotations.items()})
+        unit_occurences = SortedDict({annotator: SortedDict({unit: 0 for unit in units})
+                                      for annotator, units in continuum._annotations.items()})
 
         for i, unitary_align in enumerate(self):
             for annotator, unit in unitary_align.n_tuple:
                 if unit is not None:
-                    continuum_factors[annotator][unit] += self.factors[i]
+                    unit_occurences[annotator][unit] += 1
 
-
-        for annotator, factors in continuum_factors.items():
+        for annotator, factors in unit_occurences.items():
             for unit, factor in factors.items():
-                if factor != 1.0:
-                    raise SetPartitionError(f"All non-empty units in the continuum do not have 1.0 as sum of factors. "
-                                            f"Exception found : unit '{unit}' from annotator '{annotator}'.")
+                if factor == 0:
+                    raise SetPartitionError(f"All non-empty units in the continuum do not have at least 1 occurence in "
+                                            f"the soft alignment. Exception found : unit '{unit}' from annotator "
+                                            f"'{annotator}'.")
 
 
 
