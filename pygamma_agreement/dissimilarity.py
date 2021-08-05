@@ -162,8 +162,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
     @nb.njit(nb.float32[:](nb.float32[:, :, ::1],
                            nb.types.FunctionType(nb.float32(nb.float32[:],
                                                             nb.float32[:])),
-                           nb.float32),
-             parallel=True)
+                           nb.float32))
     def _compute_alignment_disorders(alignment_array: np.ndarray,
                                      d_mat: Callable[[np.ndarray, np.ndarray], float],
                                      delta_empty: float):
@@ -174,10 +173,10 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         nb_alignments, nb_annotators, _ = alignment_array.shape
         res = np.zeros(nb_alignments, dtype=np.float32)
         c2n = nb_annotators * (nb_annotators - 1) // 2
-        for unitary_alignment_i in nb.prange(nb_alignments):
+        for unitary_alignment_i in range(nb_alignments):
             unitary_alignment = alignment_array[unitary_alignment_i]
-            for i in nb.prange(nb_annotators):
-                for j in nb.prange(i):
+            for i in range(nb_annotators):
+                for j in range(i):
                     if unitary_alignment[i, 3] == -1 or unitary_alignment[j, 3] == -1:
                         res[unitary_alignment_i] += delta_empty
                     else:
@@ -189,8 +188,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
     @nb.njit(nb.types.Tuple((nb.float32[:], nb.int16[:, :]))(nb.types.ListType(nb.float32[:, ::1]),
                                                              nb.types.FunctionType(nb.float32(nb.float32[:],
                                                                                    nb.float32[:])),
-                                                             nb.float32),
-             parallel=True)
+                                                             nb.float32))
     def _get_all_valid_alignments(unit_arrays: nb.typed.List,
                                   d_mat: Callable[[np.ndarray, np.ndarray], float],
                                   delta_empty: float):
@@ -201,7 +199,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
 
         sizes_with_null = np.empty(nb_annotators).astype(np.int16)
         sizes = np.empty(nb_annotators).astype(np.int16)
-        for annotator_id in nb.prange(nb_annotators):
+        for annotator_id in range(nb_annotators):
             sizes[annotator_id] = len(unit_arrays[annotator_id])
             sizes_with_null[annotator_id] = len(unit_arrays[annotator_id]) + 1
 
@@ -209,18 +207,18 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         # list (2D) of all inter-annotator unit-to-unit dissimilarity
         precomputation = nb.typed.List([nb.typed.List([np.empty((0, 0), dtype=np.float32)] * i)
                                         for i in range(nb_annotators)])
-        for annotator_a in nb.prange(nb_annotators):
-            for annotator_b in nb.prange(annotator_a):
+        for annotator_a in range(nb_annotators):
+            for annotator_b in range(annotator_a):
                 nb_annot_a, nb_annot_b = sizes[annotator_a], sizes[annotator_b]
                 matrix = np.empty((nb_annot_a + 1, nb_annot_b + 1), dtype=np.float32)  # +1 for empty units
-                for annot_a in nb.prange(nb_annot_a):
-                    for annot_b in nb.prange(nb_annot_b):
+                for annot_a in range(nb_annot_a):
+                    for annot_b in range(nb_annot_b):
                         matrix[annot_a, annot_b] = d_mat(unit_arrays[annotator_a][annot_a],
                                                          unit_arrays[annotator_b][annot_b])
                 # Empty units are at index nb_annot_x, so matrix is filled with delta-empties.
-                for annot_b in nb.prange(nb_annot_b + 1):
+                for annot_b in range(nb_annot_b + 1):
                     matrix[nb_annot_a, annot_b] = delta_empty
-                for annot_a in nb.prange(nb_annot_a + 1):
+                for annot_a in range(nb_annot_a + 1):
                     matrix[annot_a, nb_annot_b] = delta_empty
                 precomputation[annotator_a][annotator_b] = matrix
 
