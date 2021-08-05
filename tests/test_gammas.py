@@ -86,6 +86,7 @@ def test_gamma_alexpaulsuzan_otherdissims():
 
     gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.05)
 
+    # TODO use assertRaise
     gamma = gamma_results.gamma
     try:
         gamma_cat = gamma_results.gamma_cat
@@ -97,6 +98,7 @@ def test_gamma_alexpaulsuzan_otherdissims():
 
     gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.05)
 
+    # TODO use assertRaise
     gamma = gamma_results.gamma
     try:
         gamma_cat = gamma_results.gamma_cat
@@ -106,7 +108,6 @@ def test_gamma_alexpaulsuzan_otherdissims():
 
     dissimilarity = LevenshteinCategoricalDissimilarity(continuum.categories)
     best_alignment = continuum.get_best_alignment(dissimilarity)
-
 
     dissimilarity = OrdinalCategoricalDissimilarity(continuum.categories)
     best_alignment = continuum.get_best_alignment(dissimilarity)
