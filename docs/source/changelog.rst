@@ -2,8 +2,28 @@
 Changelog
 #########
 
-Version 0.2.0 (2021-07-06)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Version 0.3.0 (2021-08-06) (@lfavre)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+* New interface for dissimilarities.
+    - A real class structure, made with user-friendliness in mind
+    - Making new or custom dissimilarities is now doable without copying huge chunks of numba code, supposedly without knowledge of the inner working of the library
+    - The code for dissimilarities is overall clearer, more reliable and more maintainable
+    - New natively available dissimilarities
+* Bug fixes
+    - Fixed many bugs that emerged from the sorted structures and a confusion when passing to a numba/numerical algorithmic environment
+* Optimizations :
+    - Memory usage of the gamma algorithm is now significantly lower than before
+    - Unit-to-unit disorders are pre-computed during the best-alignment algorithm, which lowers the computation time
+    - Multiprocessing has been replaced by multithreading, for additionnal memory usage, computation time and simplicity.
+    - Some more parallelization in deeper code.
+* Documentation
+    - Extensive tutorials for dissimilarities, sampling and the corpus shuffling tool
+
+
+Version 0.2.0 (2021-07-06) (@lfavre)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * Numerous bug fixes (errors and mismatches with the original java implementation)
 * Documentation of slight differences between the java implementation and our implementation that might impact results
