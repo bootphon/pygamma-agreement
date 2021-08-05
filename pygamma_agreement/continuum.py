@@ -31,15 +31,12 @@ Continuum and corpus
 import csv
 import logging
 import os
-import sys
-import time
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import total_ordering
-from multiprocessing import Pool
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from itertools import islice
-from typing import Optional, Tuple, List, Union, Set, Iterable, TYPE_CHECKING, Dict, Generator
+from typing import Optional, Tuple, List, Union, TYPE_CHECKING, Generator
 
 import cvxpy as cp
 import numpy as np
@@ -49,7 +46,6 @@ from sortedcontainers import SortedDict, SortedSet
 from typing_extensions import Literal
 
 from .dissimilarity import AbstractDissimilarity
-from .numba_utils import chunked_cartesian_product
 
 if TYPE_CHECKING:
     from .alignment import UnitaryAlignment, Alignment
@@ -103,7 +99,7 @@ class Unit:
 class Continuum:
     """
     Representation of a continuum, i.e a set of annotated segments by multiple annotators.
-    It is implemented as a dictionnarfrom .notebook import show_continuumy of sets (all sorted) :
+    It is implemented as a dictionnary of sets (all sorted) :
 
     ``{'annotator1': {unit1, ...}, ...}``
     """
@@ -124,6 +120,7 @@ class Continuum:
         self.uri = uri
         # Structure {annotator -> SortedSet}
         self._annotations: SortedDict = SortedDict()
+        self._categories: SortedSet = SortedSet()
         self.bound_inf = 0.0
         self.bound_sup = 0.0
 
@@ -228,8 +225,7 @@ class Continuum:
     @property
     def categories(self) -> SortedSet:
         """Returns the (alphabetically) sorted set of all the continuum's annotations's categories."""
-        return SortedSet(unit.annotation for _, unit in self
-                         if unit.annotation is not None)
+        return self._categories
 
     @property
     def category_weights(self) -> SortedDict:
@@ -305,7 +301,7 @@ class Continuum:
 
         if annotator not in self._annotations:
             self._annotations[annotator] = SortedSet()
-
+        self._categories.add(annotation)
         self._annotations[annotator].add(Unit(segment, annotation))
         self.bound_inf = min(self.bound_inf, segment.start)
         self.bound_sup = max(self.bound_sup, segment.end)
@@ -540,25 +536,12 @@ class Continuum:
         assert len(self.annotators) >= 2 and self, "Disorder cannot be computed with less than two annotators, or " \
                                                    "without annotations."
 
-        disorder_args = dissimilarity.build_args(self)
-
         nb_unit_per_annot = []
         for annotator, arr in self._annotations.items():
             # assert len(arr) > 0, f"Disorder cannot be computed because annotator {annotator} has no annotations."
             nb_unit_per_annot.append(len(arr) + 1)
 
-        all_disorders = []
-        all_valid_tuples = []
-        for tuples_batch in chunked_cartesian_product(nb_unit_per_annot, CHUNK_SIZE):
-            batch_disorders = dissimilarity(tuples_batch, *disorder_args)
-            # Property section 5.1.1 to reduce initial complexity
-            valid_disorders_ids, = np.where(batch_disorders <= self.num_annotators * dissimilarity.delta_empty)
-
-            all_disorders.append(batch_disorders[valid_disorders_ids])
-            all_valid_tuples.append(tuples_batch[valid_disorders_ids])
-
-        disorders = np.concatenate(all_disorders)
-        possible_unitary_alignments = np.concatenate(all_valid_tuples)
+        disorders, possible_unitary_alignments = dissimilarity.valid_alignments(self)
 
         # Definition of the integer linear program
         n = len(disorders)
@@ -644,7 +627,7 @@ class Continuum:
         """
         from .dissimilarity import CombinedCategoricalDissimilarity
         if dissimilarity is None:
-            dissimilarity = CombinedCategoricalDissimilarity(self.categories)
+            dissimilarity = CombinedCategoricalDissimilarity()
 
         if sampler is None:
             from .sampler import StatisticalContinuumSampler
@@ -652,54 +635,52 @@ class Continuum:
         sampler.init_sampling(self, ground_truth_annotators)
 
         # Multiprocessed computation of sample disorder
-        p = Pool()
-        # computation of best alignment in advance
-        best_alignment_task = p.apply_async(_compute_best_alignment_job,
-                                            (dissimilarity, self,))
-        result_pool = [
-            # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
-            p.apply_async(_compute_best_alignment_job,
-                          (dissimilarity, sampler.sample_from_continuum,))
-            for _ in range(n_samples)
-        ]
-        chance_best_alignments: List[Alignment] = []
-        chance_disorders: List[float] = []
+        with ThreadPoolExecutor(max_workers=os.cpu_count()) as p:
+            # computation of best alignment in advance
+            best_alignment_task = p.submit(_compute_best_alignment_job,
+                                           *(dissimilarity, self))
+            best_alignment = best_alignment_task.result()
+            logging.info("Best alignment obtained...")
 
-        best_alignment = best_alignment_task.get()
-        logging.info("Best alignment obtained...")
+            result_pool = [
+                # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
+                p.submit(_compute_best_alignment_job,
+                         *(dissimilarity, sampler.sample_from_continuum))
+                for _ in range(n_samples)
+            ]
+            chance_best_alignments: List[Alignment] = []
+            chance_disorders: List[float] = []
 
-        logging.info(f"Starting computation for a batch of {n_samples} random samples...")
-        for i, result in enumerate(result_pool):
-            chance_best_alignments.append(result.get())
-            logging.info(f"finished computation of random sample dissimilarity {i + 1}/{n_samples}")
-            chance_disorders.append(chance_best_alignments[-1].disorder)
-        logging.info("done.")
+            logging.info(f"Starting computation for a batch of {n_samples} random samples...")
+            for i, result in enumerate(result_pool):
+                chance_best_alignments.append(result.result())
+                logging.info(f"finished computation of random sample dissimilarity {i + 1}/{n_samples}")
+                chance_disorders.append(chance_best_alignments[-1].disorder)
+            logging.info("done.")
 
-        if precision_level is not None:
-            if isinstance(precision_level, str):
-                precision_level = PRECISION_LEVEL[precision_level]
-            assert 0 < precision_level < 1.0
-            # If the variation of the disorders of the samples si too high, others are generated.
-            # taken from subsection 5.3 of the original paper
-            # confidence at 95%, i.e., 1.96
-            variation_coeff = np.std(chance_disorders) / np.mean(chance_disorders)
-            confidence = 1.96
-            required_samples = np.ceil((variation_coeff * confidence / precision_level) ** 2).astype(np.int32)
-            if required_samples > n_samples:
-                logging.info(f"Computing second batch of {required_samples - n_samples} "
-                             f"because variation was too high.")
-                result_pool = [
-                    p.apply_async(_compute_best_alignment_job,
-                                  (dissimilarity, sampler.sample_from_continuum,))
-                    for _ in range(required_samples - n_samples)
-                ]
-                for i, result in enumerate(result_pool):
-                    chance_best_alignments.append(result.get())
-                    logging.info(f"finished computation of additionnal random sample dissimilarity "
-                                 f"{i + 1}/{required_samples - n_samples}")
-                logging.info("done.")
-
-        p.close()
+            if precision_level is not None:
+                if isinstance(precision_level, str):
+                    precision_level = PRECISION_LEVEL[precision_level]
+                assert 0 < precision_level < 1.0
+                # If the variation of the disorders of the samples si too high, others are generated.
+                # taken from subsection 5.3 of the original paper
+                # confidence at 95%, i.e., 1.96
+                variation_coeff = np.std(chance_disorders) / np.mean(chance_disorders)
+                confidence = 1.96
+                required_samples = np.ceil((variation_coeff * confidence / precision_level) ** 2).astype(np.int32)
+                if required_samples > n_samples:
+                    logging.info(f"Computing second batch of {required_samples - n_samples} "
+                                 f"because variation was too high.")
+                    result_pool = [
+                        p.submit(_compute_best_alignment_job,
+                                 *(dissimilarity, sampler.sample_from_continuum))
+                        for _ in range(required_samples - n_samples)
+                    ]
+                    for i, result in enumerate(result_pool):
+                        chance_best_alignments.append(result.result())
+                        logging.info(f"finished computation of additionnal random sample dissimilarity "
+                                     f"{i + 1}/{required_samples - n_samples}")
+                    logging.info("done.")
 
         return GammaResults(
             best_alignment=best_alignment,
@@ -757,40 +738,11 @@ class GammaResults:
         return self.best_alignment.disorder
 
     @property
-    def observed_cat_disorder(self) -> float:
-        """Observed disorder for gamma-cat (disorder of the best alignment)"""
-        return self.best_alignment.gamma_k_disorder(self.dissimilarity, None)
-
-    def observed_k_disorder(self, category: str) -> float:
-        """Observed disorder for gamma-k of the given category (disorder of best alignment)"""
-        return self.best_alignment.gamma_k_disorder(self.dissimilarity, category)
-
-    @property
     def expected_disorder(self) -> float:
         """Returns the expected disagreement for computed random samples, i.e.,
         the mean of the sampled continuua's disorders"""
         return float(np.mean([align.disorder for align in self.chance_alignments]))
 
-    @property
-    def expected_cat_disorder(self) -> float:
-        """
-        Returns the expected disagreement (as defined for gamma-cat)
-        using the same random samples' best alignments
-        as for gamma (the mean of the sampled continuua's gamma-cat disorders)
-        """
-        return float(np.mean(list(filter((lambda x: x is not np.NaN),
-                                         (align.gamma_k_disorder(self.dissimilarity, None)
-                                          for align in self.chance_alignments)))))
-
-    def expected_k_disorder(self, category: str) -> float:
-        """
-        Returns the expected disagreement (as defined for gamma-k)
-        using the same random samples' best alignments
-        as for gamma (the mean of the sampled continuua's gamma-k disorders)
-        """
-        return float(np.mean(list(filter((lambda x: x is not np.NaN),
-                                         (align.gamma_k_disorder(self.dissimilarity, category)
-                                          for align in self.chance_alignments)))))
 
     @property
     def approx_gamma_range(self):
@@ -815,17 +767,40 @@ class GammaResults:
     @property
     def gamma_cat(self) -> float:
         """Returns the gamma-cat value"""
-        observed_cat_disorder = self.observed_cat_disorder
-        if observed_cat_disorder == 0:
-            return 1
-        return 1 - observed_cat_disorder / self.expected_cat_disorder
+        with ThreadPoolExecutor(max_workers=os.cpu_count()) as p:
+
+            observed_disorder_job = p.submit(_compute_gamma_k_job,
+                                             *(self.dissimilarity, self.best_alignment, None))
+
+            chance_disorders_jobs = [
+                p.submit(_compute_gamma_k_job,
+                         *(self.dissimilarity, alignment, None))
+                for alignment in self.chance_alignments
+            ]
+            observed_disorder = observed_disorder_job.result()
+            if observed_disorder == 0:
+                return 1
+            expected_disorder = float(np.mean(np.array([job_res.result() for job_res in chance_disorders_jobs])))
+
+        return 1 - observed_disorder / expected_disorder
 
     def gamma_k(self, category: str) -> float:
         """Returns the gamma-k value for the given category"""
-        observed_k_disorder = self.observed_k_disorder(category)
-        if observed_k_disorder == 0:
-            return 1
-        return 1 - observed_k_disorder / self.expected_k_disorder(category)
+        with ThreadPoolExecutor(max_workers=os.cpu_count()) as p:
+            observed_disorder_job = p.submit(_compute_gamma_k_job,
+                                             *(self.dissimilarity, self.best_alignment, category))
+
+            chance_disorders_jobs = [
+                p.submit(_compute_gamma_k_job,
+                         *(self.dissimilarity, alignment, category))
+                for alignment in self.chance_alignments
+            ]
+            observed_disorder = observed_disorder_job.result()
+            if observed_disorder == 0:
+                return 1
+            expected_disorder = float(np.mean(np.array([job_res.result() for job_res in chance_disorders_jobs])))
+
+        return 1 - observed_disorder / expected_disorder
 
 
 def _compute_best_alignment_job(dissimilarity: AbstractDissimilarity,
@@ -835,3 +810,9 @@ def _compute_best_alignment_job(dissimilarity: AbstractDissimilarity,
     using the given dissimilarity.
     """
     return continuum.get_best_alignment(dissimilarity)
+
+
+def _compute_gamma_k_job(dissimilarity: AbstractDissimilarity,
+                         alignment: 'Alignment',
+                         category: Optional[str]):
+    return alignment.gamma_k_disorder(dissimilarity, category)

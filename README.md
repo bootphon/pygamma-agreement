@@ -20,7 +20,7 @@ Python 3 and based mostly on NumPy, Numba and pyannote.core. For a full list of
 The main dependencies of pygamma-agreement are :
 
 * [NumPy](https://numpy.org/) (>= 1.10)
-* [sortedcontainers](http://www.grantjenks.com/docs/sortedcontainers/) (>=2.0.4)
+* [sortedcontainers](http://www.grantjenks.com/docs/sortedcontainers/) (>= 2.0.4)
 * [pyannote.core](http://pyannote.github.io/pyannote-core/) (>= 4.1)
 * [CVXPY](https://www.cvxpy.org/) (>= 1.0.25)
 * [CVXOPT](http://cvxopt.org/) (>= 1.2.6)
@@ -38,9 +38,9 @@ pygamma-agreement does not work with Python 2.7.
 
 ## Installation
 
-pygamma-agreement can be easily installed using pip
+pygamma-agreement can be easily installed using pip :
 
-  $ pip install pygamma-agreement
+    $ pip install pygamma-agreement
 
 
 Pygamma-agreement uses the [GNU Linear Programming Kit](https://www.gnu.org/software/glpk/) as its default Mixed Integer
@@ -57,22 +57,27 @@ To use those in `pygamma-agreement`, simply install them:
 
 then:
 
-    $ pip install cylp
+    $ pip install "pygamma-agreement[CBC]"
 
 
 If you have trouble during the two last steps, pygamma-agreement should work anyway,
 although significantly slower for larger input.
 
 
-| ⚠️   |  Warning : A bug in GLPK causes the standart ouput to be polluted by non-deactivable messages. |
+| ⚠️   |  Warning : A bug in GLPK causes the standart ouput to be polluted by non-deactivable messages. It is strongly advised to use the CBC solver. |
 |-----|----------------------------------------------------------------------------------|
 
 ## Tests
 
-The package comes with a unit-tests suit. To run it, first install *pytest* on your Python environment:
+The package comes with a unit-tests suit. To run it, first install the CBC solver, then the testing dependencies 
+on your Python environment:
 
-    $ pip install pytest
-    $ pytest test/
+    $ sudo apt install coinor-libcbc-dev
+    $ pip install "pygamma-agreement[testing]"
+
+After that, tests are ready to be launched (they take ~100s on a recent laptop) :
+
+    $ pytest tests/
 
 ## Submitting and issue or contributing
 

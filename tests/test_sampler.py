@@ -18,8 +18,7 @@ def test_mathet_sampler():
     new_continuum = sampler.sample_from_continuum
     assert new_continuum.categories.issubset(continuum.categories)
     assert len(new_continuum.annotators) == 2
-    dissim = CombinedCategoricalDissimilarity(continuum.categories,
-                                              delta_empty=1,
+    dissim = CombinedCategoricalDissimilarity(delta_empty=1,
                                               alpha=3,
                                               beta=1)
     gamma_results = new_continuum.compute_gamma(dissim,
@@ -40,8 +39,7 @@ def test_statistical_sampler():
     assert abs(continuum.avg_length_unit - new_continuum.avg_length_unit) <= 3
     assert abs(continuum.avg_num_annotations_per_annotator - new_continuum.avg_num_annotations_per_annotator) <= 3
     assert new_continuum.categories.issubset(continuum.categories)
-    dissim = CombinedCategoricalDissimilarity(continuum.categories,
-                                              delta_empty=1,
+    dissim = CombinedCategoricalDissimilarity(delta_empty=1,
                                               alpha=3,
                                               beta=1)
 

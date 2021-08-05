@@ -11,7 +11,7 @@ that prefer using regular shell scripts for their data processing tasks.
 Installation
 ------------
 
-The package is available on pip, thus, just run
+The package is available on pip. Just run
 
 .. code-block:: bash
 
@@ -33,7 +33,7 @@ then:
 
 .. code-block:: bash
 
-    $ pip install cylp
+    $ pip install pygamma-agreement[CBC]
 
 .. warning::
 
@@ -49,5 +49,6 @@ then:
    principles
    cli
    api_reference
+   how-to-s
    issues
    changelog

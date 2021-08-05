@@ -35,9 +35,11 @@ from argparse import RawTextHelpFormatter, ArgumentDefaultsHelpFormatter
 from pathlib import Path
 from typing import Dict, List
 
-from pygamma_agreement import Continuum, CombinedCategoricalDissimilarity, ShuffleContinuumSampler
-from pygamma_agreement.dissimilarity import cat_arguments
-
+from pygamma_agreement import (Continuum,
+                               LevenshteinCategoricalDissimilarity,
+                               NumericalCategoricalDissimilarity,
+                               ShuffleContinuumSampler,
+                               CombinedCategoricalDissimilarity)
 
 class RawAndDefaultArgumentFormatter(RawTextHelpFormatter,
                                      ArgumentDefaultsHelpFormatter):
@@ -82,6 +84,9 @@ output.add_argument("-o", "--output-csv", type=Path,
 output.add_argument("-j", "--output-json", type=Path,
                     help="Path to the output json report")
 
+argparser.add_argument("-e", "--empty-delta",
+                       default=1, type=float,
+                       help="Delta empty coefficient (empty alignment tolerance)")
 argparser.add_argument("-a", "--alpha",
                        default=1, type=float,
                        help="Alpha coefficient (positional dissimilarity ponderation)")
@@ -98,8 +103,8 @@ argparser.add_argument("-n", "--n-samples",
                        help="Number of random continuua to be sampled for the \n"
                             "gamma computation. Warning : additionnal continuua \n"
                             "will be sampled if precision level is not satisfied.\n")
-argparser.add_argument("-d", "--cat-dissim", type=str, choices=cat_arguments,
-                       default="default",
+argparser.add_argument("-d", "--cat-dissim", type=str, choices={"absolute", "numerical", "levenshtein"},
+                       default="absolute",
                        help="Categorical dissimilarity to use for measuring \n"
                             "inter-annotation disorder. The default one gives 1.0\n"
                             "if annotation have different categories, 0.0 otherwise")
@@ -153,10 +158,16 @@ def pygamma_cmd():
         logging.info(f"Finished loading continuum from {os.path.basename(file_path)} in {(time.time() - start) * 1000} ms")
         start = time.time()
 
-        dissim = CombinedCategoricalDissimilarity(continuum.categories,
-                                                  alpha=args.alpha,
+        cat_dissim = None
+        if args.cat_dissim == "levenshtein":
+            cat_dissim = LevenshteinCategoricalDissimilarity(continuum.categories)
+        elif args.cat_dissim == "ordinal":
+            cat_dissim = NumericalCategoricalDissimilarity(continuum.categories)
+
+        dissim = CombinedCategoricalDissimilarity(alpha=args.alpha,
                                                   beta=args.beta,
-                                                  cat_dissimilarity_matrix=cat_arguments[args.cat_dissim])
+                                                  delta_empty=args.empty_delta,
+                                                  cat_dissim=cat_dissim)
         logging.info(f"Finished loading dissimilarity object in {(time.time() - start) * 1000} ms")
         start = time.time()
 

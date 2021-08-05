@@ -163,6 +163,7 @@ class ShuffleContinuumSampler(AbstractContinuumSampler):
         min_dist_between_pivots = continuum.avg_length_unit / 2
         bound_inf, bound_sup = continuum.bounds
         new_continuum = Continuum()
+        new_continuum._categories = SortedSet(self._reference_continuum.categories)
         annotators = self._ground_truth_annotators
         while not new_continuum:  # Simple check to prevent returning an empty continuum.
             segments_available = [Segment(bound_inf, bound_sup)]
@@ -253,7 +254,7 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
                              avg_num_units_per_annotator: float, std_num_units_per_annotator: float,
                              avg_gap: float, std_gap: float,
                              avg_duration: float, std_duration: float,
-                             categories: np.ndarray, categories_weight: np.ndarray = None):
+                             categories: Iterable[str], categories_weight: Iterable[float] = None):
         """
 
         Parameters
@@ -286,8 +287,12 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
         self._std_nb_units_per_annotator = std_num_units_per_annotator
         self._avg_gap = avg_gap
         self._std_gap = std_gap
-        self._categories = categories
-        self._categories_weight = categories_weight
+        self._categories = np.array(categories)
+        self._categories_weight = None
+        if categories_weight is not None:
+            self._categories_weight = np.array(categories_weight)
+            if len(self._categories) != len(self._categories_weight):
+                raise ValueError("categories and categories_weight have different sizes.")
         self._avg_unit_duration = avg_duration
         self._std_unit_duration = std_duration
 
@@ -313,6 +318,7 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
     def sample_from_continuum(self) -> Continuum:
         self._has_been_init()
         new_continnum = Continuum()
+        new_continnum._categories = SortedSet(self._categories)
         for annotator in self._ground_truth_annotators:
             new_continnum.add_annotator(annotator)
             last_point = 0
@@ -322,7 +328,7 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
             for _ in range(nb_units):
                 gap = np.random.normal(self._avg_gap, self._std_gap)
                 length = abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
-                while length < 0:
+                while length == 0:
                     length = abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
                 category = np.random.choice(self._categories, p=self._categories_weight)
                 start = last_point + gap
