@@ -16,7 +16,7 @@ def test_fast_gamma():
                                  categories=np.array([str(i) for i in range(4)]))
     sample = sampler.sample_from_continuum
     cst = CorpusShufflingTool(0.3, sample)
-    dissim = CombinedCategoricalDissimilarity(sample.categories, alpha=3, beta=1)
+    dissim = CombinedCategoricalDissimilarity(alpha=3, beta=1)
 
     for nb_annotator in [2, 3, 4]:
         max_nb_annot = (2000**2)**(1/nb_annotator)
@@ -26,7 +26,7 @@ def test_fast_gamma():
             sampler._avg_nb_units_per_annotator = nb_annotation
             sample = sampler.sample_from_continuum
             cst = CorpusShufflingTool(0.3, sample)
-            dissim = CombinedCategoricalDissimilarity(sample.categories, alpha=3, beta=1)
+            dissim = CombinedCategoricalDissimilarity(alpha=3, beta=1)
 
             cont_cst = cst.corpus_shuffle(["Martino", "Martingale"],
                                           shift=True,

@@ -78,16 +78,17 @@ of the gamma software. We chose to include the alpha factor, as setting it to `1
 
 .. code-block:: python
 
-    dissimilarity = CombinedCategoricalDissimilarity(continuum.categories,
-                                                     alpha=3.0, # Set any alpha value you want
+    dissimilarity = CombinedCategoricalDissimilarity(alpha=3.0, # Set any alpha value you want
                                                      beta=2.0,
                                                      delta_empty=1.0)
 
     gamma_results = continuum.compute_gamma(dissimilarity)
     dissimilarity.alpha = 1.0  # gamma_results stores the dissimilarity used for computing the
                                # best alignments, as it is needed for computing gamma-cat
+    dissimilarity.recompile()
     print(f"gamma-cat is {gamma_results.gamma_cat}")  # Gamma-k can also be influenced by alpha
     dissimilarity.alpha = 3.0  # Add this line if you want to reuse the dissimilarity with alpha = 3
+    dissimilarity.recompile()
 
 4. Best alignment
 ^^^^^^^^^^^^^^^^^
@@ -138,8 +139,7 @@ In python, you need to manually create the combined categorical dissimilarity wi
 
 .. code-block:: python
 
-    dissim = CombinedCategoricalDissimilarity(continuum.categories,
-                                              alpha=3)
+    dissim = CombinedCategoricalDissimilarity(alpha=3)
     gamma_results = continuum.compute_gamma(dissim,
                                             sampler=ShuffleContinuumSampler(),
                                             precision_level=0.01)

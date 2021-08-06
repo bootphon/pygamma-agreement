@@ -10,7 +10,7 @@ explanation of how these classes can be built and used together.
 
   A great part of this page is just a rehash of concepts that are explained
   in a much clearer and more detailed way in the original γ-agreement paper  [mathet2015]_.
-  This documentation is mainly aimed to giving the reader a better understanding of our API's core
+  This documentation is mainly aimed at giving the reader a better understanding of our API's core
   principles.
   If you want a deeper understanding of the gamma agreement, we strongly advise that
   you take a look at this paper.
@@ -216,8 +216,11 @@ Right now, there are three types of dissimilarities available :
 
 Positional Dissimilarity
 ------------------------
-The positional dissimilarity is used to measure the *positional* or *temporal* disagreement
-between two annotated units :math:`u` and :math:`v`. Its formula is :
+A positional dissimilarity is used to measure the *positional* or *temporal* disagreement
+between two annotated units :math:`u` and :math:`v`.
+
+[mathet2015]_ introduces the positional sporadic dissimilarity as the reference positional dissimilarity
+for the gamma-agreement. Its formula is :
 
 .. math::
     d_{pos}(u,v) = \left(
@@ -227,22 +230,23 @@ between two annotated units :math:`u` and :math:`v`. Its formula is :
 
 
 
-Here's how to instanciate a ``PositionnalDissimilarity`` object :
+Here's how to instanciate a ``PositionnalSporadicDissimilarity`` object :
 
 .. code-block:: python
 
     from pygamma_agreement import PositionalDissimilarity
-    dissim_pos = PositionalDissimilarity(delta_empty=1.0)
+    dissim_pos = PositionalSporadicDissimilarity(delta_empty=1.0)
 
 
 and that's it.
 You can also use ``dissim_pos.d(unit1, unit2)`` to obtain directly the value of the dissimilarity between two units.
 It is however very unlikely that one would need to use it, as this value is only needed in the very low end of the
 gamma computation algorithm.
+
 Categorical Dissimilarity
 -------------------------
 
-The categorical dissimilarity is used to measure the *categorical* disagreement
+A categorical dissimilarity is used to measure the *categorical* disagreement
 between two annotated units :math:`u` and :math:`v`.
 
 
@@ -282,58 +286,41 @@ here's how to instanciate a categorical dissimilarity:
 
 .. code-block:: python
 
-    D = array([[0. , 0.5, 1. ],
-               [0.5, 0. , 1. ],
-               [1. , 1. , 0. ]])
+    D = array([[ 0.,   0.5,    1. ],
+               [0.5,    0.,  0.75 ],
+               [ 1.,  0.75,    0. ]])
 
-    from pygamma_agreement import CategoricalDissimilarity
+    from pygamma_agreement import PrecomputedCategoricalDissimilarity
     from sortedcontainers import SortedSet
 
     categories = SortedSet(('Noun', 'Verb', 'Adj'))
-    dissim_cat = CategoricalDissimilarity(categories,
-                                          cat_dissimilarity_matrix=D,
-                                          delta_empty=1.0)
-
-It's important to note that the index of each category in the categorical dissimilarity matrix is its index in
-**alphabetecial order**.
-
-You can also provide a function that will be used to compute the dissimilarity matrix, for instance the Levenshtein
-distance :
-
-.. code-block:: python
-
-    from pygamma_agreement import CategoricalDissimilarity
-    from sortedcontainers import SortedSet
-    from Levenshtein import distance as lev
-
-    def levenshtein_distance(str1, str2):
-        return lev(str1, str2) / max(len(str1), len(str2))
-
-    categories = SortedSet(('Noun', 'Verb', 'Adj'))
-    dissim_cat = CategoricalDissimilarity(categories,
-                                          cat_dissimilarity_matrix=levenshtein_distance,
-                                          delta_empty=1.0)
-
+    dissim_cat = PrecomputedCategoricalDissimilarity(categories,
+                                                matrix=D,
+                                                delta_empty=1.0)
 
 .. warning::
+    It's important to note that the index of each category in the categorical dissimilarity matrix is its index in
+    **alphabetical order**. In this example, the considered dissimilarity will be:
+        - :math:`dist_{cat}('Adj', 'Noun') = 0.5`
+        - :math:`dist_{cat}('Adj', 'Verb') = 1.0`
+        - :math:`dist_{cat}('Noun', 'Verb') = 0.75`
 
-    This dissimilarity, as of now, cannot directly be used to compute the γ-agreement.
-    In some near future, it will be usable to compute the γ-categorical agreement [mathet2018]_.
-    However, since this dissimilarity is part of the following :ref:`combined-dissim`,
-    we thought it was useful to explain its functioning.
+You can also use the default categorical dissimilarity, the ``AbsoluteCategoricalDissimilarity``;
+there are also other available categorical dissimilarities, such as the ``LevenshteinCategoricalDissimilarity`` which
+is based on the levenshtein distance.
 
 .. _combined-dissim:
 
 Combined Dissimilarity
 ----------------------
 
-The combined dissimilarity uses a linear combination of the two previous
+The combined categorical dissimilarity uses a linear combination of the two previous
 *categorical* and *positional* dissimilarities. The two coefficients used to
 weight the importance of each dissimilarity are :math:`\alpha` and :math:`\beta` :
 
 .. math::
 
-    d_{combi}^{\alpha,\beta}(u,v) = \alpha . d_{pos} + \beta . d_{cat}
+    d_{combi}^{\alpha,\beta}(u,v) = \alpha . d_{pos}(u,v) + \beta . d_{cat}(u,v)
 
 This is the dissimilarity recommended by [mathet2015]_ for computing gamma.
 
@@ -341,16 +328,14 @@ It takes the same parameters as the two other dissimilarities, plus :math:`\alph
 
 .. code-block:: python
 
-    from pygamma_agreement import CombinedCategoricalDissimilarity
+    from pygamma_agreement import CombinedCategoricalDissimilarity, LevenshteinCategoricalDissimilarity
 
-    categories = SortedSet(('Noun', 'Verb', 'Adj'))
-    dissim = CombinedCategoricalDissimilarity(categories,
-                                              alpha=3,
+    categories = ['Noun', 'Verb', 'Adj']
+    dissim = CombinedCategoricalDissimilarity(alpha=3,
                                               beta=1,
                                               delta_empty=1.0,
-                                              cat_dissimilarity_matrix=levenshtein_distance)
-
-
+                                              pos_dissim=PositionalSporadicDissimilarity()
+                                              cat_dissim=LevenshteinCategoricalDissimilarity(categories))
 
 
 .. _gamma_agreement:
@@ -379,18 +364,17 @@ The gamma agreement's formula is finally:
 
     \gamma = 1 - \frac{\delta_{best}}{\delta_{random}}
 
-Several points that should be made about that value:
+Several points that should be clarified about that value:
 
-* it is bounded by :math:`]-\infty,1]` but for most "regular" situations it should be contained in :math:`[0, 1]`
-* the higher and the closer it is to 1, the better.
+* it is bounded by :math:`]-\infty,1]` but for most "regular" situations it should be contained within :math:`[0, 1]`
+* the higher and the closer it is to 1, the more similar the annotators' annotations are.
 
-The gamma value is computed from a ``Continuum`` object, using a given ``Dissimilarity`` object :
+the gamma value is computed from a ``Continuum`` object, using a given ``Dissimilarity`` object :
 
 .. code-block:: python
 
      continuum = Continuum.from_csv('your/csv/file.csv')
-     dissim = CombinedCategoricalDissimilarity(continuum.categories,
-                                               delta_empty=1,
+     dissim = CombinedCategoricalDissimilarity(delta_empty=1,
                                                alpha=3,
                                                beta=1)
      gamma_results = continuum.compute_gamma(dissim,
@@ -429,7 +413,7 @@ The :math:`γ_{cat}`-agreement can be obtained from the :ref:`GammaResults objec
 :math:`γ_{k}` is another alternate agreement measure. It only differs from :math:`γ_{cat}` by the fact that it
 only considers one defined category.
 
-The :math:`γ_{k}` value for a category also can be obtained from the :ref:`GammaResults object <gamma_agreement>`:
+The :math:`γ_{k}` value for a category alse can be obtained from the :ref:`GammaResults object <gamma_agreement>`:
 
 .. code-block:: python
 

@@ -33,6 +33,7 @@ from collections import Counter
 from typing import Tuple, Optional, Iterable, Iterator, List, TYPE_CHECKING, Union
 from sortedcontainers import SortedSet
 
+import numba as nb
 import numpy as np
 
 from .dissimilarity import AbstractDissimilarity, CombinedCategoricalDissimilarity
@@ -188,11 +189,20 @@ class Alignment(AbstractAlignment):
             yield unitary_alignment
 
 
-
     @property
     def annotators(self):
         return SortedSet([annotator for annotator, _
                           in self.unitary_alignments[0].n_tuple])
+
+    @property
+    def categories(self):
+        if self.continuum is not None:
+            return self.continuum.categories
+        else:
+            return SortedSet([unit.annotation
+                              for unitary_alignment in self
+                              for _, unit in unitary_alignment.n_tuple
+                              if unit is not None])
 
     @property
     def avg_num_annotations_per_annotator(self):
@@ -227,17 +237,12 @@ class Alignment(AbstractAlignment):
     def compute_disorder(self, dissimilarity: AbstractDissimilarity):
         """
         Recalculates the disorder of this alignment using the given dissimilarity computer.
-        Usually not needed since most alignment are generated from a minimal disorder
-        so they are
+        Usually not needed since most alignment are generated from a minimal disorder.
         """
-        disorder_args = dissimilarity.build_args(self)
-        unit_ids = np.arange(self.num_unitary_alignments, dtype=np.int32)
-        unit_ids = np.vstack([unit_ids] * self.num_annotators)
-        unit_ids = unit_ids.swapaxes(0, 1)
-        disorders = dissimilarity(unit_ids, *disorder_args)
+        disorders = dissimilarity.compute_disorder(self)
         for i, disorder in enumerate(disorders):
             self.unitary_alignments[i].disorder = disorder
-        self._disorder = (dissimilarity(unit_ids, *disorder_args).sum()
+        self._disorder = (np.sum(disorders)
                           / self.avg_num_annotations_per_annotator)
         return self._disorder
 
@@ -271,7 +276,7 @@ class Alignment(AbstractAlignment):
             else:
                 weight_base = 1 / (nv - 1)
             for i, (_, unit1) in enumerate(unitary_alignment.n_tuple):
-                for _, unit2 in unitary_alignment.n_tuple[i+1:]:
+                for _, unit2 in unitary_alignment.n_tuple[i + 1:]:
                     # Case handler for gamma-k
                     if category is not None and ((unit1 is None or unit1.annotation != category)
                                                  and (unit2 is None or unit2.annotation != category)):
@@ -288,8 +293,8 @@ class Alignment(AbstractAlignment):
                     weight_confidence = max(0, 1 - pos_dissim)
                     cat_dissim = dissimilarity.categorical_dissim.d(unit1, unit2)
                     weight = weight_base * weight_confidence  # Each categorical dissimilarity is weighted by both
-                    total_disorder += cat_dissim * weight     # a positional "confidence" and the # of alignments
-                    total_weight += weight                    # in the unitary alignment
+                    total_disorder += cat_dissim * weight  # a positional "confidence" and the # of alignments
+                    total_weight += weight  # in the unitary alignment
         if no_loop:
             return 1.0 if no_cat else 0.0
         return 0 if total_disorder == 0 else total_disorder / total_weight
@@ -372,3 +377,5 @@ class Alignment(AbstractAlignment):
 
         from .notebook import repr_alignment
         return repr_alignment(self)
+
+

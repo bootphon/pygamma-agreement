@@ -7,7 +7,7 @@ from pyannote.core import Annotation, Segment
 from pygamma_agreement.alignment import SetPartitionError
 from pygamma_agreement.alignment import UnitaryAlignment, Alignment
 from pygamma_agreement.continuum import Continuum, Unit
-from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity
+from pygamma_agreement.dissimilarity import CombinedCategoricalDissimilarity, PrecomputedCategoricalDissimilarity
 from sortedcontainers import SortedSet
 
 def test_alignment_checking():
@@ -62,15 +62,14 @@ def test_unitary_alignment():
                     [0.3, 0.6, 0., 0.7],
                     [0.7, 0.4, 0.7, 0.]])
     combi_dis = CombinedCategoricalDissimilarity(
-        categories=categories,
         delta_empty=0.5,
-        cat_dissimilarity_matrix=cat,
+        cat_dissim=PrecomputedCategoricalDissimilarity(categories, cat, delta_empty=0.5),
         alpha=1)
     n_tuple = [('liza', Unit(Segment(12, 18), "Carol")),
                ('pierrot', Unit(Segment(12, 18), "Alice")),
                ('hadrien', None)]
     unitary_alignment = UnitaryAlignment(n_tuple)
-    assert  unitary_alignment.nb_units == 2
+    assert unitary_alignment.nb_units == 2
 
     assert (unitary_alignment.compute_disorder(combi_dis)
            ==
@@ -108,10 +107,9 @@ def test_alignment():
                     [0.3, 0.6, 0., 0.7],
                     [0.7, 0.4, 0.7, 0.]])
     combi_dis = CombinedCategoricalDissimilarity(
-        categories=categories,
         delta_empty=0.5,
         alpha=3,
-        cat_dissimilarity_matrix=cat)
+        cat_dissim=PrecomputedCategoricalDissimilarity(categories, cat, delta_empty=0.5))
     set_unitary_alignments = []
 
     n_tuple = [('liza', Unit(Segment(1, 5), 'Carol')),
@@ -189,10 +187,9 @@ def test_best_alignment():
                     [0.3, 0.6, 0., 0.7],
                     [0.7, 0.4, 0.7, 0.]])
     combi_dis = CombinedCategoricalDissimilarity(
-        categories=categories,
         delta_empty=0.5,
         alpha=3,
-        cat_dissimilarity_matrix=cat)
+        cat_dissim=PrecomputedCategoricalDissimilarity(categories, cat, delta_empty=0.5))
     set_unitary_alignments = []
 
     n_tuple = [('liza', Unit(Segment(1, 5), 'Carol')),

@@ -39,7 +39,7 @@ setup(
     # package
     packages=find_packages(),
     install_requires=requirements,
-    version='0.2.0',
+    version='0.3.0',
 
     # PyPI
     name='pygamma-agreement',
@@ -56,7 +56,6 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Natural Language :: English",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
@@ -73,8 +72,9 @@ setup(
         "notebook": [
             "matplotlib",
         ],
+        "CBC": ["cylp"],
         "testing": [
-            "pytest"
+            "pytest", "cylp"
         ],
         "docs": ["sphinx",
                  "sphinx_rtd_theme"]

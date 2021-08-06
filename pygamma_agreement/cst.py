@@ -72,6 +72,7 @@ class CorpusShufflingTool:
     def corpus_from_reference(self, new_annotators: Union[int, Iterable[Annotator]]):
         # TODO: add docstring
         continuum = Continuum()
+        continuum._categories = self._reference_continuum.categories
         continuum.bound_inf, continuum.bound_sup = self._reference_continuum.bounds
         if isinstance(new_annotators, int):
             new_annotators = [f"annotator_{i}" for i in range(new_annotators)]
@@ -88,7 +89,7 @@ class CorpusShufflingTool:
         of bounds proportionnal to the magnitude of the CST and the length of the segment.
         """
         shift_max = self.magnitude * self.SHIFT_FACTOR * \
-                    self._reference_continuum.avg_length_unit
+            self._reference_continuum.avg_length_unit
         for annotator in continuum.annotators:
             for unit in continuum[annotator]:
                 continuum.remove(annotator, unit)
@@ -125,7 +126,7 @@ class CorpusShufflingTool:
         avg_dur = np.average([unit.segment.end - unit.segment.start for unit in ref_units])
         var_dur = np.std([unit.segment.end - unit.segment.start for unit in ref_units])
         category_weights = self._reference_continuum.category_weights
-        bounds_inf, bounds_sup = (next(iter(ref_units)).segment.start, next(reversed(ref_units)).segment.end)
+        bounds_inf, bounds_sup = self._reference_continuum.bound_inf, self._reference_continuum.bound_sup
         for annotator in continuum.annotators:
             for _ in range(int(self.magnitude * self.FALSE_POS_FACTOR * len(self._reference_continuum))):
                 # a random unit is generated from a (all random) central point, duration, and category

@@ -32,12 +32,13 @@ Data structures
     :special-members:
     :exclude-members: __weakref__
 
+
 .. _dissimilarities:
 
 Dissimilarities
 ---------------
 
-.. autoclass:: pygamma_agreement.CategoricalDissimilarity
+.. autoclass:: pygamma_agreement.AbstractDissimilarity
     :members:
     :special-members:
     :exclude-members: __weakref__
@@ -47,6 +48,40 @@ Dissimilarities
     :special-members:
     :exclude-members: __weakref__
 
+.. autoclass:: pygamma_agreement.CategoricalDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. autoclass:: pygamma_agreement.AbsoluteCategoricalDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. autoclass:: pygamma_agreement.PrecomputedCategoricalDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. autoclass:: pygamma_agreement.OrdinalCategoricalDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. autoclass:: pygamma_agreement.NumericalCategoricalDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. autoclass:: pygamma_agreement.LambdaCategoricalDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
+
+.. autoclass:: pygamma_agreement.LevenshteinCategoricalDissimilarity
+    :members:
+    :special-members:
+    :exclude-members: __weakref__
 
 .. autoclass:: pygamma_agreement.CombinedCategoricalDissimilarity
     :members:
@@ -73,6 +108,7 @@ Samplers
     :members:
     :special-members:
     :exclude-members: __weakref__
+
 
 .. _corpus_shuffling_tool:
 

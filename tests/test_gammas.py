@@ -6,17 +6,17 @@ import pytest
 
 from pygamma_agreement.continuum import Continuum
 from pygamma_agreement.dissimilarity import (CombinedCategoricalDissimilarity,
-                                             PositionalDissimilarity,
-                                             CategoricalDissimilarity,
-                                             cat_ord)
+                                             PositionalSporadicDissimilarity,
+                                             NumericalCategoricalDissimilarity,
+                                             LevenshteinCategoricalDissimilarity,
+                                             OrdinalCategoricalDissimilarity)
 from pygamma_agreement.sampler import ShuffleContinuumSampler
 
 
 def test_gamma_2by1000():
     np.random.seed(4772)
     continuum = Continuum.from_csv(Path("tests/data/2by1000.csv"))
-    dissim = CombinedCategoricalDissimilarity(continuum.categories,
-                                              delta_empty=1,
+    dissim = CombinedCategoricalDissimilarity(delta_empty=1,
                                               alpha=3,
                                               beta=1)
 
@@ -37,8 +37,7 @@ def test_gamma_2by1000():
 def test_gamma_3by100():
     np.random.seed(4772)
     continuum = Continuum.from_csv(Path("tests/data/3by100.csv"))
-    dissim = CombinedCategoricalDissimilarity(continuum.categories,
-                                              delta_empty=1,
+    dissim = CombinedCategoricalDissimilarity(delta_empty=1,
                                               alpha=3,
                                               beta=1)
 
@@ -58,8 +57,7 @@ def test_gamma_3by100():
 def test_gamma_alexpaulsuzan():
     np.random.seed(4772)
     continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
-    dissim = CombinedCategoricalDissimilarity(continuum.categories,
-                                              delta_empty=1,
+    dissim = CombinedCategoricalDissimilarity(delta_empty=1,
                                               alpha=3,
                                               beta=1)
     sampler = ShuffleContinuumSampler()
@@ -84,10 +82,11 @@ def test_gamma_alexpaulsuzan():
 def test_gamma_alexpaulsuzan_otherdissims():
     np.random.seed(4772)
     continuum = Continuum.from_csv(Path("tests/data/AlexPaulSuzan.csv"))
-    dissimilarity = PositionalDissimilarity()
+    dissimilarity = PositionalSporadicDissimilarity()
 
     gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.05)
 
+    # TODO use assertRaise
     gamma = gamma_results.gamma
     try:
         gamma_cat = gamma_results.gamma_cat
@@ -95,11 +94,11 @@ def test_gamma_alexpaulsuzan_otherdissims():
     except:
         pass
 
-    dissimilarity = CategoricalDissimilarity(categories=continuum.categories,
-                                             cat_dissimilarity_matrix=cat_ord)
+    dissimilarity = NumericalCategoricalDissimilarity(continuum.categories)
 
     gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.05)
 
+    # TODO use assertRaise
     gamma = gamma_results.gamma
     try:
         gamma_cat = gamma_results.gamma_cat
@@ -107,3 +106,8 @@ def test_gamma_alexpaulsuzan_otherdissims():
     except:
         pass
 
+    dissimilarity = LevenshteinCategoricalDissimilarity(continuum.categories)
+    best_alignment = continuum.get_best_alignment(dissimilarity)
+
+    dissimilarity = OrdinalCategoricalDissimilarity(continuum.categories)
+    best_alignment = continuum.get_best_alignment(dissimilarity)
