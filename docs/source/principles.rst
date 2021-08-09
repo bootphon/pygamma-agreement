@@ -300,7 +300,7 @@ here's how to instanciate a categorical dissimilarity:
 
 .. warning::
     It's important to note that the index of each category in the categorical dissimilarity matrix is its index in
-    **alphabetecial order**. In this example, the considered dissimilarity will be:
+    **alphabetical order**. In this example, the considered dissimilarity will be:
         - :math:`dist_{cat}('Adj', 'Noun') = 0.5`
         - :math:`dist_{cat}('Adj', 'Verb') = 1.0`
         - :math:`dist_{cat}('Noun', 'Verb') = 0.75`

@@ -119,3 +119,10 @@ The same image can also be displayed with ``matplotlib`` by using :
     from pygamma_agreement import show_alignment
     show_alignment(gamma_results.best_alignment, labelled=True)
 
+The whole example
+~~~~~~~~~~~~~~~~~
+
+Here's the full quickstart code example, for convenience:
+
+.. literalinclude:: examples/quickstart.py
+    :language: python
