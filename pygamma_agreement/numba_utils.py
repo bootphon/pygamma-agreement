@@ -25,7 +25,7 @@
 
 import numba as nb
 import numpy as np
-
+from typing import List, Callable
 
 @nb.njit(nb.float32(nb.types.string, nb.types.string))
 def levenshtein(str1: str, str2: str):
@@ -74,6 +74,56 @@ def iter_tuples(sizes: np.ndarray):
             current[i] = 0
         else:
             return
+
+
+@nb.njit(nb.float32[:, ::1](nb.int16[:, :],
+                            nb.int32[:]))
+def build_A(possible_unitary_alignments: List[np.ndarray],
+            sizes: np.ndarray):
+    nb_units = np.sum(sizes)
+    n = len(possible_unitary_alignments)
+    A = np.zeros((nb_units, n), dtype=np.float32)
+    for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
+        annotator_units_start = 0
+        for annotator_id, unit_id in enumerate(unit_ids_tuple):
+            if unit_id != sizes[annotator_id]:  # Non-null unit
+                A[annotator_units_start + unit_id, p_id] = 1
+            annotator_units_start += sizes[annotator_id]
+    return A
+
+
+@nb.njit(nb.float32[:, ::1](nb.int16[:, :],
+                            nb.int32[:],
+                            nb.types.FunctionType(nb.float32(nb.float32[:], nb.float32[:])),
+                            nb.types.ListType(nb.float32[:, ::1])))
+def build_D(possible_unitary_alignments: List[np.ndarray],
+            sizes: np.ndarray,
+            d_mat: Callable[[np.ndarray, np.ndarray], float],
+            units_array: nb.typed.List):
+    D = np.zeros((len(possible_unitary_alignments), len(possible_unitary_alignments)), dtype=np.float32)
+    for i, tuple_i in enumerate(possible_unitary_alignments):
+        for j, tuple_j in enumerate(possible_unitary_alignments):
+            same_annotator_same_unit = tuple_i - tuple_j
+            for a, unit_a in enumerate(tuple_i):
+                for b, unit_b in enumerate(tuple_j[:a]):
+                    if (same_annotator_same_unit[a] == 0 and same_annotator_same_unit[b] == 0
+                            and unit_a != sizes[a] and unit_b != sizes[b]):
+                        D[i, j] += d_mat(units_array[a][unit_a], units_array[b][unit_b])
+    return D
+
+@nb.njit()
+def build_C(possible_unitary_alignments: List[np.ndarray],
+            sizes: np.ndarray,
+            d_mat: Callable[[np.ndarray, np.ndarray], float],
+            units_array: nb.typed.List):
+    C = np.zeros((len(possible_unitary_alignments), len(possible_unitary_alignments)))
+    for i, tuple_i in enumerate(possible_unitary_alignments):
+        for j, tuple_j in enumerate(possible_unitary_alignments):
+            for a, unit_a in enumerate(tuple_i):
+                for b, unit_b in enumerate(tuple_j):
+                    C[i, j] += d_mat(units_array[a][unit_a], units_array[b][unit_b])
+    return C
+
 
 
 

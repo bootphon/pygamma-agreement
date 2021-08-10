@@ -44,6 +44,7 @@ from pyannote.core import Annotation, Segment, Timeline
 from pyannote.database.util import load_rttm
 from sortedcontainers import SortedDict, SortedSet
 from typing_extensions import Literal
+from .numba_utils import build_D, build_A
 
 from .dissimilarity import AbstractDissimilarity
 
@@ -524,34 +525,18 @@ class Continuum:
         assert len(self.annotators) >= 2 and self, "Disorder cannot be computed with less than two annotators, or " \
                                                    "without annotations."
 
-        nb_unit_per_annot = []
-        for annotator, arr in self._annotations.items():
-            # assert len(arr) > 0, f"Disorder cannot be computed because annotator {annotator} has no annotations."
-            nb_unit_per_annot.append(len(arr) + 1)
+        sizes = np.empty(self.num_annotators, dtype=np.int32)
+        for i, units in enumerate(self._annotations.values()):
+            sizes[i] = len(units)
 
         units_array = dissimilarity._build_arrays_continuum(self)
         disorders, possible_unitary_alignments = dissimilarity._get_all_valid_alignments(units_array,
                                                                                          dissimilarity.d_mat,
                                                                                          dissimilarity.delta_empty)
-
         # Definition of the integer linear program
         n = len(disorders)
-
-        true_units_ids = []
-        num_units = 0
-        for units in self._annotations.values():
-            true_units_ids.append(np.arange(num_units, num_units + len(units)).astype(np.int32))
-            num_units += len(units)
-
         # Constraints matrix ("every unit must appear once and only once")
-        A = np.zeros((num_units, n))
-        D = np.zeros((num_units, num_units))
-        for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
-            for annotator_id, unit_id in enumerate(unit_ids_tuple):
-                if unit_id != len(true_units_ids[annotator_id]):  # Non-null unit
-                    A[true_units_ids[annotator_id][unit_id], p_id] = 1
-
-        # we don't actually care about the optimal loss value
+        A = build_A(possible_unitary_alignments, sizes)
         x = cp.Variable(shape=(n,), boolean=True)
         try:
             import cylp
@@ -563,7 +548,6 @@ class Continuum:
                                     "(likely because the amount of possible unitary alignments was too high)"
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
         chosen_alignments_ids, = np.where(x.value > 0.9)
-        print(A @ x.value @ A)
 
         chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
         alignments_disorders: np.ndarray = disorders[chosen_alignments_ids]
@@ -586,7 +570,76 @@ class Continuum:
         return SoftAlignment(set_unitary_alignements,
                              continuum=self,
                              check_validity=True,
-                             disorder=alignments_disorders.sum() / self.avg_num_annotations_per_annotator)
+                             disorder= np.sum(alignments_disorders) / self.avg_num_annotations_per_annotator)
+
+    def get_best_soft_alignment_quad(self,  dissimilarity: AbstractDissimilarity) -> 'SoftAlignment':
+        assert len(self.annotators) >= 2 and self, "Disorder cannot be computed with less than two annotators, or " \
+                                                   "without annotations."
+
+        sizes = np.empty(self.num_annotators, dtype=np.int32)
+        for i, units in enumerate(self._annotations.values()):
+            sizes[i] = len(units)
+
+        units_array = dissimilarity._build_arrays_continuum(self)
+        disorders, possible_unitary_alignments = dissimilarity._get_all_valid_alignments(units_array,
+                                                                                         dissimilarity.d_mat,
+                                                                                         dissimilarity.delta_empty)
+        # Definition of the integer linear program
+        n = len(disorders)
+        # Constraints matrix ("every unit must appear once and only once")
+        A = build_A(possible_unitary_alignments, sizes)
+
+        # Definition of the integer linear program
+        n = len(disorders)
+
+        D = build_D(possible_unitary_alignments, sizes, dissimilarity.d_mat, units_array)
+        print(np.linalg.eigvals(D))
+        min_eigval = np.min(np.linalg.eigvals(D))
+        while min_eigval < 0:
+            D += np.eye(n) * 1e-4
+            min_eigval = np.min(np.linalg.eigvals(D))
+        Q = np.linalg.cholesky(D)
+
+        c = -np.linalg.inv(Q.T) @ disorders
+
+        x = cp.Variable(shape=(n,), boolean=True)
+        problem = cp.Problem(cp.Minimize(cp.sum_squares(Q @ x - c)), [A @ x >= 1])
+        disorder = (problem.solve(solver=cp.ECOS_BB) - c.T @ c) / (self.num_annotators * (self.num_annotators - 1) / 2)
+
+        temp = Q @ x.value - c
+        print(temp.T @ temp - c.T @ c)
+        print(2 * disorders.T @ x.value - x.value.T @ Q.T @ Q @ x.value)
+
+        assert x.value is not None, f"The linear solver couldn't find an alignment with minimal disorder " \
+                                    f"(reason for unfound solution is '{problem.status}')"
+        # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
+        print(x.value)
+
+
+        chosen_alignments_ids, = np.where(x.value > 0.9)
+
+        chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
+        alignments_disorders: np.ndarray = disorders[chosen_alignments_ids]
+
+        from .alignment import UnitaryAlignment, SoftAlignment
+
+        set_unitary_alignements = []
+        for alignment_id, alignment in enumerate(chosen_alignments):
+            u_align_tuple = []
+            for annotator_id, unit_id in enumerate(alignment):
+                annotator, units = self._annotations.peekitem(annotator_id)
+                try:
+                    unit = units[unit_id]
+                    u_align_tuple.append((annotator, unit))
+                except IndexError:  # it's a "null unit"
+                    u_align_tuple.append((annotator, None))
+            unitary_alignment = UnitaryAlignment(list(u_align_tuple))
+            unitary_alignment.disorder = alignments_disorders[alignment_id]
+            set_unitary_alignements.append(unitary_alignment)
+        return SoftAlignment(set_unitary_alignements,
+                             continuum=self,
+                             check_validity=True,
+                             disorder = disorder / self.avg_num_annotations_per_annotator)
 
     def get_best_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
         """
@@ -604,30 +657,19 @@ class Continuum:
         assert len(self.annotators) >= 2 and self, "Disorder cannot be computed with less than two annotators, or " \
                                                    "without annotations."
 
-        nb_unit_per_annot = []
-        for annotator, arr in self._annotations.items():
-            # assert len(arr) > 0, f"Disorder cannot be computed because annotator {annotator} has no annotations."
-            nb_unit_per_annot.append(len(arr) + 1)
+        sizes = np.empty(self.num_annotators, dtype=np.int32)
+        for i, units in enumerate(self._annotations.values()):
+            sizes[i] = len(units)
 
-        disorders, possible_unitary_alignments = dissimilarity.valid_alignments(self)
-
+        units_array = dissimilarity._build_arrays_continuum(self)
+        disorders, possible_unitary_alignments = dissimilarity._get_all_valid_alignments(units_array,
+                                                                                         dissimilarity.d_mat,
+                                                                                         dissimilarity.delta_empty)
         # Definition of the integer linear program
         n = len(disorders)
-
-        true_units_ids = []
-        num_units = 0
-        for units in self._annotations.values():
-            true_units_ids.append(np.arange(num_units, num_units + len(units)).astype(np.int32))
-            num_units += len(units)
-
         # Constraints matrix ("every unit must appear once and only once")
-        A = np.zeros((num_units, n))
-        for p_id, unit_ids_tuple in enumerate(possible_unitary_alignments):
-            for annotator_id, unit_id in enumerate(unit_ids_tuple):
-                if unit_id != len(true_units_ids[annotator_id]):
-                    A[true_units_ids[annotator_id][unit_id], p_id] = 1
+        A = build_A(possible_unitary_alignments, sizes)
 
-        # we don't actually care about the optimal loss value
         x = cp.Variable(shape=(n,), boolean=True)
         try:
             import cylp
@@ -663,7 +705,7 @@ class Continuum:
                          continuum=self,
                          # Validity of results from get_best_alignments have been thoroughly tested :
                          check_validity=False,
-                         disorder=alignments_disorders.sum() / self.avg_num_annotations_per_annotator)
+                         disorder=np.sum(alignments_disorders)  / self.avg_num_annotations_per_annotator)
 
     def compute_gamma(self,
                       dissimilarity: Optional['AbstractDissimilarity'] = None,
