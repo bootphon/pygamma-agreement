@@ -299,13 +299,6 @@ class Alignment(AbstractAlignment):
             return 1.0 if no_cat else 0.0
         return 0 if total_disorder == 0 else total_disorder / total_weight
 
-    def merge(self, other: 'Alignment'):
-        """
-        Merge other alignment into self.
-        """
-        self.unitary_alignments += other.unitary_alignments
-
-
     def check(self, continuum: Optional[Continuum] = None):
         """
         Checks that an alignment is a valid partition of a Continuum. That is,
