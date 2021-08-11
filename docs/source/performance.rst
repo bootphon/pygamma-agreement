@@ -127,16 +127,19 @@ Here are the performance comparisons between the two algorithms :
   **3 annotators**
 
 
-The gain in computation time is incredibly interesting, and the precision is more than
-sufficient, so we strongly advise to use the fast-gamma every time.
+As demonstrated, the gain in computation time provided by the `fast-gamma`
+optimization is very interesting, and the precision is more than
+sufficient, so we strongly advise to use the `fast-gamma` at all times.
 
 Although we have not found any theoretical proofs to backup our intuition that fast-gamma is accurate enough,
 we have reasons to believe that if the overlapping of the annotations from
-a single annotator is limited, the fast-gamma has the exact same value as the gamma.
+a single annotator is limited, the fast-gamma has the exact same value as the regular (or "canon") gamma
+algorithm.
 
-The algorithm used by fast-gamma assumes that for three annotation segments :math:`A`, :math:`B` and :math:`C`,
+The algorithm used by fast-gamma assumes that for three annotation segments **from the same annotator**,
+:math:`A`, :math:`B` and :math:`C`,
 if :math:`A < B < C` (alphanumerical order), then :math:`d_{pos}(A, B) < d_{pos}(A, C)`. It is however not true in
-general, and especially not when units overlap a lot.
+general, and especially not when units from the same annotator overlap a lot.
 
 This is confirmed in some extent by measures :
 
@@ -153,7 +156,7 @@ Here's an explanation of what the overlapping value means on average :
   length.
 
 The innacurate fast-gammas were measured on continua generated specifically to mess with the algorithm.
-For real input though, it is established from experience that fast-gamma is more than reliable. Thus,
+However, for real (i.e. natural) input, it is established from experience that fast-gamma is more than reliable. Thus,
 it is advised to prioritize it since the gain in computing time is significant.
 
 

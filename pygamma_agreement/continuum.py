@@ -243,9 +243,9 @@ class Continuum:
 
     @property
     def category_weights(self) -> SortedDict:
-        """from .notebook import show_continuum
-        Returns a dictionnary where the keys are the categories in the continuum, and a key's value
-        is the proportion of occurence of the category in the continuum.
+        """
+        Returns a dictionary where the keys are the categories in the continuum, and a key's value
+        is the proportion of occurrence of the category in the continuum.
         """
         weights = SortedDict()
         nb_units = 0
@@ -261,7 +261,8 @@ class Continuum:
 
     @property
     def bounds(self) -> Tuple[float, float]:
-        """Bounds of the continuum. Initated as (0, 0), they grow as annotations are added."""
+        """Bounds of the continuum. Initially defined as (0, 0),
+        they grow as annotations are added."""
         return self.bound_inf, self.bound_sup
 
     @property
@@ -756,7 +757,8 @@ class Continuum:
             Sampler object, which implements a sampling strategy for creating random continuua used
             to calculate the expected disorder. If not set, defaults to the Statistical continuum sampler
         fast:
-            Sets the algorithm to the much faster fast-gamma. It's supposed to be less precise, but usually isn't.
+            Sets the algorithm to the much faster fast-gamma. It's supposed to be less precise than the "canonical"
+            algorithm from Mathet 2015, but usually isn't.
             Performance gains and precision are explained in the Performance section of the documentation.
         """
         from .dissimilarity import CombinedCategoricalDissimilarity
@@ -773,7 +775,8 @@ class Continuum:
             self.measure_best_window_size(dissimilarity)
         else:
             job = _compute_best_alignment_job
-        # Multiprocessed computation of sample disorder
+
+        # Multithreaded computation of sample disorder
         with ThreadPoolExecutor(max_workers=os.cpu_count()) as p:
             # computation of best alignment in advance
             best_alignment_task = p.submit(job,
