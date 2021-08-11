@@ -538,16 +538,18 @@ class Continuum:
     def get_first_window(self, dissimilarity: AbstractDissimilarity, w: int = 1) -> Tuple['Continuum', float]:
         """
         Returns a tuple (continuum, x_limit), where :
-            - Before x_limit, there are the (w * nb_annotators) annotations leftmost annotations
-              from the continuum.
+            - Before x_limit, there are the (w * nb_annotators) leftmost annotations
+              of the continuum.
             - After x_limit, there are (approximately) all the annotations from the continuum
-              that have a dissimilarity lower than (delta_empty * nb_annotators) with a annotation
+              that have a dissimilarity lower than (delta_empty * nb_annotators) with the annotations
               before x_limit.
         """
+        # Everything is converted to zippable lists. This is necessary for this method to have
+        # a simple and known complexity for choosing the most advantageous window size.
         annotators = list(self.annotators)
         annotations = list(self._annotations.values())
         sizes = list(map(len, annotations))
-        indexes = [0] * len(annotators)
+        indexes = [0] * len(annotators)  # Indexes for "advancing" homogeneously in the continuum
 
         smallest_unit = Unit(Segment(-np.inf, -np.inf), None)
 
@@ -557,26 +559,28 @@ class Continuum:
         taken_units = 0
         rightmost_unit = smallest_unit
         to_take = min(float(np.sum(sizes)), w * self.num_annotators)
-        while taken_units < to_take:
+        while taken_units < to_take:  # At least (nb_annotators * w) units
+
             x_limit = np.inf
-            for units, index, size in zip(annotations, indexes, sizes):
+            for units, index, size in zip(annotations, indexes, sizes):  # Taking the rightmost unit not already taken
                 if index >= size:  # All annotations have been consumed
                     continue
                 unit = units[index]
                 x_limit = min(x_limit, unit.segment.end)
+
             for i, (annotator, units, index, size) in enumerate(zip(annotators, annotations, indexes, sizes)):
                 if index >= size:  # All annotations have been consumed
                     continue
-                unit = units[index]
+                unit = units[index]  # Adding the units before x_limit. This will take between 1 and nb_annotator units.
                 if unit.segment.end <= x_limit:
                     window.add(annotator, unit.segment, unit.annotation)
-                    rightmost_unit = max(unit, rightmost_unit)
-                    taken_units += 1
+                    rightmost_unit = max(unit, rightmost_unit)  # Rightmost taken unit is kept
+                    taken_units += 1                            # for selection of additionnal units.
                     indexes[i] += 1
 
         x_limit = window.bound_sup
 
-        # Now we add the additionnal annotations
+        # Now we add the additionnal annotations, "reachable" from those already selected.
         for annotator, units, index, size in zip(annotators, annotations, indexes, sizes):
             while index < size:
                 unit = units[index]
@@ -752,7 +756,8 @@ class Continuum:
             Sampler object, which implements a sampling strategy for creating random continuua used
             to calculate the expected disorder. If not set, defaults to the Statistical continuum sampler
         fast:
-            Sets the algorithm for computing gamma. The faster, the less precise.
+            Sets the algorithm to the much faster fast-gamma. It's supposed to be less precise, but usually isn't.
+            Performance gains and precision are explained in the Performance section of the documentation.
         """
         from .dissimilarity import CombinedCategoricalDissimilarity
         if dissimilarity is None:
