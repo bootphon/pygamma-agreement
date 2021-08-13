@@ -92,6 +92,7 @@ venv4/
 ENV/
 env.bak/
 venv.bak/
+benchmark/
 
 # Spyder project settings
 .spyderproject

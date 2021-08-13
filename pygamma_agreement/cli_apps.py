@@ -106,7 +106,7 @@ argparser.add_argument("-n", "--n-samples",
 argparser.add_argument("-d", "--cat-dissim", type=str, choices={"absolute", "numerical", "levenshtein"},
                        default="absolute",
                        help="Categorical dissimilarity to use for measuring \n"
-                            "inter-annotation disorder. The default one gives 1.0\n"
+                            "inter-annotation disorder. The default one gives 1.0 \n"
                             "if annotation have different categories, 0.0 otherwise")
 argparser.add_argument("-v", "--verbose",
                        action="store_true",
@@ -119,7 +119,7 @@ argparser.add_argument("-k", "--gamma-k",
                        help="Outputs the gamma-k's every inputs' categories")
 argparser.add_argument("-m", "--mathet-sampler",
                        action="store_true",
-                       help="Set the expected dissimilarity sampler to the one\n"
+                       help="Set the expected dissimilarity sampler to the one \n"
                             "chosen by Mathet et Al.")
 
 
@@ -177,6 +177,7 @@ def pygamma_cmd():
 
         gamma = continuum.compute_gamma(dissimilarity=dissim,
                                         precision_level=args.precision_level,
+                                        fast=True,
                                         sampler=sampler,
                                         n_samples=args.n_samples)
         logging.info(f"Finished computing best alignment & gamma in {(time.time() - start) * 1000} ms")

@@ -1,3 +1,5 @@
+import pytest
+
 import pygamma_agreement as pa
 from pyannote.core import Segment
 
@@ -5,28 +7,22 @@ from pyannote.core import Segment
 def test_errors_continuum():
     continuum = pa.Continuum()
 
-    try:
+    with pytest.raises(ValueError):
         cat_dissim = pa.LevenshteinCategoricalDissimilarity(continuum.categories)
-    except ValueError:
-        cat_dissim = None
-    assert cat_dissim is None
 
     cat_dissim = pa.AbsoluteCategoricalDissimilarity()
     dissim = pa.CombinedCategoricalDissimilarity(alpha=3, beta=2, delta_empty=1.0,
                                                  cat_dissim=cat_dissim)
     # 0 annotators
-    try:
+
+    with pytest.raises(AssertionError):
         best_alignment = continuum.get_best_alignment(dissim)
-    except AssertionError:
-        best_alignment = None
-    assert best_alignment is None
+
+
 
     # categorical with no categories
-    try:
+    with pytest.raises(ValueError):
         cat_dissim = pa.LevenshteinCategoricalDissimilarity(continuum.categories)
-    except ValueError:
-        cat_dissim = None
-    assert cat_dissim is None
 
 
     # 2 annotators, 1 annotation

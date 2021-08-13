@@ -182,10 +182,12 @@ class Alignment(AbstractAlignment):
     def __iter__(self) -> Iterator[UnitaryAlignment]:
         return iter(self.unitary_alignments)
 
-    @property
-    def leftmost(self):
-        """Return the (or one of the) leftmost unitary alignments."""
-        return min(self.unitary_alignments, key=(lambda unitary_alignment: unitary_alignment.bounds[0]))
+    def take_until_limit(self, x_limit):
+        for unitary_alignment in sorted(self.unitary_alignments, key=lambda unit_align: unit_align.bounds[1]):
+            if unitary_alignment.bounds[1] > x_limit:
+                break
+            yield unitary_alignment
+
 
     @property
     def annotators(self):
@@ -218,8 +220,14 @@ class Alignment(AbstractAlignment):
         return len(self.unitary_alignments[0].n_tuple)
 
     @property
-    def disorder(self):
-        # TODO : doc
+    def disorder(self) -> float:
+        """
+
+        Returns
+        -------
+        float:
+            The disorder of the alignment.
+        """
         if self._disorder is None:
             self._disorder = (sum(u_align.disorder for u_align
                                   in self.unitary_alignments)

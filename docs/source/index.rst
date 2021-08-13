@@ -51,4 +51,5 @@ then:
    api_reference
    how-to-s
    issues
+   performance
    changelog
