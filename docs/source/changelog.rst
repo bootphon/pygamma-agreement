@@ -2,6 +2,15 @@
 Changelog
 #########
 
+Version 0.4.0 (2021-08-13) (@lfavre)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Fast-gamma option
+    - New algorithm that gives a satisfying approximation of the gamma-agreement, with a colossal gain in computing time and memory usage.
+    - Detailed research, explanations and benchmarking about this algorithm are thoroughly detailed in the "Performances" section of the documentation
+* Minor bug fixes
+
+
 Version 0.3.0 (2021-08-06) (@lfavre)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
