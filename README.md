@@ -75,7 +75,7 @@ on your Python environment:
     $ sudo apt install coinor-libcbc-dev
     $ pip install "pygamma-agreement[testing]"
 
-After that, tests are ready to be launched (they take ~100s on a recent laptop) :
+After that, tests are ready to be launched (they take ~2m on a recent laptop) :
 
     $ pytest tests/
 
