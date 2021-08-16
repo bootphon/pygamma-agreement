@@ -92,38 +92,32 @@ def build_A(possible_unitary_alignments: List[np.ndarray],
     return A
 
 
-@nb.njit(nb.float32[:, ::1](nb.int16[:, :],
-                            nb.int32[:],
-                            nb.types.FunctionType(nb.float32(nb.float32[:], nb.float32[:])),
-                            nb.types.ListType(nb.float32[:, ::1])))
-def build_D(possible_unitary_alignments: List[np.ndarray],
-            sizes: np.ndarray,
-            d_mat: Callable[[np.ndarray, np.ndarray], float],
-            units_array: nb.typed.List):
-    D = np.zeros((len(possible_unitary_alignments), len(possible_unitary_alignments)), dtype=np.float32)
-    for i, tuple_i in enumerate(possible_unitary_alignments):
-        for j, tuple_j in enumerate(possible_unitary_alignments):
-            same_annotator_same_unit = tuple_i - tuple_j
-            for a, unit_a in enumerate(tuple_i):
-                for b, unit_b in enumerate(tuple_j[:a]):
-                    if (same_annotator_same_unit[a] == 0 and same_annotator_same_unit[b] == 0
-                            and unit_a != sizes[a] and unit_b != sizes[b]):
-                        D[i, j] += d_mat(units_array[a][unit_a], units_array[b][unit_b])
-    return D
+@nb.njit(nb.float32[:](nb.int32,
+                       nb.int32[:]))
+def is_unit_from_annotator_with_least_units(nb_units: int, sizes: np.ndarray):
+    annotator_with_least_units = np.argmin(sizes)
+    annotator_units = np.zeros(nb_units, dtype=np.float32)
+    index = 0
+    for i, size in enumerate(sizes):
+        if i == annotator_with_least_units:
+            for j in range(index, index + size):
+                annotator_units[j] = 1
+        index += size
+    return annotator_units
 
-@nb.njit()
-def build_C(possible_unitary_alignments: List[np.ndarray],
-            sizes: np.ndarray,
-            d_mat: Callable[[np.ndarray, np.ndarray], float],
-            units_array: nb.typed.List):
-    C = np.zeros((len(possible_unitary_alignments), len(possible_unitary_alignments)))
-    for i, tuple_i in enumerate(possible_unitary_alignments):
-        for j, tuple_j in enumerate(possible_unitary_alignments):
-            for a, unit_a in enumerate(tuple_i):
-                for b, unit_b in enumerate(tuple_j):
-                    C[i, j] += d_mat(units_array[a][unit_a], units_array[b][unit_b])
-    return C
 
+@nb.njit(nb.float32[:, ::1](nb.int32,
+                            nb.int32[:]))
+def match_unit_annotator(nb_units: int, sizes: np.ndarray):
+    nb_annotators = len(sizes)
+
+    annotator_units = np.zeros((nb_annotators, nb_units), dtype=np.float32)
+    index = 0
+    for i, size in enumerate(sizes):
+        for j in range(index, index + size):
+            annotator_units[i, j] = 1
+        index += size
+    return annotator_units
 
 
 

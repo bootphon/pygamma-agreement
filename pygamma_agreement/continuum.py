@@ -44,12 +44,12 @@ from pyannote.core import Annotation, Segment, Timeline
 from pyannote.database.util import load_rttm
 from sortedcontainers import SortedDict, SortedSet
 from typing_extensions import Literal
-from .numba_utils import build_D, build_A
+from .numba_utils import build_A, is_unit_from_annotator_with_least_units, match_unit_annotator
 
 from .dissimilarity import AbstractDissimilarity
 
 if TYPE_CHECKING:
-    from .alignment import UnitaryAlignment, Alignment, SoftAlignment
+    from .alignment import UnitaryAlignment, Alignment, SoftAlignment, WeightedAlignment
     from .sampler import AbstractContinuumSampler, StatisticalContinuumSampler
 
 CHUNK_SIZE = (10**6) // os.cpu_count()
@@ -537,6 +537,7 @@ class Continuum:
         n = len(disorders)
         # Constraints matrix ("every unit must appear once and only once")
         A = build_A(possible_unitary_alignments, sizes)
+
         x = cp.Variable(shape=(n,), boolean=True)
         try:
             import cylp
@@ -572,7 +573,7 @@ class Continuum:
                              check_validity=True,
                              disorder= np.sum(alignments_disorders) / self.avg_num_annotations_per_annotator)
 
-    def get_best_soft_alignment_quad(self,  dissimilarity: AbstractDissimilarity) -> 'SoftAlignment':
+    def get_best_weighted_alignment(self,  dissimilarity: AbstractDissimilarity) -> 'SoftAlignment':
         assert len(self.annotators) >= 2 and self, "Disorder cannot be computed with less than two annotators, or " \
                                                    "without annotations."
 
@@ -592,34 +593,29 @@ class Continuum:
         # Definition of the integer linear program
         n = len(disorders)
 
-        D = build_D(possible_unitary_alignments, sizes, dissimilarity.d_mat, units_array)
-        print(np.linalg.eigvals(D))
-        min_eigval = np.min(np.linalg.eigvals(D))
-        while min_eigval < 0:
-            D += np.eye(n) * 1e-4
-            min_eigval = np.min(np.linalg.eigvals(D))
-        Q = np.linalg.cholesky(D)
-
-        c = -np.linalg.inv(Q.T) @ disorders
-
         x = cp.Variable(shape=(n,), boolean=True)
-        problem = cp.Problem(cp.Minimize(cp.sum_squares(Q @ x - c)), [A @ x >= 1])
-        disorder = (problem.solve(solver=cp.ECOS_BB) - c.T @ c) / (self.num_annotators * (self.num_annotators - 1) / 2)
+        y = cp.Variable(shape=(n,), pos=True)
 
-        temp = Q @ x.value - c
-        print(temp.T @ temp - c.T @ c)
-        print(2 * disorders.T @ x.value - x.value.T @ Q.T @ Q @ x.value)
+        J = is_unit_from_annotator_with_least_units(A.shape[0], sizes)
+        K = match_unit_annotator(A.shape[0], sizes)
+        sum_disorders = np.sum(disorders)
 
-        assert x.value is not None, f"The linear solver couldn't find an alignment with minimal disorder " \
+        problem = cp.Problem(cp.Minimize(disorders.T / sum_disorders @ y + cp.sum(x)), [A @ x >= 1,
+                                                                                        y <= x,
+                                                                                        cp.sum(y) == 1])
+        disorder = (problem.solve(solver=cp.CBC))
+        assert y.value is not None, f"The linear solver couldn't find an alignment with minimal disorder " \
                                     f"(reason for unfound solution is '{problem.status}')"
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
         print(x.value)
+        print(y.value)
+        chosen_alignments_ids, = np.where(y.value > 1e-4)
 
-
-        chosen_alignments_ids, = np.where(x.value > 0.9)
 
         chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
         alignments_disorders: np.ndarray = disorders[chosen_alignments_ids]
+        weights = y.value[chosen_alignments_ids]
+        print(weights)
 
         from .alignment import UnitaryAlignment, SoftAlignment
 
@@ -636,10 +632,11 @@ class Continuum:
             unitary_alignment = UnitaryAlignment(list(u_align_tuple))
             unitary_alignment.disorder = alignments_disorders[alignment_id]
             set_unitary_alignements.append(unitary_alignment)
-        return SoftAlignment(set_unitary_alignements,
-                             continuum=self,
-                             check_validity=True,
-                             disorder = disorder / self.avg_num_annotations_per_annotator)
+        return WeightedAlignment(set_unitary_alignements,
+                                 weights=weights,
+                                 continuum=self,
+                                 check_validity=True,
+                                 disorder=disorder / self.avg_num_annotations_per_annotator)
 
     def get_best_alignment(self, dissimilarity: AbstractDissimilarity) -> 'Alignment':
         """
@@ -931,6 +928,11 @@ def _compute_best_alignment_job(dissimilarity: AbstractDissimilarity,
 def _compute_soft_alignment_job(dissimilarity: AbstractDissimilarity,
                                 continuum: Continuum):
     return continuum.get_best_soft_alignment(dissimilarity)
+
+
+def _compute_weighted_alignment_job(dissimilarity: AbstractDissimilarity,
+                                    continuum: Continuum):
+    return continuum.get_best_weighted_alignment(dissimilarity)
 
 
 def _compute_gamma_k_job(dissimilarity: AbstractDissimilarity,

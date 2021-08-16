@@ -251,7 +251,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
                     disorders = extend_right_disorders(disorders, add_size)
                     alignments = extend_right_alignments(alignments, add_size)
                     chunk_size += add_size
-        disorders, alignments = disorders[:i_chosen], alignments[:i_chosen]
+        disorders, alignments = disorders[:i_chosen - 1], alignments[:i_chosen - 1] # removing empty unitary alignment
         disorders /= c2n
         return disorders, alignments
 
