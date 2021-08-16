@@ -3,7 +3,7 @@ Pygamma-agreement
 
 [![Package Version](https://img.shields.io/pypi/v/pygamma-agreement)](https://pypi.org/project/pygamma-agreement/)
 [![Supported Python Version](https://img.shields.io/pypi/pyversions/pygamma-agreement)](https://pypi.org/project/pygamma-agreement/)
-[![Build Status](https://travis-ci.com/bootphon/pygamma-agreement.svg?branch=master?token=RBFAQCRfvbxdpaEByTFc&branch=master)](https://travis-ci.com/bootphon/pygamma-agreement/)
+[![Build Status](https://github.com/bootphon/pygamma-agreement/actions/workflows/test-pytest.yml/badge.svg)](https://github.com/bootphon/pygamma-agreement/actions/workflows/test-pytest.yml)
 [![Documentation Status](https://readthedocs.org/projects/pygamma-agreement/badge/?version=latest)](https://pygamma-agreement.readthedocs.io/en/latest/?badge=latest)
 [![status](https://joss.theoj.org/papers/d54271e471b25775e95ebcfc9bcf2493/status.svg)](https://joss.theoj.org/papers/d54271e471b25775e95ebcfc9bcf2493)
 
@@ -75,7 +75,7 @@ on your Python environment:
     $ sudo apt install coinor-libcbc-dev
     $ pip install "pygamma-agreement[testing]"
 
-After that, tests are ready to be launched (they take ~100s on a recent laptop) :
+After that, tests are ready to be launched (they take ~2m on a recent laptop) :
 
     $ pytest tests/
 

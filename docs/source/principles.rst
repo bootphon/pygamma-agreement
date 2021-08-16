@@ -96,7 +96,7 @@ show you a graphical representation of that `Continuum`:
 
 .. code-block:: ipython
 
- In  [mathet2015]: continuum = Continuum.from_csv("data/PaulAlexSuzan.csv")
+ In  [mathet2015]_: continuum = Continuum.from_csv("data/PaulAlexSuzan.csv")
                    continuum
 
 .. image:: images/continuum_APS.png

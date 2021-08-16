@@ -304,7 +304,7 @@ class Notebook:
         y_annotator_unit = {}
         for annot_id, annotator in enumerate(continuum.annotators):
             y_annotator_unit[annotator] = {}
-            units_tl = sorted(continuum[annotator], key=(lambda unit: unit.segment))
+            units_tl = continuum[annotator]
             for unit, y in zip(units_tl, self.get_y(unit.segment for unit in units_tl)):
                 y_annotator_unit[annotator][unit] = y + annot_id
                 if labelled:

@@ -20,7 +20,7 @@ def test_gamma_2by1000():
                                               alpha=3,
                                               beta=1)
 
-    gamma_results = continuum.compute_gamma(dissim, precision_level=0.5)
+    gamma_results = continuum.compute_gamma(dissim)
     assert len(gamma_results.best_alignment.unitary_alignments) == 1085
 
     # Gamma:
@@ -41,7 +41,7 @@ def test_gamma_3by100():
                                               alpha=3,
                                               beta=1)
 
-    gamma_results = continuum.compute_gamma(dissim, precision_level=0.5)
+    gamma_results = continuum.compute_gamma(dissim)
     assert len(gamma_results.best_alignment.unitary_alignments) == 127
     # Gamma
     assert 0.79 <= gamma_results.gamma <= 0.81
