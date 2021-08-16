@@ -833,7 +833,7 @@ class Continuum:
                          continuum=self,
                          # Validity of results from get_best_alignments have been thoroughly tested :
                          check_validity=False,
-                         disorder=np.sum(alignments_disorders)  / self.avg_num_annotations_per_annotator)
+                         disorder=np.sum(alignments_disorders) / self.avg_num_annotations_per_annotator)
 
     def compute_gamma(self,
                       dissimilarity: Optional['AbstractDissimilarity'] = None,
@@ -881,22 +881,18 @@ class Continuum:
         job = _compute_best_alignment_job
         if soft:
             job = _compute_soft_alignment_job
-
-
         # Multiprocessed computation of sample disorder
         if fast:
             job = _compute_fast_alignment_job
             self.measure_best_window_size(dissimilarity)
-        else:
-            job = _compute_best_alignment_job
+
 
         # Multithreaded computation of sample disorder
         with ThreadPoolExecutor(max_workers=os.cpu_count()) as p:
-            # computation of best alignment in advance
+            # Launching jobs
+            logging.info(f"Starting computation for the best alignment and a batch of {n_samples} random samples...")
             best_alignment_task = p.submit(job,
                                            *(dissimilarity, self))
-            best_alignment = best_alignment_task.result()
-            logging.info("Best alignment obtained...")
 
             result_pool = [
                 # Step one : computing the disorders of a batch of random samples from the continuum (done in parallel)
@@ -907,7 +903,9 @@ class Continuum:
             chance_best_alignments: List[Alignment] = []
             chance_disorders: List[float] = []
 
-            logging.info(f"Starting computation for a batch of {n_samples} random samples...")
+            # Obtaining results
+            best_alignment = best_alignment_task.result()
+            logging.info("Best alignment obtained")
             for i, result in enumerate(result_pool):
                 chance_best_alignments.append(result.result())
                 logging.info(f"finished computation of random sample dissimilarity {i + 1}/{n_samples}")
