@@ -609,31 +609,27 @@ class Continuum:
         # Definition of the integer linear program
         n = len(disorders)
 
-        x = cp.Variable(shape=(n,), boolean=True)
         y = cp.Variable(shape=(n,), pos=True)
 
         J = is_unit_from_annotator_with_least_units(A.shape[0], sizes)
         K = match_unit_annotator(A.shape[0], sizes)
         sum_disorders = np.sum(disorders)
 
-        problem = cp.Problem(cp.Minimize(disorders.T / sum_disorders @ y + cp.sum(x)), [A @ x >= 1,
-                                                                                        y <= x,
-                                                                                        cp.sum(y) == 1])
+        problem = cp.Problem(cp.Minimize(disorders.T @ y), [y <= 1,
+                                                            K @ A @ y == np.min(sizes),
+                                                            A @ y >= 1 / np.max(sizes)])
         disorder = (problem.solve(solver=cp.CBC))
         assert y.value is not None, f"The linear solver couldn't find an alignment with minimal disorder " \
                                     f"(reason for unfound solution is '{problem.status}')"
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
-        print(x.value)
-        print(y.value)
         chosen_alignments_ids, = np.where(y.value > 1e-4)
 
 
         chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
         alignments_disorders: np.ndarray = disorders[chosen_alignments_ids]
         weights = y.value[chosen_alignments_ids]
-        print(weights)
 
-        from .alignment import UnitaryAlignment, SoftAlignment
+        from .alignment import UnitaryAlignment, WeightedAlignment
 
         set_unitary_alignements = []
         for alignment_id, alignment in enumerate(chosen_alignments):
@@ -842,7 +838,7 @@ class Continuum:
                       ground_truth_annotators: Optional[SortedSet] = None,
                       sampler: 'AbstractContinuumSampler' = None,
                       fast: bool = False,
-                      soft: bool = False) -> 'GammaResults':
+                      variant: Optional[str] = None) -> 'GammaResults':
         """
 
         Parameters
@@ -879,8 +875,10 @@ class Continuum:
         sampler.init_sampling(self, ground_truth_annotators)
 
         job = _compute_best_alignment_job
-        if soft:
+        if variant == 'soft':
             job = _compute_soft_alignment_job
+        elif variant == 'weighted':
+            job = _compute_weighted_alignment_job
         # Multiprocessed computation of sample disorder
         if fast:
             job = _compute_fast_alignment_job

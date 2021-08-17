@@ -1,7 +1,6 @@
 import pygamma_agreement as pa
 from pyannote.core import Segment
 import numpy as np
-import time
 
 
 def test_soft_alignment_check():
@@ -47,7 +46,7 @@ def test_soft_gamma_comp():
     seed = np.random.randint(0, 10000)
 
     np.random.seed(seed)
-    soft_gamma = continuum.compute_gamma(dissim, soft=True)
+    soft_gamma = continuum.compute_gamma(dissim, variant='soft')
 
     np.random.seed(seed)
     gamma = continuum.compute_gamma(dissim)
