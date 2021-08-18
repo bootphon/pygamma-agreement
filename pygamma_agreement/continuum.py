@@ -44,7 +44,7 @@ from pyannote.core import Annotation, Segment, Timeline
 from pyannote.database.util import load_rttm
 from sortedcontainers import SortedDict, SortedSet
 from typing_extensions import Literal
-from .numba_utils import build_A, is_unit_from_annotator_with_least_units, match_unit_annotator
+from .numba_utils import build_A, build_K
 
 from .dissimilarity import AbstractDissimilarity
 
@@ -605,18 +605,18 @@ class Continuum:
         n = len(disorders)
         # Constraints matrix ("every unit must appear once and only once")
         A = build_A(possible_unitary_alignments, sizes)
-
-        # Definition of the integer linear program
-        n = len(disorders)
-
+        K = build_K(A.shape[0], sizes)
+        s = (1 / sizes * K.T) @ np.ones(3)
         y = cp.Variable(shape=(n,), pos=True)
-
-        K = match_unit_annotator(A.shape[0], sizes)
-
         problem = cp.Problem(cp.Minimize(disorders.T @ y), [y <= 1,
-                                                            K @ A @ y >= np.min(sizes),
-                                                            A @ y >= (1 /sizes * K.T) @ np.ones(3) ])
-        disorder = (problem.solve(solver=cp.CBC))
+                                                            K @ A @ y == np.min(sizes),
+                                                            A @ y >= s])
+        try:
+            import cylp
+            problem.solve(solver=cp.CBC)
+        except (ImportError, cp.SolverError):
+            logging.warning("CBC solver not installed. Using GLPK.")
+            problem.solve(solver=cp.GLPK_MI)
         assert y.value is not None, f"The linear solver couldn't find an alignment with minimal disorder " \
                                     f"(reason for unfound solution is '{problem.status}')"
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
@@ -645,7 +645,7 @@ class Continuum:
                                  weights=weights,
                                  continuum=self,
                                  check_validity=True,
-                                 disorder=disorder / self.avg_num_annotations_per_annotator)
+                                 disorder=alignments_disorders.T @ weights / self.avg_num_annotations_per_annotator)
 
     def get_first_window(self, dissimilarity: AbstractDissimilarity, w: int = 1) -> Tuple['Continuum', float]:
         """
