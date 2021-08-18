@@ -589,7 +589,7 @@ class Continuum:
                              check_validity=True,
                              disorder= np.sum(alignments_disorders) / self.avg_num_annotations_per_annotator)
 
-    def get_best_weighted_alignment(self,  dissimilarity: AbstractDissimilarity) -> 'SoftAlignment':
+    def get_best_weighted_alignment(self,  dissimilarity: AbstractDissimilarity) -> 'WeightedAlignment':
         assert len(self.annotators) >= 2 and self, "Disorder cannot be computed with less than two annotators, or " \
                                                    "without annotations."
 
@@ -610,20 +610,18 @@ class Continuum:
         n = len(disorders)
 
         y = cp.Variable(shape=(n,), pos=True)
+        x = cp.Variable(shape=(n,), boolean=True)
 
-        J = is_unit_from_annotator_with_least_units(A.shape[0], sizes)
         K = match_unit_annotator(A.shape[0], sizes)
-        sum_disorders = np.sum(disorders)
 
         problem = cp.Problem(cp.Minimize(disorders.T @ y), [y <= 1,
-                                                            K @ A @ y == np.min(sizes),
-                                                            A @ y >= 1 / np.max(sizes)])
+                                                            K @ A @ y >= np.min(sizes),
+                                                            A @ y >= (1 /sizes * K.T) @ np.ones(3) ])
         disorder = (problem.solve(solver=cp.CBC))
         assert y.value is not None, f"The linear solver couldn't find an alignment with minimal disorder " \
                                     f"(reason for unfound solution is '{problem.status}')"
         # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
         chosen_alignments_ids, = np.where(y.value > 1e-4)
-
 
         chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
         alignments_disorders: np.ndarray = disorders[chosen_alignments_ids]
