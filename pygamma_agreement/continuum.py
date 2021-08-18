@@ -610,7 +610,6 @@ class Continuum:
         n = len(disorders)
 
         y = cp.Variable(shape=(n,), pos=True)
-        x = cp.Variable(shape=(n,), boolean=True)
 
         K = match_unit_annotator(A.shape[0], sizes)
 

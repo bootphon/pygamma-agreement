@@ -91,24 +91,9 @@ def build_A(possible_unitary_alignments: List[np.ndarray],
             annotator_units_start += sizes[annotator_id]
     return A
 
-
-@nb.njit(nb.float32[:](nb.int32,
-                       nb.int32[:]))
-def is_unit_from_annotator_with_least_units(nb_units: int, sizes: np.ndarray):
-    annotator_with_least_units = np.argmin(sizes)
-    annotator_units = np.zeros(nb_units, dtype=np.float32)
-    index = 0
-    for i, size in enumerate(sizes):
-        if i == annotator_with_least_units:
-            for j in range(index, index + size):
-                annotator_units[j] = 1
-        index += size
-    return annotator_units
-
-
 @nb.njit(nb.float32[:, ::1](nb.int32,
                             nb.int32[:]))
-def match_unit_annotator(nb_units: int, sizes: np.ndarray):
+def build_K(nb_units: int, sizes: np.ndarray):
     nb_annotators = len(sizes)
 
     annotator_units = np.zeros((nb_annotators, nb_units), dtype=np.float32)
