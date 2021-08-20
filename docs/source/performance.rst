@@ -90,7 +90,7 @@ its computational complexity, with :math:`w` the number of annotation per annota
 
 .. math::
 
-    C(N, n, p) = N \times (\frac{n}{w} \times (\lambda \times (w + s)^p + D(n, p, w, s))
+    C(w, N, n, p) = N \times (\frac{n}{w} \times (\lambda \times (w + s)^p + D(n, p, w, s))
 
 With :
 
