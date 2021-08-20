@@ -85,10 +85,8 @@ of the gamma software. We chose to include the alpha factor, as setting it to `1
     gamma_results = continuum.compute_gamma(dissimilarity)
     dissimilarity.alpha = 1.0  # gamma_results stores the dissimilarity used for computing the
                                # best alignments, as it is needed for computing gamma-cat
-    dissimilarity.recompile()
     print(f"gamma-cat is {gamma_results.gamma_cat}")  # Gamma-k can also be influenced by alpha
     dissimilarity.alpha = 3.0  # Add this line if you want to reuse the dissimilarity with alpha = 3
-    dissimilarity.recompile()
 
 4. Best alignment
 ^^^^^^^^^^^^^^^^^
