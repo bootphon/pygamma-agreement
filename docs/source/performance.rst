@@ -72,6 +72,13 @@ Finally, we can define the "fast alignment of window :math:`w`" :math:`\breve{\a
     \breve{f}_w(\mathcal{U}) = \breve{a}_w(\mathcal{U}) \cup \breve{f}_w(\mathcal{U} \setminus \{u \in \mathcal{U} \mid
     \exists \bar{a} \in \breve{a}_w(\mathcal{U}), \bar{a} \in \mathcal{U}\mathcal{A}_u  \})
 
+To clarify, here is an animation of how the "fast-alignment" is found :
+
+.. figure:: images/fastgammaanimation.gif
+  :scale: 100%
+
+
+
 The fast-gamma is simply the gamma with the best alignment of a each continuum (input and samples) replaced by the fast
 alignment with a certain window size.
 
