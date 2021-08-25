@@ -153,14 +153,6 @@ This is confirmed in some extent by measures :
 .. figure:: images/precisionoverlapping.png
   :scale: 80%
   :alt: time to compute gamma (8 CPUs, 3 annotators)
-  :align: left
-
-Here's an explanation of what the overlapping value means on average :
-
-- **-1**: two consecutive annotations from the same annotator are completely overlapped.
-- **0**: there is no gap between two consecutive annotations from the same annotator.
-- **1**: the gap between two consecutive annotations from the same annotator is equal to their
-  length.
 
 The innacurate fast-gammas were measured on continua generated specifically to mess with the algorithm.
 However, for real (i.e. natural) input, it is established from experience that fast-gamma is more than reliable. Thus,
