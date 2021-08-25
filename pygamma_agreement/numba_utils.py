@@ -27,6 +27,7 @@ import numba as nb
 import numpy as np
 from typing import List, Callable
 
+
 @nb.njit(nb.float32(nb.types.string, nb.types.string))
 def levenshtein(str1: str, str2: str):
     n1, n2 = len(str1) + 1, len(str2) + 1
@@ -57,6 +58,7 @@ def extend_right_disorders(arr: np.ndarray, n: int):
     new_array = np.empty(len(arr) + n, dtype=np.float32)
     new_array[:len(arr)] = arr
     return new_array
+
 
 @nb.njit()
 def iter_tuples(sizes: np.ndarray):
@@ -90,6 +92,7 @@ def build_A(possible_unitary_alignments: List[np.ndarray],
                 A[annotator_units_start + unit_id, p_id] = 1
             annotator_units_start += sizes[annotator_id]
     return A
+
 
 @nb.njit(nb.float32[:, ::1](nb.int32,
                             nb.int32[:]))
