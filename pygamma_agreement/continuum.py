@@ -1009,12 +1009,6 @@ def _compute_soft_alignment_job(dissimilarity: AbstractDissimilarity,
                                 continuum: Continuum):
     return continuum.get_best_soft_alignment(dissimilarity)
 
-
-def _compute_weighted_alignment_job(dissimilarity: AbstractDissimilarity,
-                                    continuum: Continuum):
-    return continuum.get_best_weighted_alignment(dissimilarity)
-
-
 def _compute_gamma_k_job(dissimilarity: AbstractDissimilarity,
                          alignment: 'Alignment',
                          category: Optional[str]):

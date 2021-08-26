@@ -21,7 +21,8 @@ def test_soft_alignment_check():
                                            continuum,
                                            check_validity=True)
 
-def test_soft_and_weighted_gamma_comp():
+
+def test_soft_gamma_comp():
     n = 30
     p = 3
 
@@ -45,19 +46,13 @@ def test_soft_and_weighted_gamma_comp():
 
     seed = np.random.randint(0, 10000)
 
-
     np.random.seed(seed)
-    weighted_gamma = continuum.compute_gamma(dissim, variant='weighted')
-
-    np.random.seed(seed)
-    soft_gamma = continuum.compute_gamma(dissim, variant='soft')
+    soft_gamma = continuum.compute_gamma(dissim, soft=True)
 
     np.random.seed(seed)
     gamma = continuum.compute_gamma(dissim)
     print(gamma.gamma)
     print(soft_gamma.gamma)
-    print(weighted_gamma.gamma)
 
     assert soft_gamma.gamma >= 1.5 * gamma.gamma
-    assert weighted_gamma.gamma >= 2 * gamma.gamma
 
