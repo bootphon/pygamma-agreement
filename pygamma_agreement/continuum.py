@@ -545,10 +545,7 @@ class Continuum:
         for i, units in enumerate(self._annotations.values()):
             sizes[i] = len(units)
 
-        units_array = dissimilarity._build_arrays_continuum(self)
-        disorders, possible_unitary_alignments = dissimilarity._get_all_valid_alignments(units_array,
-                                                                                         dissimilarity.d_mat,
-                                                                                         dissimilarity.delta_empty)
+        disorders, possible_unitary_alignments = dissimilarity.valid_alignments(self)
         # Definition of the integer linear program
         n = len(disorders)
         # Constraints matrix ("every unit must appear once and only once")
@@ -588,64 +585,6 @@ class Continuum:
                              continuum=self,
                              check_validity=True,
                              disorder= np.sum(alignments_disorders) / self.avg_num_annotations_per_annotator)
-
-    def get_best_weighted_alignment(self,  dissimilarity: AbstractDissimilarity) -> 'WeightedAlignment':
-        assert len(self.annotators) >= 2 and self, "Disorder cannot be computed with less than two annotators, or " \
-                                                   "without annotations."
-
-        sizes = np.empty(self.num_annotators, dtype=np.int32)
-        for i, units in enumerate(self._annotations.values()):
-            sizes[i] = len(units)
-
-        units_array = dissimilarity._build_arrays_continuum(self)
-        disorders, possible_unitary_alignments = dissimilarity._get_all_valid_alignments(units_array,
-                                                                                         dissimilarity.d_mat,
-                                                                                         dissimilarity.delta_empty)
-        # Definition of the integer linear program
-        n = len(disorders)
-        # Constraints matrix ("every unit must appear once and only once")
-        A = build_A(possible_unitary_alignments, sizes)
-        K = build_K(A.shape[0], sizes)
-        s = (1 / sizes * K.T) @ np.ones(3)
-        y = cp.Variable(shape=(n,), pos=True)
-        problem = cp.Problem(cp.Minimize(disorders.T @ y), [y <= 1,
-                                                            K @ A @ y == np.min(sizes),
-                                                            A @ y >= s])
-        try:
-            import cylp
-            problem.solve(solver=cp.CBC)
-        except (ImportError, cp.SolverError):
-            logging.warning("CBC solver not installed. Using GLPK.")
-            problem.solve(solver=cp.GLPK_MI)
-        assert y.value is not None, f"The linear solver couldn't find an alignment with minimal disorder " \
-                                    f"(reason for unfound solution is '{problem.status}')"
-        # compare with 0.9 as cvxpy returns 1.000 or small values i.e. 10e-14
-        chosen_alignments_ids, = np.where(y.value > 1e-4)
-
-        chosen_alignments: np.ndarray = possible_unitary_alignments[chosen_alignments_ids]
-        alignments_disorders: np.ndarray = disorders[chosen_alignments_ids]
-        weights = y.value[chosen_alignments_ids]
-
-        from .alignment import UnitaryAlignment, WeightedAlignment
-
-        set_unitary_alignements = []
-        for alignment_id, alignment in enumerate(chosen_alignments):
-            u_align_tuple = []
-            for annotator_id, unit_id in enumerate(alignment):
-                annotator, units = self._annotations.peekitem(annotator_id)
-                try:
-                    unit = units[unit_id]
-                    u_align_tuple.append((annotator, unit))
-                except IndexError:  # it's a "null unit"
-                    u_align_tuple.append((annotator, None))
-            unitary_alignment = UnitaryAlignment(list(u_align_tuple))
-            unitary_alignment.disorder = alignments_disorders[alignment_id]
-            set_unitary_alignements.append(unitary_alignment)
-        return WeightedAlignment(set_unitary_alignements,
-                                 weights=weights,
-                                 continuum=self,
-                                 check_validity=True,
-                                 disorder=alignments_disorders.T @ weights / self.avg_num_annotations_per_annotator)
 
     def get_first_window(self, dissimilarity: AbstractDissimilarity, w: int = 1) -> Tuple['Continuum', float]:
         """
@@ -782,10 +721,7 @@ class Continuum:
         for i, units in enumerate(self._annotations.values()):
             sizes[i] = len(units)
 
-        units_array = dissimilarity._build_arrays_continuum(self)
-        disorders, possible_unitary_alignments = dissimilarity._get_all_valid_alignments(units_array,
-                                                                                         dissimilarity.d_mat,
-                                                                                         dissimilarity.delta_empty)
+        disorders, possible_unitary_alignments = dissimilarity.valid_alignments(self)
         # Definition of the integer linear program
         n = len(disorders)
         # Constraints matrix ("every unit must appear once and only once")
@@ -835,7 +771,7 @@ class Continuum:
                       ground_truth_annotators: Optional[SortedSet] = None,
                       sampler: 'AbstractContinuumSampler' = None,
                       fast: bool = False,
-                      variant: Optional[str] = None) -> 'GammaResults':
+                      soft: bool = False) -> 'GammaResults':
         """
 
         Parameters
@@ -872,10 +808,8 @@ class Continuum:
         sampler.init_sampling(self, ground_truth_annotators)
 
         job = _compute_best_alignment_job
-        if variant == 'soft':
+        if soft:
             job = _compute_soft_alignment_job
-        elif variant == 'weighted':
-            job = _compute_weighted_alignment_job
         # Multiprocessed computation of sample disorder
         if fast:
             job = _compute_fast_alignment_job

@@ -45,15 +45,15 @@ def levenshtein(str1: str, str2: str):
     return matrix_lev[-1, -1]
 
 
-@nb.njit(nb.int16[:, ::1](nb.int16[:, ::1], nb.int64), parallel=True)
+@nb.njit(nb.int16[:, ::1](nb.int16[:, ::1], nb.int64))
 def extend_right_alignments(arr: np.ndarray, n: int):
     i, j = arr.shape
-    new_array = np.empty((i, j + n), dtype=np.int16)
-    new_array[:, :j] = arr
+    new_array = np.empty((i + n, j), dtype=np.int16)
+    new_array[:i, :] = arr
     return new_array
 
 
-@nb.njit(nb.float32[:](nb.float32[:], nb.int64), parallel=True)
+@nb.njit(nb.float32[:](nb.float32[:], nb.int64))
 def extend_right_disorders(arr: np.ndarray, n: int):
     new_array = np.empty(len(arr) + n, dtype=np.float32)
     new_array[:len(arr)] = arr
@@ -80,7 +80,7 @@ def iter_tuples(sizes: np.ndarray):
 
 @nb.njit(nb.float32[:, ::1](nb.int16[:, :],
                             nb.int32[:]))
-def build_A(possible_unitary_alignments: List[np.ndarray],
+def build_A(possible_unitary_alignments: np.ndarray,
             sizes: np.ndarray):
     nb_units = np.sum(sizes)
     n = len(possible_unitary_alignments)
