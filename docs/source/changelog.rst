@@ -2,6 +2,13 @@
 Changelog
 #########
 
+
+Version 0.4.1 (2021-08-30) (@lfavre)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Important bug fix : Some slicing error when the number of possible unitary alignments was to high.
+
+
 Version 0.4.0 (2021-08-13) (@lfavre)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

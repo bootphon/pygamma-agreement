@@ -44,13 +44,12 @@ def levenshtein(str1: str, str2: str):
     return matrix_lev[-1, -1]
 
 
-@nb.njit(nb.int16[:, ::1](nb.int16[:, ::1], nb.int64), parallel=True)
+@nb.njit(nb.int16[:, ::1](nb.int16[:, ::1], nb.int64))
 def extend_right_alignments(arr: np.ndarray, n: int):
     i, j = arr.shape
-    new_array = np.empty((i, j + n), dtype=np.int16)
-    new_array[:, :j] = arr
+    new_array = np.empty((i + n, j), dtype=np.int16)
+    new_array[:i, :] = arr
     return new_array
-
 
 @nb.njit(nb.float32[:](nb.float32[:], nb.int64), parallel=True)
 def extend_right_disorders(arr: np.ndarray, n: int):
