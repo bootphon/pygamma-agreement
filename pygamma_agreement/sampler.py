@@ -325,12 +325,15 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
                 nb_units = max(1, nb_units)
             for _ in range(nb_units):
                 gap = np.random.normal(self._avg_gap, self._std_gap)
-                length = abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
-                while length == 0:
-                    length = abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
-                category = np.random.choice(self._categories, p=self._categories_weight)
                 start = last_point + gap
+
+                length = abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
+                while (start + length) - start <= 0:
+                    length = abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
                 end = start + length
+
+                category = np.random.choice(self._categories, p=self._categories_weight)
+
                 new_continnum.add(annotator, Segment(start, end), category)
                 last_point = end
         return new_continnum
