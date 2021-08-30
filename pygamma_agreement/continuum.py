@@ -554,7 +554,7 @@ class Continuum:
         x = cp.Variable(shape=(n,), boolean=True)
         try:
             import cylp
-            cp.Problem(cp.Minimize(disorders.T @ x), [A @ x >= 1]).solve(solver=cp.CBC)
+            cp.Problem(cp.Minimize(cp.multiply(disorders.T, disorders.T) @ x), [A @ x >= 1]).solve(solver=cp.CBC)
         except (ImportError, cp.SolverError):
             logging.warning("CBC solver not installed. Using GLPK.")
             cp.Problem(cp.Minimize(disorders.T @ x), [A @ x >= 1]).solve(solver=cp.GLPK_MI)
@@ -583,8 +583,8 @@ class Continuum:
             set_unitary_alignements.append(unitary_alignment)
         return SoftAlignment(set_unitary_alignements,
                              continuum=self,
-                             check_validity=True,
-                             disorder= np.sum(alignments_disorders) / self.avg_num_annotations_per_annotator)
+                             check_validity=False,
+                             disorder=np.sum(alignments_disorders) / self.avg_num_annotations_per_annotator)
 
     def get_first_window(self, dissimilarity: AbstractDissimilarity, w: int = 1) -> Tuple['Continuum', float]:
         """
