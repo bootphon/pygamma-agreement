@@ -327,10 +327,9 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
                 gap = np.random.normal(self._avg_gap, self._std_gap)
                 start = last_point + gap
 
-                length = abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
-                while (start + length) - start <= 0:
-                    length = abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
-                end = start + length
+                end = start + abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
+                while end - start <= 0:
+                    end = start + abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
 
                 category = np.random.choice(self._categories, p=self._categories_weight)
 

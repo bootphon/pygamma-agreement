@@ -375,6 +375,11 @@ class Continuum:
         paths: Iterable of paths.
             The textgrid files to be processed and individually added as an annotator (warning : the name
             of the annotator will be the name of the file without its extension, so they should each be unique)
+
+        Returns
+        -------
+        list of continuums
+            each continuum as the 'task' is represents as its URI.
         """
         from textgrid import TextGrid, IntervalTier, Interval
 
