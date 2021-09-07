@@ -2,6 +2,21 @@
 Changelog
 #########
 
+Version 0.5.0 (2021-09-??) (@lfavre)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Added soft-gamma, an alternate inter-annotator agreement measure designed based on the gamma-agreement
+
+
+
+
+
+Version 0.4.1 (2021-08-30) (@lfavre)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Important bug fix : Some slicing error when the number of possible unitary alignments was to high.
+
+
 Version 0.4.0 (2021-08-13) (@lfavre)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

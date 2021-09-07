@@ -18,12 +18,9 @@ def test_errors_continuum():
     with pytest.raises(AssertionError):
         best_alignment = continuum.get_best_alignment(dissim)
 
-
-
     # categorical with no categories
     with pytest.raises(ValueError):
         cat_dissim = pa.LevenshteinCategoricalDissimilarity(continuum.categories)
-
 
     # 2 annotators, 1 annotation
     continuum.add('Martin', Segment(0, 10), '15')
@@ -48,11 +45,9 @@ def test_errors_continuum():
 
     unit_martin = next(continuum.iter_annotator('Martin'))
     assert unit_martin is not None
-    try:
+
+    with pytest.raises(KeyError):
         continuum.remove('Martino', unit_martin)
-        assert False
-    except KeyError:
-        pass
 
     continuum.remove('Martin', unit_martin)
 
@@ -60,12 +55,10 @@ def test_errors_continuum():
     cat_dissim = pa.LevenshteinCategoricalDissimilarity(continuum.categories)
     dissim = pa.CombinedCategoricalDissimilarity(alpha=3, beta=2, delta_empty=1.0,
                                                  cat_dissim=cat_dissim)
-    try:
+
+    with pytest.raises(AssertionError):
         gamma_results = continuum.compute_gamma(dissim)
-        exit(1)
         gamma, gamma_cat = gamma_results.gamma, gamma_results.gamma_cat
-    except AssertionError:
-        pass
 
 
 

@@ -1,6 +1,7 @@
 import pygamma_agreement as pa
 from pyannote.core import Segment
 import numpy as np
+from pytest import raises
 
 
 def test_soft_alignment_check():
@@ -37,9 +38,6 @@ def test_soft_gamma_comp():
     cst = pa.CorpusShufflingTool(0.3, continuum)
     continuum = cst.corpus_shuffle([f"annotator_{i}" for i in range(p)], split=True)
 
-    # continuum = pa.Continuum.from_csv("tests/data/AlexPaulSuzan.csv")
-    # continuum._annotations.pop("Alex")
-
     dissim = pa.CombinedCategoricalDissimilarity(delta_empty=1,
                                                  alpha=1,
                                                  beta=1)
@@ -55,4 +53,15 @@ def test_soft_gamma_comp():
     print(soft_gamma.gamma)
 
     assert soft_gamma.gamma >= 1.5 * gamma.gamma
+
+def test_soft_and_fast():
+    with raises(NotImplementedError):
+        continuum = pa.Continuum.from_csv("tests/data/AlexPaulSuzan.csv")
+        dissim = pa.CombinedCategoricalDissimilarity(delta_empty=1,
+                                                     alpha=1,
+                                                     beta=1)
+        gamma_res = continuum.compute_gamma(dissim, fast=True, soft=True)
+
+
+
 

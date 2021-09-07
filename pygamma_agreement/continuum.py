@@ -183,7 +183,7 @@ class Continuum:
         Parameters
         ----------
         path: Path or str
-            Path to the CSV file storing annotations
+            Path to the RTTM file storing annotations
 
         Returns
         -------
@@ -413,7 +413,7 @@ class Continuum:
                                       'NP')
                     np_currents[annot_id] = next(np_iter, None)
             continuum.reset_bounds()
-        return continua[1:-1]
+        return continua[1:-1]  # This is to ignore the "BEGIN" and "END" tasks
 
     def add_textgrid(self,
                      annotator: Annotator,
@@ -871,13 +871,14 @@ class Continuum:
         sampler.init_sampling(self, ground_truth_annotators)
 
         job = _compute_best_alignment_job
+        if soft and fast:
+            raise NotImplementedError("Fast-gamma and Soft-gamma are not compatible with each other.")
         if soft:
             job = _compute_soft_alignment_job
         # Multiprocessed computation of sample disorder
         if fast:
             job = _compute_fast_alignment_job
             self.measure_best_window_size(dissimilarity)
-
 
         # Multithreaded computation of sample disorder
         with ThreadPoolExecutor(max_workers=os.cpu_count()) as p:
