@@ -11,6 +11,7 @@ from pygamma_agreement.dissimilarity import (CombinedCategoricalDissimilarity,
                                              LevenshteinCategoricalDissimilarity,
                                              OrdinalCategoricalDissimilarity)
 from pygamma_agreement.sampler import ShuffleContinuumSampler
+from pyannote.core import Segment
 
 
 def test_gamma_2by1000():
@@ -85,29 +86,104 @@ def test_gamma_alexpaulsuzan_otherdissims():
     dissimilarity = PositionalSporadicDissimilarity()
 
     gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.05)
-
-    # TODO use assertRaise
     gamma = gamma_results.gamma
-    try:
+    with pytest.raises(Exception):
         gamma_cat = gamma_results.gamma_cat
-        assert False
-    except:
-        pass
 
     dissimilarity = NumericalCategoricalDissimilarity(continuum.categories)
 
     gamma_results = continuum.compute_gamma(dissimilarity=dissimilarity, precision_level=0.05)
 
-    # TODO use assertRaise
     gamma = gamma_results.gamma
-    try:
+    with pytest.raises(Exception):
         gamma_cat = gamma_results.gamma_cat
-        assert False
-    except:
-        pass
 
     dissimilarity = LevenshteinCategoricalDissimilarity(continuum.categories)
     best_alignment = continuum.get_best_alignment(dissimilarity)
 
     dissimilarity = OrdinalCategoricalDissimilarity(continuum.categories)
     best_alignment = continuum.get_best_alignment(dissimilarity)
+
+def test_too_many_unitary_alignments():
+    a = [['annotator_1', 1240, 1269, 'label_1'],
+         ['annotator_1', 1270, 1273, 'label_2'],
+         ['annotator_1', 1274, 1275, 'label_1'],
+         ['annotator_1', 1280, 1294, 'label_1'],
+         ['annotator_1', 1295, 1308, 'label_1'],
+         ['annotator_1', 1309, 1322, 'label_2'],
+         ['annotator_1', 1350, 1362, 'label_2'],
+         ['annotator_1', 1363, 1376, 'label_1'],
+         ['annotator_1', 1377, 1380, 'label_2'],
+         ['annotator_1', 1381, 1385, 'label_1'],
+         ['annotator_1', 1414, 1423, 'label_3'],
+         ['annotator_1', 1424, 1454, 'label_1'],
+         ['annotator_1', 1428, 1437, 'label_3'],
+         ['annotator_1', 1442, 1454, 'label_3'],
+         ['annotator_2', 1240, 1269, 'label_1'],
+         ['annotator_2', 1270, 1273, 'label_2'],
+         ['annotator_2', 1274, 1275, 'label_1'],
+         ['annotator_2', 1280, 1294, 'label_1'],
+         ['annotator_2', 1295, 1308, 'label_1'],
+         ['annotator_2', 1309, 1322, 'label_2'],
+         ['annotator_2', 1350, 1362, 'label_2'],
+         ['annotator_2', 1363, 1366, 'label_2'],
+         ['annotator_2', 1363, 1376, 'label_1'],
+         ['annotator_2', 1377, 1380, 'label_2'],
+         ['annotator_2', 1381, 1385, 'label_1'],
+         ['annotator_2', 1414, 1423, 'label_3'],
+         ['annotator_2', 1424, 1454, 'label_1'],
+         ['annotator_2', 1428, 1437, 'label_3'],
+         ['annotator_2', 1442, 1454, 'label_3'],
+         ['annotator_3', 1240, 1269, 'label_1'],
+         ['annotator_3', 1270, 1273, 'label_2'],
+         ['annotator_3', 1274, 1275, 'label_1'],
+         ['annotator_3', 1280, 1294, 'label_1'],
+         ['annotator_3', 1295, 1308, 'label_1'],
+         ['annotator_3', 1309, 1322, 'label_2'],
+         ['annotator_3', 1323, 1343, 'label_1'],
+         ['annotator_3', 1350, 1362, 'label_2'],
+         ['annotator_3', 1363, 1376, 'label_1'],
+         ['annotator_3', 1377, 1380, 'label_2'],
+         ['annotator_3', 1381, 1385, 'label_1'],
+         ['annotator_3', 1414, 1423, 'label_3'],
+         ['annotator_3', 1424, 1437, 'label_1'],
+         ['annotator_3', 1428, 1437, 'label_3'],
+         ['annotator_3', 1442, 1454, 'label_2'],
+         ['annotator_3', 1442, 1454, 'label_1'],
+         ['annotator_4', 1240, 1269, 'label_1'],
+         ['annotator_4', 1270, 1273, 'label_2'],
+         ['annotator_4', 1274, 1275, 'label_1'],
+         ['annotator_4', 1280, 1294, 'label_1'],
+         ['annotator_4', 1295, 1308, 'label_1'],
+         ['annotator_4', 1309, 1322, 'label_2'],
+         ['annotator_4', 1350, 1362, 'label_2'],
+         ['annotator_4', 1363, 1376, 'label_1'],
+         ['annotator_4', 1377, 1380, 'label_2'],
+         ['annotator_4', 1381, 1385, 'label_1'],
+         ['annotator_4', 1414, 1423, 'label_3'],
+         ['annotator_4', 1428, 1437, 'label_3'],
+         ['annotator_4', 1442, 1454, 'label_3'],
+         ['annotator_5', 1240, 1269, 'label_1'],
+         ['annotator_5', 1270, 1273, 'label_2'],
+         ['annotator_5', 1274, 1275, 'label_1'],
+         ['annotator_5', 1280, 1294, 'label_1'],
+         ['annotator_5', 1295, 1308, 'label_1'],
+         ['annotator_5', 1309, 1322, 'label_2'],
+         ['annotator_5', 1350, 1362, 'label_2'],
+         ['annotator_5', 1363, 1376, 'label_1'],
+         ['annotator_5', 1377, 1380, 'label_2'],
+         ['annotator_5', 1381, 1385, 'label_1'],
+         ['annotator_5', 1414, 1423, 'label_3'],
+         ['annotator_5', 1424, 1437, 'label_1'],
+         ['annotator_5', 1428, 1437, 'label_3'],
+         ['annotator_5', 1442, 1454, 'label_3'],
+         ['annotator_5', 1442, 1454, 'label_1']]
+
+    continuum = Continuum()
+
+    for ann in a:
+        continuum.add(ann[0], Segment(ann[1], ann[2]), ann[3])
+
+    diss = CombinedCategoricalDissimilarity()
+
+    continuum.compute_gamma(diss)

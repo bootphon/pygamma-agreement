@@ -1,0 +1,13 @@
+.wy-menu-vertical header, .wy-menu-vertical p.caption {
+    color: #0cf864 !important;
+}
+
+.wy-side-nav-search {
+    background-color: #558d70  !important;
+}
+
+.logo {
+    -webkit-filter: drop-shadow(10px 6px 10px rgba(0,0,0,0.5));
+    filter: drop-shadow(10px 6px 10px rgba(0, 0, 0, 0.5));
+    width : 85%;
+}
