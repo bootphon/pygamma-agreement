@@ -51,5 +51,6 @@ then:
    how-to-s
    issues
    performance
+   soft-gamma
    api_reference
    changelog

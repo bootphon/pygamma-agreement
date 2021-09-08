@@ -43,7 +43,7 @@ Dissimilarities
     :special-members:
     :exclude-members: __weakref__
 
-.. autoclass:: pygamma_agreement.PositionalDissimilarity
+.. autoclass:: pygamma_agreement.PositionalSporadicDissimilarity
     :members:
     :special-members:
     :exclude-members: __weakref__

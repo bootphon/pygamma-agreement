@@ -284,9 +284,9 @@ class PositionalSporadicDissimilarity(AbstractDissimilarity):
     """
     Positional-sporadic dissimilarity. Takes only the position of annotations into account.
     This distance is :
-     - 0 when segments are equal
-     - < delta_empty when segments completely overlap :math:`A \cup B = A` or :math:`B`)
-     - > delta_empty when segments are separated (:math:`A \cap B = \emptyset`)
+    * 0 when segments are equal
+    * < delta_empty when segments completely overlap :math:`A \cup B = A` or :math:`B`)
+    * > delta_empty when segments are separated (:math:`A \cap B = \emptyset`)
     """
     def __init__(self, delta_empty: float = 1.0):
         super().__init__(delta_empty=delta_empty)
@@ -477,8 +477,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         coefficient weighting the positional dissimilarity value.
         Defaults to 1.
     beta: optional float
-        coefficient weighting the categorical dissimilarity value.
-        Defaults to 1.
+        coefficient weighting the categorical dissimilarity value. Defaults to 1.
     cat_dissim : optional, CategoricalDissimilarity
         Categorical-only dissimilarity to be used. If not set, defaults to the absolute categorical dissimilarity.
     """
