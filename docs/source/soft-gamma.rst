@@ -52,6 +52,9 @@ For **splits**, a magnitude of :math:`p` means that for an annotator who has ann
 :math:`p \times n \times 2` units are successively chosen at random to be split at a random time.
 A unit can be splitted more than once.
 
+As pointed before, the gamma-agreement is very sensitive to split annotations. Soft-gamma was created with the intent
+of reducing the penalty of splits while keeping a similar value if none are involved.
+
 What is soft-gamma ?
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -68,17 +71,44 @@ gamma-agreement. You can learn more about it in the "Principles" section :
 The main difference between soft-gamma and gamma is their definition of an **Alignment**, which the algorithms find the
 best possible based on the dissimilarity measure.
 
-    **- for** `gamma` **:**
+for Gamma :
+===========
 
-    "**An alignment** is a set of `unitary alignments` that constitute a *partition*
-    of a continuum. This means that each and every unit of each annotator from the partitioned continuum can be found
-    in the alignment **once, and only once**. "
+"**An alignment** is a set of `unitary alignments` that constitute a *partition*
+of a continuum. This means that each and every unit of each annotator from the partitioned continuum can be found
+in the alignment **once, and only once**. "
 
-    **- for** `soft-gamma` **:**
+To illustrate, let's visualize an alignment :
 
-    "**A soft-alignment** is a set of `unitary alignments` that constitute a *superset*
-    of a continuum. This means that each and every unit of each annotator from the partitioned continuum can be found
-    in the alignment **at least once**."
+.. figure:: images/not_soft_alignment.png
+  :scale: 64%
+  :align: center
+
+Every unit must be present **exactly** once, meaning splits create alignments with empty units,
+resulting in an additionnal disorder cost of more than :math:`\Delta_\emptyset \times n` per split.
+
+
+
+
+for Soft-Gamma :
+================
+
+"**A soft-alignment** is a set of `unitary alignments` that constitute a *superset*
+of a continuum. This means that each and every unit of each annotator from the partitioned continuum can be found
+in the alignment **at least once**."
+
+To illustrate, let's visualize an alignment :
+
+.. figure:: images/soft_alignment.png
+  :scale: 64%
+  :align: center
+
+Every unit must be present **at least** once, meaning splits create multi-aligned units,
+with significantly lower cost. Thus, this alignment will be preferred as the one before.
+
+This definition ensures empty units are added to mark up a false negative and not to complete the partition
+of the continuum with unitary alignments.
+
 
 
 

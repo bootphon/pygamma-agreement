@@ -305,6 +305,15 @@ with a given magnitude :math:`m`:
                                          cat_shuffle=True,  # annotation categories are changed, amount propotional to m
                                          include_ref=False) # If true, copies the reference's annotations.
 
+Now you have a beautiful continuum, ready to be worked on !
+
+.. figure:: images/cst_generated.png
+  :scale: 75%
+  :align: center
+
+
+.. code-block:: python
+
     dissim: AbstractDissimilarity
     gamma_results = generated_continuum.compute_gamma(dissim)
 
