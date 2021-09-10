@@ -321,15 +321,6 @@ Beware that a lot of randomness is involved in gamma computation and continuum g
 using ``np.seed`` if you're making graphs. Averaging several values computed from continua generated with the same
 parameters might be better too.
 
-
-
-
-
-
-
-
-
-
 ..  [mathet2015] Yann Mathet et Al.
     The Unified and Holistic Method Gamma (γ) for Inter-Annotator Agreement
     Measure and Alignment (Yann Mathet, Antoine Widlöcher, Jean-Philippe Métivier)

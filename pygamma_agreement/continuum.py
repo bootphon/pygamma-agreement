@@ -362,59 +362,6 @@ class Continuum:
         self.bound_sup = max((next(reversed(annotations)).segment.end for annotations in self._annotations.values()),
                              default=0.0)
 
-    @staticmethod
-    def process_textgrids(paths: Iterable[Union[str, Path]]) -> Iterable['Continuum']:
-        """
-        Processes textgrid files followind the BasalVoice annotation protocol.
-        This function removes 'noise' annotations in the non-patient tier, sets
-        the label for each annotation as 'patent' or 'non-patient', and separates
-        every task in a single continuum which is returned.
-
-        Parameters
-        ----------
-        paths: Iterable of paths.
-            The textgrid files to be processed and individually added as an annotator (warning : the name
-            of the annotator will be the name of the file without its extension, so they should each be unique)
-
-        Returns
-        -------
-        list of continuums
-            each continuum as the 'task' is represents as its URI.
-        """
-        from textgrid import TextGrid, IntervalTier, Interval
-
-        textgrids = [TextGrid.fromFile(str(path)) for path in paths]
-        annotators = [os.path.splitext(os.path.basename(path))[0] for path in paths]
-
-        p_intervals = [iter(tg.getFirst("Patient")) for tg in textgrids]
-        p_currents = [next(p_iter, None) for p_iter in p_intervals]
-
-        np_intervals = [iter(tg.getFirst("Non-patient")) for tg in textgrids]
-        np_currents = [next(np_iter, None) for np_iter in np_intervals]
-
-        assert len(textgrids) >= 2, "cannot process only one textgrid for a gamma-computable continuum"
-        tasks = textgrids[0].getFirst('Task')
-        continua = []
-
-        for task in tasks:
-            continuum = Continuum(uri=task.mark)
-            continua.append(continuum)
-            for annot_id, (p_iter, np_iter, annotator) in enumerate(zip(p_intervals, np_intervals, annotators)):
-                while p_currents[annot_id] is not None and p_currents[annot_id].maxTime <= task.maxTime:
-                    if p_currents[annot_id].mark:
-                        continuum.add(annotator,
-                                      Segment(p_currents[annot_id].minTime, p_currents[annot_id].maxTime),
-                                      'P')
-                    p_currents[annot_id] = next(p_iter, None)
-                while np_currents[annot_id] is not None and np_currents[annot_id].maxTime <= task.maxTime:
-                    if np_currents[annot_id].mark and np_currents[annot_id].mark != 'Noi':
-                        continuum.add(annotator,
-                                      Segment(np_currents[annot_id].minTime, np_currents[annot_id].maxTime),
-                                      'NP')
-                    np_currents[annot_id] = next(np_iter, None)
-            continuum.reset_bounds()
-        return continua[1:-1]  # This is to ignore the "BEGIN" and "END" tasks
-
     def add_textgrid(self,
                      annotator: Annotator,
                      tg_path: Union[str, Path],
