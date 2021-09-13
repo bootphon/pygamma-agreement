@@ -807,6 +807,10 @@ class Continuum:
             Sets the algorithm to the much faster fast-gamma. It's supposed to be less precise than the "canonical"
             algorithm from Mathet 2015, but usually isn't.
             Performance gains and precision are explained in the Performance section of the documentation.
+        soft:
+            Activate soft-gamma, an alternative measure that uses a slighlty different definition of an
+            alignment. For further information, please consult the 'Soft-Gamma' section of the documentation.
+            Incompatible with fast-gamma : raises an error if both 'fast' and 'soft' are set to True.
         """
         from .dissimilarity import CombinedCategoricalDissimilarity
         if dissimilarity is None:

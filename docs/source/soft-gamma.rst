@@ -110,6 +110,24 @@ This definition ensures empty units are added to mark up a false negative and no
 of the continuum with unitary alignments.
 
 
+How does soft-gamma reduce split cost ?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The important effect of a soft-alignment is that it limits the occurence of "empty units" in the best possible alignment.
+With the 'gamma' definition of an alignment, in most cases, splits cause empty units to appear in the best alignments.
+
+This is because with the constraint of having every unit (except empty ones) appear exactly once in the best alignment,
+the algorithm will naturally 'fill the gaps' with empty units when there's a split : if an annotator has written down two annotations
+where the other has annotated only once, an empty unit **will** make its way into the best alignment.
+
+.. figure:: images/compalignment.png
+  :scale: 64%
+  :align: center
+
+With the soft-gamma definition, the resulting cost of such a split will only be the sum of the two possible alignment, which
+is usally a lot lower than the cost of using the empty unit. Naturally, this depends on the nature of the dissimilarity used :
+one must ensure that it isn't more advantageous to use lots of empty units.
+
 
 
 
