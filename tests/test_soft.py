@@ -49,8 +49,6 @@ def test_soft_gamma_comp():
 
     np.random.seed(seed)
     gamma = continuum.compute_gamma(dissim)
-    print(gamma.gamma)
-    print(soft_gamma.gamma)
 
     assert soft_gamma.gamma >= 1.5 * gamma.gamma
 
@@ -61,6 +59,32 @@ def test_soft_and_fast():
                                                      alpha=1,
                                                      beta=1)
         gamma_res = continuum.compute_gamma(dissim, fast=True, soft=True)
+
+
+def test_soft_gamma_cat():
+    n = 30
+    p = 3
+
+    sampler = pa.StatisticalContinuumSampler()
+    sampler.init_sampling_custom(annotators=['Ref'],
+                                 avg_num_units_per_annotator=n, std_num_units_per_annotator=0,
+                                 avg_duration=5, std_duration=2,
+                                 avg_gap=3, std_gap=2,
+                                 categories=np.array([str(i) for i in range(4)]))
+    # Compilation
+    continuum = sampler.sample_from_continuum
+    cst = pa.CorpusShufflingTool(0.3, continuum)
+    continuum = cst.corpus_shuffle([f"annotator_{i}" for i in range(p)], split=True)
+
+    dissim = pa.CombinedCategoricalDissimilarity(delta_empty=1,
+                                                 alpha=1,
+                                                 beta=1)
+
+    seed = np.random.randint(0, 10000)
+
+    np.random.seed(seed)
+    soft_gamma = continuum.compute_gamma(dissim, soft=True)
+    assert soft_gamma.gamma_cat >= 0.99
 
 
 

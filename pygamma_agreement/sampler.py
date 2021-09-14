@@ -27,6 +27,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Optional, Iterable, List
 
 import numpy as np
+import pyannote.core.segment
 from pyannote.core import Segment
 from sortedcontainers import SortedSet
 from typing_extensions import Literal
@@ -328,11 +329,13 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
                 start = last_point + gap
 
                 end = start + abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
-                while end - start <= 0:
+                # Segments shorter than segment precision are illegal for pyannote
+                while end - start < pyannote.core.segment.SEGMENT_PRECISION:
                     end = start + abs(np.random.normal(self._avg_unit_duration, self._std_unit_duration))
 
                 category = np.random.choice(self._categories, p=self._categories_weight)
 
                 new_continnum.add(annotator, Segment(start, end), category)
+
                 last_point = end
         return new_continnum
