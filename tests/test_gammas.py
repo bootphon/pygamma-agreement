@@ -47,11 +47,11 @@ def test_gamma_3by100():
     # Gamma
     assert 0.79 <= gamma_results.gamma <= 0.81
     # Gamma-cat:
-    assert 0.96 <= gamma_results.gamma_cat
+    assert 0.89 <= gamma_results.gamma_cat <= 0.91
     # Gamma_k's
-    assert 0.96 <= gamma_results.gamma_k('Adj')
-    assert 0.94 <= gamma_results.gamma_k('Noun')
-    assert 0.86 <= gamma_results.gamma_k('Verb') <= 0.90
+    assert 0.81 <= gamma_results.gamma_k('Adj') <= 0.83
+    assert 0.88 <= gamma_results.gamma_k('Noun') <= 0.90
+    assert 0.69 <= gamma_results.gamma_k('Verb') <= 0.71
     assert 0.96 <= gamma_results.gamma_k('Prep')
 
 
@@ -69,11 +69,12 @@ def test_gamma_alexpaulsuzan():
     # Gamma:
     assert 0.44 <= gamma_results.gamma <= 0.47
     # Gamma-cat:
-    assert 0.67 <= gamma_results.gamma_cat <= 0.70
+    assert 0.38 <= gamma_results.gamma_cat <= 0.42
     # Gamma-k's
-    gamma_ks = {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1, '7': 1}
+    gamma_ks = {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 0.37, '7': 0}
     for category, gk in gamma_ks.items():
         if gk != 0:
+            print(category)
             assert gk - 0.01 <= gamma_results.gamma_k(category) <= gk + 0.01
         else:
             assert gamma_results.gamma_k(category) <= 0

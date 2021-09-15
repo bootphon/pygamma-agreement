@@ -25,8 +25,8 @@ def test_cli_print():
             assert 0.43 <= float(gamma[1]) <= 0.47
             gamma_cat = next(lines).split('=')
             assert gamma_cat[0] == 'gamma-cat'
-            assert 0.66 <= float(gamma_cat[1]) <= 0.70
-            for category, gk in {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1, '7': 0}.items():
+            assert 0.38 <= float(gamma_cat[1]) <= 0.42
+            for category, gk in {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 0.37, '7': 0}.items():
                 gamma_k = re.split("\\('|'\\)=", next(lines))
                 assert gamma_k[0] == 'gamma-k'
                 assert gamma_k[1] == category
@@ -51,8 +51,8 @@ def test_cli_csv():
             gamma_k = ast.literal_eval(gamma_k)
 
             assert 0.43 <= gamma <= 0.47
-            assert 0.66 <= gamma_cat <= 0.70
-            for category, gk in {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1, '7': 0}.items():
+            assert 0.38 <= gamma_cat <= 0.42
+            for category, gk in {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 0.37, '7': 0}.items():
                 if gk != 0:
                     assert gk - 0.2 <= gamma_k[category] <= gk + 0.2
                 else:
@@ -70,8 +70,8 @@ def test_cli_json():
         for file, data in json_data.items():
             assert file == input_file
             assert 0.43 <= data['gamma'] <= 0.47
-            assert 0.66 <= data['gamma-cat'] <= 0.70
-            for category, gk in {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1, '7': 0}.items():
+            assert 0.38 <= data['gamma-cat'] <= 0.42
+            for category, gk in {'1': 1, '2': 0, '3': 0, '4': 0, '5': 1, '6': 0.37, '7': 0}.items():
                 if gk != 0:
                     assert gk - 0.2 <= data['gamma-k'][category] <= gk + 0.2
                 else:

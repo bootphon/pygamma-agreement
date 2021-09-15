@@ -285,9 +285,9 @@ class Alignment(AbstractAlignment):
                     no_cat = False
                     if unit1 is None or unit2 is None:
                         # extra case for unaligned annotations, experimental
-                        # if unit1 is not None or unit2 is not None:
-                        #    total_disorder += dissimilarity.delta_empty * dissimilarity.delta_empty
-                        #    total_weight += dissimilarity.delta_empty
+                        if unit1 is not None or unit2 is not None:
+                           total_disorder += dissimilarity.delta_empty * dissimilarity.delta_empty
+                           total_weight += dissimilarity.delta_empty
                         continue
                     no_loop = False
                     pos_dissim = dissimilarity.alpha * dissimilarity.positional_dissim.d(unit1, unit2)

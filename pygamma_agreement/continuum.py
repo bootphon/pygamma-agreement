@@ -979,7 +979,8 @@ class GammaResults:
             if observed_disorder == 0:
                 return 1
             expected_disorder = float(np.mean(np.array([job_res.result() for job_res in chance_disorders_jobs])))
-
+        if expected_disorder == 0:
+            return 0
         return 1 - observed_disorder / expected_disorder
 
     def gamma_k(self, category: str) -> float:
