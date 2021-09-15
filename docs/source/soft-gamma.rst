@@ -128,6 +128,28 @@ With the soft-gamma definition, the resulting cost of such a split will only be 
 is usally a lot lower than the cost of using the empty unit. Naturally, this depends on the nature of the dissimilarity used :
 one must ensure that it isn't more advantageous to use lots of empty units.
 
+Combining soft-gamma with gamma-cat
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Combining a "soft"-alignment with the gamma-cat or gamma-k measure (which uses the best alignment determined by the algorithm) is
+very much possible. Simply do just as you would with the normal gamma :
+
+.. code-block:: python
+
+    continuum = pa.Continuum.from_csv("tests/data/AlexPaulSuzan.csv")
+    dissim = pa.CombinedCategoricalDissimilarity(delta_empty=1,
+                                                 alpha=0.75,
+                                                 beta=0.25)
+    gamma_results = continuum.compute_gamma(dissim, soft=True)
+
+    print(f"gamma-cat = {gamma_results.gamma_cat}")
+    print(f"gamma-k('7') = {gamma_results.gamma_k('7')}")
+
+We would recomment this version of gamma-cat instead of the classical one, since the less overwhelming amount of null units
+seems to suit more the objective of gamma-cat, which is only determining the exactitude of **categorization** of a continuum,
+and splitting causes the appearance of null units which is equivalent to not having an unexisting category and thus categorizing wrong
+even when two annotations with the same category are indeed overlapping.
+
 
 
 
