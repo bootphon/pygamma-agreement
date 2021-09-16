@@ -128,7 +128,7 @@ Now, the dissimilarity is ready to be used !
 Setting up your own categorical dissimilarity
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For many reasons,  string types are not easy to manipulate in ``numba`` ``njit`` ed code.
+For many reasons,  string types are not easy to manipulate in ``numba`` ``njit``'ed code.
 Instead, category-to-category dissimilarities are pre-computed at the python level. Thus, there is a very simple
 interface avaible : You just need to inherit the ``LambdaCategoricalDissimilarity``, and override the
 ``cat_dissim_func`` static method :
@@ -305,21 +305,21 @@ with a given magnitude :math:`m`:
                                          cat_shuffle=True,  # annotation categories are changed, amount propotional to m
                                          include_ref=False) # If true, copies the reference's annotations.
 
+Now you have a beautiful continuum, ready to be worked on !
+
+.. figure:: images/cst_generated.png
+  :scale: 75%
+  :align: center
+
+
+.. code-block:: python
+
     dissim: AbstractDissimilarity
     gamma_results = generated_continuum.compute_gamma(dissim)
 
 Beware that a lot of randomness is involved in gamma computation and continuum generation, so you might want to seed
 using ``np.seed`` if you're making graphs. Averaging several values computed from continua generated with the same
 parameters might be better too.
-
-
-
-
-
-
-
-
-
 
 ..  [mathet2015] Yann Mathet et Al.
     The Unified and Holistic Method Gamma (γ) for Inter-Annotator Agreement

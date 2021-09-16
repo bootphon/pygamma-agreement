@@ -52,7 +52,7 @@ def test_statistical_sampler():
     # Gamma:
     assert 0.41 <= gamma_results.gamma <= 0.42
     # Gamma-cat:
-    assert 0.61 <= gamma_results.gamma_cat <= 0.64
+    assert 0.35 <= gamma_results.gamma_cat <= 0.38
 
 
 def test_statistical_sampler_manual():

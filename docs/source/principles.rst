@@ -423,6 +423,10 @@ The :math:`γ_{k}` value for a category alse can be obtained from the :ref:`Gamm
 
 Further details about the measures and the algorithms used for computing them can be consulted in [mathet2015]_.
 
+As a side-note, we would recomment combining gamma-cat with the alternative inter-annotator user agreement measure
+**Soft-Gamma** (new measure that emerged during the developpement of ``pygamma-agreement``). More information about
+soft-gamma is available in the dedicated section of this documentation.
+
 
 
 

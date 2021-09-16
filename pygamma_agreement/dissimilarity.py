@@ -191,7 +191,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
                                                              nb.float32))
     def _get_all_valid_alignments(unit_arrays: nb.typed.List,
                                   d_mat: Callable[[np.ndarray, np.ndarray], float],
-                                  delta_empty: float):
+                                  delta_empty: float) -> Tuple[np.ndarray, np.ndarray]:
         chunk_size = 10000
         nb_annotators = len(unit_arrays)
         c2n = (nb_annotators * (nb_annotators - 1) // 2)
@@ -251,7 +251,7 @@ class AbstractDissimilarity(metaclass=ABCMeta):
                     disorders = extend_right_disorders(disorders, add_size)
                     alignments = extend_right_alignments(alignments, add_size)
                     chunk_size += add_size
-        disorders, alignments = disorders[:i_chosen], alignments[:i_chosen]
+        disorders, alignments = disorders[:i_chosen - 1], alignments[:i_chosen - 1]  # removing empty unitary alignment
         disorders /= c2n
         return disorders, alignments
 
@@ -269,9 +269,10 @@ class AbstractDissimilarity(metaclass=ABCMeta):
         in section 5.1.1 of the gamma paper (https://aclanthology.org/J15-3003.pdf).
         """
         units_array = self._build_arrays_continuum(continuum)
-        return self._get_all_valid_alignments(units_array, self.d_mat, self.delta_empty)
+        res = self._get_all_valid_alignments(units_array, self.d_mat, self.delta_empty)
+        return res
 
-    def compute_disorder(self, alignment: 'Alignment') -> np.array:
+    def compute_disorder(self, alignment: 'Alignment') -> np.ndarray:
         """
         Returns the disorder of the given alignment.
         """
@@ -283,9 +284,9 @@ class PositionalSporadicDissimilarity(AbstractDissimilarity):
     """
     Positional-sporadic dissimilarity. Takes only the position of annotations into account.
     This distance is :
-     - 0 when segments are equal
-     - < delta_empty when segments completely overlap :math:`A \cup B = A` or :math:`B`)
-     - > delta_empty when segments are separated (:math:`A \cap B = \emptyset`)
+    * 0 when segments are equal
+    * < delta_empty when segments completely overlap :math:`A \cup B = A` or :math:`B`)
+    * > delta_empty when segments are separated (:math:`A \cap B = \emptyset`)
     """
     def __init__(self, delta_empty: float = 1.0):
         super().__init__(delta_empty=delta_empty)
@@ -476,8 +477,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         coefficient weighting the positional dissimilarity value.
         Defaults to 1.
     beta: optional float
-        coefficient weighting the categorical dissimilarity value.
-        Defaults to 1.
+        coefficient weighting the categorical dissimilarity value. Defaults to 1.
     cat_dissim : optional, CategoricalDissimilarity
         Categorical-only dissimilarity to be used. If not set, defaults to the absolute categorical dissimilarity.
     """

@@ -48,8 +48,9 @@ then:
    quickstart
    principles
    cli
-   api_reference
    how-to-s
    issues
    performance
+   soft-gamma
+   api_reference
    changelog
