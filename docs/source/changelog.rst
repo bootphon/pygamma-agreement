@@ -2,7 +2,7 @@
 Changelog
 #########
 
-Version 0.5.0 (2021-09-??) (@lfavre)
+Version 0.5.0 (2021-09-17) (@lfavre)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * Added soft-gamma, an alternate inter-annotator agreement measure designed based on the gamma-agreement
