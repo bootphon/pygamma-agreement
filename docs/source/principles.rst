@@ -3,7 +3,7 @@ Principles
 ==========
 
 `pygamma-agreement` provides a set of classes that can be used to compute the γ-agreement measure on
-a different set of annotation data and in different ways. What follows is a detailed
+different sets of annotation data and in different ways. What follows is a detailed
 explanation of how these classes can be built and used together.
 
 .. warning::
@@ -423,13 +423,9 @@ The :math:`γ_{k}` value for a category alse can be obtained from the :ref:`Gamm
 
 Further details about the measures and the algorithms used for computing them can be consulted in [mathet2015]_.
 
-As a side-note, we would recomment combining gamma-cat with the alternative inter-annotator user agreement measure
-**Soft-Gamma** (new measure that emerged during the developpement of ``pygamma-agreement``). More information about
-soft-gamma is available in the dedicated section of this documentation.
-
-
-
-
+On a side-note, we would recomment combining gamma-cat with the alternate inter-annotator user agreement measure
+**Soft-Gamma** (new measure whose idea emerged during the developpement of ``pygamma-agreement``). More information
+about soft-gamma is available in the dedicated section of this documentation.
 
 ..  [mathet2015] Yann Mathet et Al.
     The Unified and Holistic Method Gamma (γ) for Inter-Annotator Agreement
