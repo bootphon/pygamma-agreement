@@ -25,7 +25,6 @@
 
 import numba as nb
 import numpy as np
-from typing import List, Callable
 
 
 @nb.njit(nb.float32(nb.types.string, nb.types.string))

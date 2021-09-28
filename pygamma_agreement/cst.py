@@ -25,6 +25,7 @@
 
 import logging
 from typing import Union, Iterable, Callable
+
 import numpy as np
 import numpy.random
 from pyannote.core import Segment

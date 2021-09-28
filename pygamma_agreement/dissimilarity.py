@@ -29,17 +29,16 @@ Dissimilarity
 
 """
 import abc
-from typing import TYPE_CHECKING, Tuple, Callable, Optional
+import random
 from abc import ABCMeta
-
+from typing import Iterable
+from typing import TYPE_CHECKING, Tuple, Callable, Optional
 
 import numba as nb
 import numpy as np
-import random
-
 from sortedcontainers import SortedSet
+
 from .numba_utils import iter_tuples, extend_right_alignments, extend_right_disorders
-from typing import Iterable
 
 if TYPE_CHECKING:
     from .continuum import Continuum

@@ -30,16 +30,13 @@ Alignement and disorder
 """
 from abc import ABCMeta, abstractmethod
 from collections import Counter
-from typing import Tuple, Optional, Iterable, Iterator, List, TYPE_CHECKING, Union
-from sortedcontainers import SortedSet, SortedDict
-from itertools import chain
+from typing import Tuple, Optional, Iterable, Iterator, List, Union
 
-import numba as nb
 import numpy as np
-
-from .dissimilarity import AbstractDissimilarity, CombinedCategoricalDissimilarity
+from sortedcontainers import SortedSet, SortedDict
 
 from .continuum import Continuum
+from .dissimilarity import AbstractDissimilarity, CombinedCategoricalDissimilarity
 
 UnitsTuple = List[Tuple[str, Optional['Unit']]]
 

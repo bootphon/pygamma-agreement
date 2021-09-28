@@ -39,7 +39,7 @@ setup(
     # package
     packages=find_packages(),
     install_requires=requirements,
-    version='0.5.0',
+    version='0.5.1',
 
     # PyPI
     name='pygamma-agreement',

@@ -31,7 +31,7 @@ Visualization
 """
 from typing import Iterable, Dict, Optional, Tuple, Hashable, Union, Iterator
 
-from pyannote.core import Timeline, Segment
+from pyannote.core import Segment
 
 try:
     from IPython.core.pylabtools import print_figure

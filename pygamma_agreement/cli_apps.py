@@ -26,20 +26,22 @@
 
 import argparse
 import csv
+import json
 import logging
 import os
 import time
-import json
-import numpy as np
 from argparse import RawTextHelpFormatter, ArgumentDefaultsHelpFormatter
 from pathlib import Path
-from typing import Dict, List
+from typing import List
+
+import numpy as np
 
 from pygamma_agreement import (Continuum,
                                LevenshteinCategoricalDissimilarity,
                                NumericalCategoricalDissimilarity,
                                ShuffleContinuumSampler,
                                CombinedCategoricalDissimilarity)
+
 
 class RawAndDefaultArgumentFormatter(RawTextHelpFormatter,
                                      ArgumentDefaultsHelpFormatter):

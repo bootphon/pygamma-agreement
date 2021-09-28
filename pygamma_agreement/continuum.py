@@ -30,26 +30,25 @@ Continuum and corpus
 import csv
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import total_ordering
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional, Tuple, List, Union, TYPE_CHECKING, Generator, Iterable
+from typing import Optional, Tuple, List, Union, TYPE_CHECKING, Generator
 
 import cvxpy as cp
-import matplotlib.pyplot as plt
 import numpy as np
 from pyannote.core import Annotation, Segment, Timeline
 from pyannote.database.util import load_rttm
 from sortedcontainers import SortedDict, SortedSet
 from typing_extensions import Literal
-from .numba_utils import build_A, build_K
 
 from .dissimilarity import AbstractDissimilarity
+from .numba_utils import build_A
 
 if TYPE_CHECKING:
-    from .alignment import UnitaryAlignment, Alignment, SoftAlignment, WeightedAlignment
+    from .alignment import UnitaryAlignment, Alignment, SoftAlignment
     from .sampler import AbstractContinuumSampler, StatisticalContinuumSampler
 
 CHUNK_SIZE = (10**6) // os.cpu_count()
