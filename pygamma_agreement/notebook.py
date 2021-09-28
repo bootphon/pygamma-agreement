@@ -317,8 +317,10 @@ class Notebook:
             self.draw_legend_from_labels(ax)
         return y_annotator_unit
 
-
-notebook = Notebook()
+try:
+    notebook = Notebook()
+except NameError:
+    raise ImportError()
 
 
 def repr_alignment(alignment: Alignment, labelled=True):
