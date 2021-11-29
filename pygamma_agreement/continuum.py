@@ -231,6 +231,20 @@ class Continuum:
     def __len__(self):
         return len(self._annotations)
 
+    def __eq__(self, other: 'Continuum'):
+        """Two continua are equal if and only if all their annotators and all
+        their units are strictly equal"""
+
+        if not isinstance(other, Continuum):
+            return False
+        for (my_annotator, my_unit), (other_annotator, other_unit) in zip(self, other):
+            if my_annotator != other_annotator:
+                return False
+            elif my_unit != other_unit:
+                return False
+
+        return True
+
     @property
     def num_units(self) -> int:
         """Total number of units in the continuum."""
@@ -450,6 +464,8 @@ class Continuum:
         Continuum, optional: Returns the merged copy if in_place is set to True.
         """
         current_cont = self if in_place else self.copy()
+        for annotator in continuum.annotators:
+            current_cont.add_annotator(annotator)
         for annotator, unit in continuum:
             current_cont.add(annotator, unit.segment, unit.annotation)
         if not in_place:
