@@ -231,6 +231,20 @@ class Continuum:
     def __len__(self):
         return len(self._annotations)
 
+    def __eq__(self, other: 'Continuum'):
+        """Two continua are equal if and only if all their annotators and all
+        their units are strictly equal"""
+
+        if not isinstance(other, Continuum):
+            return False
+        for (my_annotator, my_unit), (other_annotator, other_unit) in zip(self, other):
+            if my_annotator != other_annotator:
+                return False
+            elif my_unit != other_unit:
+                return False
+
+        return True
+
     @property
     def num_units(self) -> int:
         """Total number of units in the continuum."""

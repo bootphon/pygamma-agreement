@@ -43,6 +43,7 @@ def test_continuum_from_elan():
     assert continuum.num_units == 3
     assert set(continuum.categories) == {"Maureen", "Robin"}
 
+
 def test_continuum_from_textgrid():
     continuum = Continuum()
     continuum.add_textgrid("annotator1", "tests/data/MaureenMarvinRobin.TextGrid")
@@ -53,8 +54,27 @@ def test_continuum_from_textgrid():
 
     continuum = Continuum()
     continuum.add_textgrid("annotator1", "tests/data/MaureenMarvinRobin.TextGrid",
-                       selected_tiers=["Maureen", "Robin"],
-                       use_tier_as_annotation=True)
+                           selected_tiers=["Maureen", "Robin"],
+                           use_tier_as_annotation=True)
 
     assert continuum.num_units == 3
     assert set(continuum.categories) == {"Maureen", "Robin"}
+
+
+def test_continuum_merging():
+    continuum = Continuum()
+    continuum.add("marvin", Segment(0, 1), "A")
+    continuum.add("marvin", Segment(2, 3), "A")
+    continuum.add("robin", Segment(0, 2), "B")
+    continuum.add("robin", Segment(3, 4), "C")
+    other_cont = Continuum()
+    other_cont.add("maureen", Segment(5, 6), "D")
+    other_cont.add("maureen", Segment(9, 10), "D")
+    other_cont.add_annotator("nick")
+
+    merged_cont = continuum.merge(other_cont)
+    assert merged_cont.num_units == 6
+    assert merged_cont.num_annotators == 4
+
+    continuum.merge(other_cont, in_place=True)
+    assert continuum == merged_cont
