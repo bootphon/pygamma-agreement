@@ -78,3 +78,31 @@ def test_continuum_merging():
 
     continuum.merge(other_cont, in_place=True)
     assert continuum == merged_cont
+
+
+def test_continua_eq():
+    cont_a = Continuum()
+    cont_a.add("marvin", Segment(0, 1), "A")
+    cont_a.add("marvin", Segment(2, 3), "A")
+    cont_a.add("robin", Segment(0, 2), "B")
+    cont_a.add("robin", Segment(3, 4), "C")
+
+    cont_b = Continuum()
+    cont_b.add("marvin", Segment(0, 1), "A")
+    cont_b.add("marvin", Segment(2, 3), "A")
+    cont_b.add("robin", Segment(0, 2), "B")
+
+    assert cont_a != cont_b
+
+    cont_b.add("robin", Segment(3, 4), "C")
+    assert cont_a == cont_b
+
+    cont_b.add_annotator("maureen")
+    assert cont_a != cont_b
+
+    cont_a.add_annotator("maureen")
+    assert cont_a == cont_b
+
+    cont_a.add("maureen", Segment(0, 1))
+    cont_b.add("maureen", Segment(0, 1), "C")
+    assert cont_a != cont_b

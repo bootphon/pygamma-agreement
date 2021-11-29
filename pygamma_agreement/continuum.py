@@ -240,6 +240,9 @@ class Continuum:
         
         if self.annotators != other.annotators:
             return False
+
+        if self.num_units != other.num_units:
+            return False
         
         for (my_annotator, my_unit), (other_annotator, other_unit) in zip(self, other):
             if my_annotator != other_annotator:
@@ -248,6 +251,9 @@ class Continuum:
                 return False
 
         return True
+
+    def __ne__(self, other: 'Continuum'):
+        return not self == other
 
     @property
     def num_units(self) -> int:
@@ -334,7 +340,8 @@ class Continuum:
 
         if annotator not in self._annotations:
             self._annotations[annotator] = SortedSet()
-        self._categories.add(annotation)
+        if annotation is not None:
+            self._categories.add(annotation)
         self._annotations[annotator].add(Unit(segment, annotation))
         self.bound_inf = min(self.bound_inf, segment.start)
         self.bound_sup = max(self.bound_sup, segment.end)
