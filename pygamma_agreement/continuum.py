@@ -237,6 +237,10 @@ class Continuum:
 
         if not isinstance(other, Continuum):
             return False
+        
+        if self.annotators != other.annotators:
+            return False
+        
         for (my_annotator, my_unit), (other_annotator, other_unit) in zip(self, other):
             if my_annotator != other_annotator:
                 return False
