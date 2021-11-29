@@ -69,7 +69,7 @@ although significantly slower for larger input.
 
 ## Tests
 
-The package comes with a unit-tests suit. To run it, first install the CBC solver, then the testing dependencies 
+The package comes with a unit-tests suite. To run it, first install the CBC solver, then the testing dependencies 
 on your Python environment:
 
     $ sudo apt install coinor-libcbc-dev
