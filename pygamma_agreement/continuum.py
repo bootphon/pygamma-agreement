@@ -450,6 +450,10 @@ class Continuum:
         Continuum, optional: Returns the merged copy if in_place is set to True.
         """
         current_cont = self if in_place else self.copy()
+        for annotator in continuum.annotators:
+            # ensure all annotators are added to the continuum,
+            # even those who do not have any annotated Units
+            current_cont.add_annotator(annotator)
         for annotator, unit in continuum:
             current_cont.add(annotator, unit.segment, unit.annotation)
         if not in_place:
