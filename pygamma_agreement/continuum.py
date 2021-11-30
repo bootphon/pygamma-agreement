@@ -381,9 +381,9 @@ class Continuum:
         Resets the bounds of the continuum (used in displaying and/or sampling) to the start of leftmost annotation
         and the end of rightmost annotation.
         """
-        self.bound_inf = min((next(iter(annotations)).segment.start for annotations in self._annotations.values()),
+        self.bound_inf = min((next(iter(annotations)).segment.start for annotations in self._annotations.values() if annotations),
                              default=0.0)
-        self.bound_sup = max((next(reversed(annotations)).segment.end for annotations in self._annotations.values()),
+        self.bound_sup = max((next(reversed(annotations)).segment.end for annotations in self._annotations.values() if annotations),
                              default=0.0)
 
     def add_textgrid(self,
