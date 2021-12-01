@@ -2,10 +2,11 @@
 Changelog
 #########
 
-Version 0.5.3 (2021-11-29)
+Version 0.5.4 (2021-11-29)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * Fixed a bug in the `Continuum.merge` function when a continuun had annotators with no annotations (@valentinoli)
+* Fixed a bug in the `Continuum.reset_bounds()` function when a continuun had annotators with no annotations (@valentinoli)
 * Added `__eq__` and `__ne__` comparison magic methods to enable == and != operators on `Continuum` instances
 
 Version 0.5.0 (2021-09-17) (@lfavre)
