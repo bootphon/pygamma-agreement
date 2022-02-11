@@ -319,8 +319,9 @@ class Notebook:
 
 try:
     notebook = Notebook()
-except NameError:
-    raise ImportError()
+except NameError as error:
+    message = 'Did you install matplotlib?'
+    raise ImportError(message) from error
 
 
 def repr_alignment(alignment: Alignment, labelled=True):
