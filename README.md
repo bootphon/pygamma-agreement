@@ -9,7 +9,7 @@ Pygamma-agreement
 
 **pygamma-agreement** is an open-source package to measure Inter/Intra-annotator [1]
 agreement for sequences of annotations with the γ measure [2]. It is written in 
-Python 3 and based mostly on NumPy, Numba and pyannote.core. For a full list of
+Python3 and based mostly on NumPy, Numba and pyannote.core. For a full list of
  available functions, please refer to the [package documentation](https://pygamma-agreement.readthedocs.io/en/latest/).
 
 ![Alignment Example](docs/source/images/best_alignment.png)
@@ -17,22 +17,13 @@ Python 3 and based mostly on NumPy, Numba and pyannote.core. For a full list of
 
 ## Dependencies
 
-The main dependencies of pygamma-agreement are :
-
-* [NumPy](https://numpy.org/) (>= 1.10)
-* [sortedcontainers](http://www.grantjenks.com/docs/sortedcontainers/) (>= 2.0.4)
-* [pyannote.core](http://pyannote.github.io/pyannote-core/) (>= 4.1)
-* [CVXPY](https://www.cvxpy.org/) (>= 1.0.25)
-* [CVXOPT](http://cvxopt.org/) (>= 1.2.6)
-* [Numba](https://numba.pydata.org/) (>= 0.48.0)
-* [TextGrid](https://github.com/kylebgorman/textgrid) (>= 1.5)
-* [Pympi-ling](https://github.com/dopefishh/pympi) (>= 1.69)
+The main dependencies of pygamma-agreement are [NumPy](https://numpy.org/), [CVXPY](https://www.cvxpy.org/), [Numba](https://numba.pydata.org/) and [pyannote.core](http://pyannote.github.io/pyannote-core/).
 
 Optionally, to allow `pygamma-agreement` to display visual representations of
 our API's objects in Jupyter Notebooks, [Matplotlib](https://matplotlib.org/>) 
 is needed.
 
-pygamma-agreement is a Python 3 package and is currently tested for Python 3.7. 
+pygamma-agreement is a Python 3 package and is currently tested for Python 3.7, 3.8, 3.9 and 3.10. 
 pygamma-agreement does not work with Python 2.7.
 
 
