@@ -1,7 +1,7 @@
 # This workflow will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: Tests
+name: "Tests 3.10"
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: ["3.10"]
 
     steps:
     - uses: actions/checkout@v2
@@ -27,9 +27,8 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest
         sudo apt-get update
-        sudo apt-get -y install coinor-libcbc-dev
         pip install .
-        pip install .[testing]
+        pip install pytest
     - name: Test with pytest
       run: |
         pytest tests/
