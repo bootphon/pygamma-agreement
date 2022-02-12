@@ -2,7 +2,7 @@
 Changelog
 #########
 
-Version 0.5.5 (2022-02-12) (@hadware)
+Version 0.5.6 (2022-02-12) (@hadware)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * Added support for Python 3.10

@@ -39,7 +39,7 @@ setup(
     # package
     packages=find_packages(),
     install_requires=requirements,
-    version='0.5.5',
+    version='0.5.6',
 
     # PyPI
     name='pygamma-agreement',
@@ -59,6 +59,7 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Topic :: Scientific/Engineering",
         "Topic :: Text Processing :: Linguistic",
         "Topic :: Multimedia :: Sound/Audio :: Speech"
