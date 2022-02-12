@@ -2,6 +2,12 @@
 Changelog
 #########
 
+Version 0.5.5 (2022-02-12) (@hadware)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Added support for Python 3.10
+* Bumped cvxopt required version to 1.2.7
+
 Version 0.5.4 (2021-11-29)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

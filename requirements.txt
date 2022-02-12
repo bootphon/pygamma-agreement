@@ -2,7 +2,7 @@ sortedcontainers>= 2.0.4
 numpy>= 1.10.4
 pyannote.core>=4.1
 cvxpy>= 1.0.25
-cvxopt== 1.2.6
+cvxopt== 1.2.7
 tqdm>= 4.46.0
 numba>= 0.54.0
 typing_extensions>= 3.7.4.3
