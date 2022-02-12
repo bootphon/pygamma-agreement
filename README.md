@@ -54,9 +54,10 @@ then:
 If you have trouble during the two last steps, pygamma-agreement should work anyway,
 although significantly slower for larger input.
 
-
-| ⚠️   |  Warning : A bug in GLPK causes the standart ouput to be polluted by non-deactivable messages. It is strongly advised to use the CBC solver. |
-|-----|----------------------------------------------------------------------------------|
+**WARNINGS**: 
+ - Cylp (a dependency required to use the CBC solver) doesn't yet support Python 3.10.
+ - A bug in GLPK causes the standart ouput to be polluted by non-deactivable messages. 
+   It is strongly advised to use the CBC solver.
 
 ## Tests
 
