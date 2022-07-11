@@ -7,8 +7,8 @@ Pygamma-agreement
 [![Documentation Status](https://readthedocs.org/projects/pygamma-agreement/badge/?version=latest)](https://pygamma-agreement.readthedocs.io/en/latest/?badge=latest)
 [![status](https://joss.theoj.org/papers/d54271e471b25775e95ebcfc9bcf2493/status.svg)](https://joss.theoj.org/papers/d54271e471b25775e95ebcfc9bcf2493)
 
-**pygamma-agreement** is an open-source package to measure Inter/Intra-annotator [1]
-agreement for sequences of annotations with the γ measure [2]. It is written in 
+**pygamma-agreement** is an open-source package to measure Inter/Intra-annotator[^1]
+agreement for sequences of annotations with the γ measure[^2]. It is written in 
 Python3 and based mostly on NumPy, Numba and pyannote.core. For a full list of
  available functions, please refer to the [package documentation](https://pygamma-agreement.readthedocs.io/en/latest/).
 
@@ -54,10 +54,8 @@ then:
 If you have trouble during the two last steps, pygamma-agreement should work anyway,
 although significantly slower for larger input.
 
-**WARNINGS**: 
- - Cylp (a dependency required to use the CBC solver) doesn't yet support Python 3.10.
- - A bug in GLPK causes the standart ouput to be polluted by non-deactivable messages. 
-   It is strongly advised to use the CBC solver.
+**WARNING**: A bug in GLPK causes the standard output to be polluted by non-deactivable messages. 
+It is strongly advised to use the CBC solver.
 
 ## Tests
 
@@ -98,12 +96,11 @@ If you're using pygamma in your work, please cite our package using the followin
 
 ## References
 
-[1]: [Titeux H., Riad R.
+[^1]: [Titeux H., Riad R.
      pygamma-agreement: Gamma γ measure for 
      inter/intra-annotator agreement in Python.](https://doi.org/10.21105/joss.02989)
-           
 
-[2]: [Mathet Y., Widlöcher A., Métivier, J.P.
+[^2]: [Mathet Y., Widlöcher A., Métivier, J.P.
      The unified and holistic method gamma γ for
      inter-annotator agreement measure and alignment. 
      Computational Linguistics](https://www.aclweb.org/anthology/J15-3003.pdf)
