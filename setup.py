@@ -73,12 +73,17 @@ setup(
         "notebook": [
             "matplotlib",
         ],
-        "CBC": ["cylp"],
-        "testing": [
-            "pytest", "cylp"
+        "CBC": [
+            "cylp"
         ],
-        "docs": ["sphinx",
-                 "sphinx_rtd_theme"]
+        "testing": [
+            "pytest",
+            "cylp"
+        ],
+        "docs": [
+            "sphinx",
+            "sphinx_rtd_theme"
+        ]
     }
 
 )
