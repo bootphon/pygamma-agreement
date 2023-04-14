@@ -33,7 +33,7 @@ then:
 
 .. code-block:: bash
 
-    $ pip install pygamma-agreement[CBC]
+    $ pip install "pygamma-agreement[CBC]"
 
 .. warning::
 
