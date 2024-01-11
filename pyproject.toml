@@ -1,0 +1,63 @@
+[project]
+name = "pygamma-agreement"
+readme = "README.md"
+version = "0.5.7"
+description = 'Inter-annotator agreement measure and alignment written in python'
+
+authors = [
+    { name = "Hadrien Titeux", email = "hadrien.titeux@ens.psl.eu" },
+    { name = "Rachid Riad", email = "rachid.riad@ens.psl.eu" },
+    { name = "Léopold Favre", email = "favreleopold@gmail.com" },
+]
+maintainers = [
+    { name = "Hadrien Titeux", email = "hadrien.titeux@ens.psl.eu" },
+]
+
+
+license = { text = "MIT" }
+requires-python = ">=3.7"
+keywords = []
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Text Processing :: Linguistic",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dynamic = ["dependencies"]
+
+[project.urls]
+Documentation = "https://pygamma-agreement.readthedocs.io/en/latest/"
+Homepage = "https://github.com/bootphon/pygamma-agreement"
+Repository = "https://github.com/bootphon/pygamma-agreement"
+
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[project.optional-dependencies]
+notebook = ["matplotlib"]
+CBC = ["cylp"]
+testing = ["pytest", "cylp"]
+docs = ["sphinx", "sphinx_rtd_theme"]
+
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+pygamma-agreement = "pygamma_agreement.cli_apps:pygamma_cmd"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["adfluo*"]
+exclude = ["docs*", "tests*"]
+

@@ -144,6 +144,7 @@ class CorpusShufflingTool:
         """
         Shuffles the categories of the annotations in the given continuum using the process described in
         section 3.3.5 of https://hal.archives-ouvertes.fr/hal-00769639/.
+
         Parameters
         ----------
         overlapping_fun:
@@ -151,6 +152,7 @@ class CorpusShufflingTool:
             (the lower the distance between categories, the higher the chance one will be changed into the other).
         prevalence:
             specify whether or not to consider the proportion of presence of each category in the reference.
+
         """
         category_weights = self._reference_continuum.category_weights
         # matrix "A"

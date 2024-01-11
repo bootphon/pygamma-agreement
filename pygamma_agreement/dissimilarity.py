@@ -73,8 +73,8 @@ class AbstractDissimilarity(metaclass=ABCMeta):
     @abc.abstractmethod
     def compile_d_mat(self) -> Callable[[np.ndarray, np.ndarray], float]:
         """
-        Must set self.d_mat to the the cfunc (decorated with @dissimilarity_dec) function that corresponds to the
-        unit-to-unit, (in arrays form) disorder given by the dissimilarity.
+        Must set self.d_mat to the cfunc (decorated with @dissimilarity_dec) function that corresponds to the
+        unit-to-unit (in arrays form) disorder given by the dissimilarity.
         """
         raise NotImplemented()
 
@@ -283,9 +283,11 @@ class PositionalSporadicDissimilarity(AbstractDissimilarity):
     """
     Positional-sporadic dissimilarity. Takes only the position of annotations into account.
     This distance is :
+
     * 0 when segments are equal
-    * < delta_empty when segments completely overlap :math:`A \cup B = A` or :math:`B`)
+    * < delta_empty when segments completely overlap (:math:`A \cup B = A` or :math:`B`)
     * > delta_empty when segments are separated (:math:`A \cap B = \emptyset`)
+
     """
     def __init__(self, delta_empty: float = 1.0):
         super().__init__(delta_empty=delta_empty)
@@ -415,7 +417,7 @@ class LevenshteinCategoricalDissimilarity(LambdaCategoricalDissimilarity):
 class OrdinalCategoricalDissimilarity(PrecomputedCategoricalDissimilarity):
     """
     Categorical dissimilarity where each label is given a position on the real axis, and the disorder between
-    categories of positions 'a' and 'b' being |a - b|/m * delta_empty with m the maximum position. If not provided,
+    categories of positions 'a' and 'b' being \|a - b\|/m * delta_empty with m the maximum position. If not provided,
     positions are 0, 1, 2...
     """
     def __init__(self, labels: Iterable[str], p: Iterable[float] = None, delta_empty=1.0):
@@ -453,7 +455,7 @@ class OrdinalCategoricalDissimilarity(PrecomputedCategoricalDissimilarity):
 class NumericalCategoricalDissimilarity(OrdinalCategoricalDissimilarity):
     """
     Categorical dissimilarity made for numerical categories (i.e a category is a float or int literal).
-    The disorder between categories 'a' and 'b' being |a - b|/m * delta_empty with m the maximum category.
+    The disorder between categories 'a' and 'b' being \|a - b\|/m * delta_empty with m the maximum category.
     """
     def __init__(self, labels: Iterable[str], delta_empty: float = 1.0):
         try:
@@ -468,6 +470,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
     """
     This dissimilarity takes both positioning and categorizing of annotations into account.
     Combined categorical dissimilarity constructor.
+
     Parameters
     ----------
     delta_empty : optional, float
@@ -479,6 +482,7 @@ class CombinedCategoricalDissimilarity(AbstractDissimilarity):
         coefficient weighting the categorical dissimilarity value. Defaults to 1.
     cat_dissim : optional, CategoricalDissimilarity
         Categorical-only dissimilarity to be used. If not set, defaults to the absolute categorical dissimilarity.
+
     """
     def __init__(self,
                  alpha: float = 1.0,
