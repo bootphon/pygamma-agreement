@@ -23,8 +23,8 @@ Optionally, to allow `pygamma-agreement` to display visual representations of
 our API's objects in Jupyter Notebooks, [Matplotlib](https://matplotlib.org/>) 
 is needed.
 
-pygamma-agreement is a Python 3 package and is currently tested for Python 3.7, 3.8, 3.9 and 3.10. 
-pygamma-agreement does not work with Python 2.7.
+`pygamma-agreement` is a Python 3 package and is currently tested for Python 3.7 to 3.11. 
+`pygamma-agreement` does not work with Python 2.7.
 
 
 ## Installation
@@ -68,6 +68,18 @@ on your Python environment:
 After that, tests are ready to be launched (they take ~2m on a recent laptop) :
 
     $ pytest tests/
+
+## Documentation
+
+The documentation for this package has been written using Sphinx. To build the documentation locally, run:
+
+    $ pip install "pygamma-agreement[docs]"
+    $ cd docs/
+    $ make html
+
+After that, you can view the documentation by running
+    
+    $ firefox build/html/index.html
 
 ## Submitting and issue or contributing
 

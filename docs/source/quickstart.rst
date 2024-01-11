@@ -22,8 +22,8 @@ tuple of 3 information:
     * Segment end (at 7.2s)
 
 Obviously, our annotators sometimes disagree on who might be talking,
-or when exactly each person's speech turn is starting or ending. Luckily, the Gamma
-inter-annotator agreement enables us to measure that.
+or when exactly each person's speech turn is starting or ending. The Gamma
+inter-annotator agreement enables us to obtain a measure of that disagreement.
 
 We'll first load the annotation into ``pygamma-agreement``'s base data structure,
 the ``Continuum``, made to store this kind of annotated data.

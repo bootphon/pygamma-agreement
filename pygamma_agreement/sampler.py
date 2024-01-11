@@ -198,6 +198,7 @@ class StatisticalContinuumSampler(AbstractContinuumSampler):
     - The number of annotations per annotator
     - The gap between two of an annotator's annotations
     - The duration of the annotations' segments
+
     The sample is thus created by computing normal distributions using these parameters.
 
     It also requires the probability of occurence of each annotations category. You can either initalize sampling with
