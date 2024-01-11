@@ -23,7 +23,7 @@ Optionally, to allow `pygamma-agreement` to display visual representations of
 our API's objects in Jupyter Notebooks, [Matplotlib](https://matplotlib.org/>) 
 is needed.
 
-`pygamma-agreement` is a Python 3 package and is currently tested for Python 3.7 to  3.12. 
+`pygamma-agreement` is a Python 3 package and is currently tested for Python 3.7 to 3.11. 
 `pygamma-agreement` does not work with Python 2.7.
 
 
