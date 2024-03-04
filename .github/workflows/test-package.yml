@@ -1,6 +1,6 @@
 # This workflow will install the package, and try to run the package to check that the package install works fine
 
-name: Tests
+name: Package Test
 
 on:
   push:
