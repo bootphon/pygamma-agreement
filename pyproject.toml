@@ -1,7 +1,7 @@
 [project]
 name = "pygamma-agreement"
 readme = "README.md"
-version = "0.5.8"
+version = "0.5.9"
 description = 'Inter-annotator agreement measure and alignment written in python'
 
 authors = [
