@@ -57,6 +57,6 @@ pygamma-agreement = "pygamma_agreement.cli_apps:pygamma_cmd"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["pygamma-agreement*"]
+include = ["pygamma_agreement*"]
 exclude = ["docs*", "tests*"]
 
